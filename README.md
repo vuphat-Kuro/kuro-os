@@ -8,8 +8,15 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
 - Windows 10 hoặc 11.
 - [Git](https://git-scm.com/download/win).
 - [Python 3.13](https://www.python.org/downloads/): lúc cài nhớ tích "Add python.exe to PATH".
-- [Node.js](https://nodejs.org) và Claude Code: mở cửa sổ lệnh rồi gõ `npm install -g @anthropic-ai/claude-code`.
-- Tài khoản Claude (gói Pro/Max) hoặc API key của Anthropic.
+- [Node.js](https://nodejs.org) và Claude Code: mở cửa sổ lệnh rồi gõ `npm install -g @anthropic-ai/claude-code`. Claude Code là phần chạy nền **miễn phí**, không cần tài khoản Claude.
+- **Một AI để Kuro dùng**, chọn một trong các loại sau:
+  - Tài khoản Claude (gói Pro/Max)
+  - Anthropic API key
+  - [OpenRouter](https://openrouter.ai): một key dùng được GPT, Gemini, Claude...
+  - DeepSeek
+  - GLM (Z.ai)
+  - Kimi
+  - [Ollama](https://ollama.com): chạy trên máy, miễn phí, không cần mạng
 - Lời mời vào repo này: repo riêng tư, nhờ người quản lý thêm tài khoản GitHub của bạn.
 
 **Các bước:**
@@ -20,9 +27,13 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
    ```
    Lần đầu, cửa sổ đăng nhập GitHub sẽ hiện ra. Đăng nhập bằng tài khoản đã được mời.
 2. Vào thư mục `Kuro`, bấm đúp `setup.bat`.
-3. Nếu dùng tài khoản Claude: gõ `claude auth login` và đăng nhập. Nếu dùng API key thì bỏ qua bước này và nhập key ở bước 5.
+3. Nếu chọn tài khoản Claude: mở PowerShell, gõ `claude auth login` và đăng nhập. Dùng AI khác thì bỏ qua bước này.
 4. Bấm đúp `run.bat`. Trình duyệt tự mở http://127.0.0.1:7788.
-5. Bấm **⚙ Cài đặt** để nhập API key, chọn model và bật Telegram nếu cần.
+5. Lần đầu mở, Kuro hiện màn hình **Chọn AI cho Kuro**:
+   - Chọn AI, dán key, điền tên model nếu hãng yêu cầu.
+   - Bấm **Lưu và kiểm tra kết nối**.
+   - Thấy dòng chữ xanh "Kết nối được" là dùng được.
+   - Đổi AI lúc nào cũng được ở **⚙ Cài đặt**.
 
 ## Cập nhật
 
@@ -38,7 +49,8 @@ Skill và agent đi kèm cũng được cập nhật theo. Riêng skill bạn đ
 
 ## Lưu ý
 
-- Mỗi người dùng một máy, một tài khoản Claude hoặc API key riêng. Kuro chỉ mở ở `127.0.0.1`, máy khác trong mạng không vào được.
+- Mỗi người dùng một máy, một tài khoản AI hoặc key riêng.
+- Với AI khác Claude, chất lượng dùng công cụ (đọc file, tính toán, gọi skill) tuỳ model. Nên chọn model mạnh của hãng. Kuro chỉ mở ở `127.0.0.1`, máy khác trong mạng không vào được.
 - Câu trả lời của Kuro là bản nháp hỗ trợ. Hồ sơ chính thức phải được người có chứng chỉ hành nghề kiểm tra và ký.
 - Tài liệu kỹ thuật chi tiết: [KE-HOACH.md](KE-HOACH.md).
 

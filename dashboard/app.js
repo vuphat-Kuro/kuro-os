@@ -81,32 +81,63 @@ connect();
 loadSessions();
 
 // Cài đặt: khóa bí mật không bao giờ được trả về trình duyệt, ô trống nghĩa là giữ nguyên.
+let providers = {};
 async function openSettings() {
   const r = await (await fetch("/api/settings")).json();
-  $("s-status").innerHTML = `<span class="chip ${r.claude_cli ? "ok" : "no"}">Claude CLI ${r.claude_cli ? "có" : "chưa cài"}</span>` +
+  providers = r.providers;
+  const sel = $("s-KURO_PROVIDER");
+  if (sel.options.length === 1) for (const [id, p] of Object.entries(providers)) sel.add(new Option(p.ten, id));
+  $("s-status").innerHTML = `<span class="chip ${r.claude_cli ? "ok" : "no"}">Claude Code ${r.claude_cli ? "có" : "chưa cài"}</span>` +
     `<span class="chip ${r.telegram_on ? "ok" : "no"}">Telegram ${r.telegram_on ? "đang chạy" : "tắt"}</span>`;
   for (const [k, v] of Object.entries(r.settings)) {
     const el = $("sf").elements[k];
     if (el.dataset.secret) { el.value = ""; delete el.dataset.clear; el.placeholder = v.set ? `Đã lưu ${v.hint} - gõ để thay` : "Chưa có"; continue; }
-    if (el.tagName === "SELECT" && ![...el.options].some((o) => o.value === v.value)) el.add(new Option(v.value, v.value));
     el.value = el.dataset.orig = v.value;
   }
-  if (!$("settings").open) { $("s-msg").textContent = ""; $("settings").showModal(); }
+  // Lần đầu mở Kuro (chưa chọn AI): hộp này thành màn hình chào, chọn AI trước khi dùng.
+  const first = !r.settings.KURO_PROVIDER.value;
+  $("s-title").textContent = first ? "CHỌN AI CHO KURO" : "CÀI ĐẶT";
+  if (first) $("s-status").insertAdjacentHTML("afterbegin", "<p>Chọn AI bạn có tài khoản hoặc key, rồi bấm <b>Lưu và kiểm tra kết nối</b>. Đổi lại lúc nào cũng được ở ⚙ Cài đặt.</p>");
+  showProvider();
+  if (!$("settings").open) { $("s-msg").textContent = ""; $("s-test-msg").textContent = ""; $("settings").showModal(); }
 }
 
-$("sf").onsubmit = async (e) => {
-  e.preventDefault();
+function showProvider() {
+  const p = providers[$("s-KURO_PROVIDER").value] || {};
+  $("s-hint").textContent = p.goi_y || "";
+  $("s-keyrow").hidden = !p.key;
+  $("s-urlrow").hidden = !p.url && $("s-KURO_PROVIDER").value !== "custom";
+  $("s-KURO_BASE_URL").placeholder = p.url || "https://...";
+}
+$("s-KURO_PROVIDER").onchange = showProvider;
+
+async function saveSettings() {
   const body = {};
   for (const el of $("sf").querySelectorAll("[name]")) {
     if (el.dataset.secret ? el.value || el.dataset.clear : el.value !== el.dataset.orig) body[el.name] = el.value;
   }
   const msg = $("s-msg");
-  if (!Object.keys(body).length) { msg.className = ""; msg.textContent = "Chưa có gì thay đổi."; return; }
+  if (!Object.keys(body).length) { msg.className = ""; msg.textContent = "Chưa có gì thay đổi."; return true; }
   const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   msg.className = r.ok ? "" : "err";
   msg.textContent = !r.ok ? (j.detail || "Lưu thất bại") : j.restart ? "Đã lưu. Khởi động lại Kuro để áp dụng Telegram." : "Đã lưu. Có hiệu lực từ câu hỏi kế tiếp.";
-  if (r.ok) openSettings();
+  if (r.ok) await openSettings();
+  return r.ok;
+}
+$("sf").onsubmit = (e) => { e.preventDefault(); saveSettings(); };
+
+$("s-test").onclick = async () => {
+  const out = $("s-test-msg");
+  if (!$("s-KURO_PROVIDER").value) { out.className = "err"; out.textContent = "Chọn AI trước đã."; return; }
+  if (!(await saveSettings())) return;
+  out.className = ""; out.textContent = "Đang hỏi thử AI (tối đa 90 giây)...";
+  $("s-test").disabled = true;
+  try {
+    const j = await (await fetch("/api/test-ai", { method: "POST" })).json();
+    out.className = j.ok ? "ok" : "err";
+    out.textContent = j.ok ? `Kết nối được. AI trả lời: "${j.text}"` : `Chưa kết nối được: ${j.error || "không có trả lời"}`;
+  } finally { $("s-test").disabled = false; }
 };
 $("sf").addEventListener("click", (e) => {
   const k = e.target.dataset.clear;
@@ -116,6 +147,8 @@ $("sf").addEventListener("click", (e) => {
 });
 $("gear").onclick = $("gear2").onclick = openSettings;
 $("s-close").onclick = () => $("settings").close();
+// Chưa chọn AI thì mở màn hình chọn AI ngay khi vào trang.
+fetch("/api/settings").then((r) => r.json()).then((r) => { if (!r.settings.KURO_PROVIDER.value) openSettings(); }).catch(() => {});
 
 // Báo bản mới: server tự hỏi GitHub 6 giờ một lần, trang hỏi server mỗi giờ.
 async function checkUpdate() {

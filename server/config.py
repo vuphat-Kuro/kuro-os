@@ -24,11 +24,49 @@ MCP_FILE = STATE / "mcp.json"
 REMINDERS_FILE = STATE / "reminders.json"
 
 
+# AI chạy Kuro. Mọi hãng đều đi qua Claude Code (giữ nguyên skill, agent, tool): hãng khác Claude được trỏ tới
+# bằng ANTHROPIC_BASE_URL vì họ có cổng tương thích Anthropic. URL lấy từ tài liệu chính thức của từng hãng.
+PROVIDERS = {
+    "claude": {"ten": "Tài khoản Claude (gói Pro/Max)", "goi_y": "Không cần key. Mở PowerShell gõ: claude auth login"},
+    "anthropic": {"ten": "Anthropic API key", "key": True, "goi_y": "Lấy key ở console.anthropic.com. Tính tiền theo token."},
+    "openrouter": {"ten": "OpenRouter (GPT, Gemini, Claude... một key)", "url": "https://openrouter.ai/api", "key": True,
+                   "goi_y": "Lấy key ở openrouter.ai/keys. Model: chép tên ở openrouter.ai/models; để trống = Claude."},
+    "deepseek": {"ten": "DeepSeek", "url": "https://api.deepseek.com/anthropic", "key": True,
+                 "goi_y": "Lấy key ở platform.deepseek.com. Tên model xem ở api-docs.deepseek.com."},
+    "zai": {"ten": "GLM (Z.ai)", "url": "https://api.z.ai/api/anthropic", "key": True,
+            "goi_y": "Lấy key ở z.ai. Tên model GLM xem ở docs.z.ai."},
+    "kimi": {"ten": "Kimi (Moonshot)", "url": "https://api.moonshot.ai/anthropic", "key": True,
+             "goi_y": "Lấy key ở platform.kimi.ai. Tên model xem ở trang Kimi."},
+    "ollama": {"ten": "Ollama trên máy (miễn phí, chạy offline)", "url": "http://localhost:11434",
+               "goi_y": "Cài Ollama (ollama.com) bản 0.14 trở lên, tải model rồi điền tên, vd qwen3-coder."},
+    "custom": {"ten": "Máy chủ khác tương thích Anthropic", "key": True, "goi_y": "Điền địa chỉ, key và model."},
+}
+_MODEL_ENVS = ("ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
+               "ANTHROPIC_DEFAULT_HAIKU_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL")
+
+
+def provider_env() -> dict[str, str]:
+    """Biến môi trường cho tiến trình Claude Code theo AI đã chọn; đè lên biến sẵn có của máy."""
+    p = PROVIDERS.get(PROVIDER) or PROVIDERS["claude"]
+    if PROVIDER in ("", "claude"):
+        return {}
+    if PROVIDER == "anthropic":
+        return {"ANTHROPIC_API_KEY": AI_KEY}
+    # API_KEY rỗng để Claude Code không quay về đăng nhập Anthropic; model con và model nền cũng phải là model
+    # của hãng đó, nếu không Claude Code sẽ gọi tên claude-haiku mà hãng không có.
+    env = {"ANTHROPIC_BASE_URL": BASE_URL or p.get("url", ""), "ANTHROPIC_AUTH_TOKEN": AI_KEY or "ollama",
+           "ANTHROPIC_API_KEY": ""}
+    return env | ({k: MODEL for k in _MODEL_ENVS} if MODEL else {})
+
+
 def load_runtime() -> None:
     """Các giá trị sửa được lúc đang chạy (mục Cài đặt), đọc lại từ os.environ."""
-    global MODEL, ALLOWED_TOOLS, TG_TOKEN, TG_OWNERS
+    global MODEL, ALLOWED_TOOLS, TG_TOKEN, TG_OWNERS, PROVIDER, AI_KEY, BASE_URL
     if not os.getenv("ANTHROPIC_API_KEY"):
         os.environ.pop("ANTHROPIC_API_KEY", None)   # dòng trống trong .env không được che phiên đăng nhập Claude
+    PROVIDER = os.getenv("KURO_PROVIDER", "")       # trống = chưa chọn: giao diện mở màn hình chọn AI
+    AI_KEY = os.getenv("KURO_AI_KEY", "")
+    BASE_URL = os.getenv("KURO_BASE_URL", "")
     MODEL = os.getenv("KURO_MODEL", "")
     # Tool không có trong danh sách này bị CLI từ chối (permission_mode=dontAsk): quyền được chặn bằng code.
     ALLOWED_TOOLS = [t.strip() for t in os.getenv(
@@ -41,8 +79,10 @@ load_runtime()
 
 # Khóa sửa từ giao diện: tên -> (bí mật?, regex hợp lệ). Bí mật chỉ trả về dạng che, không bao giờ trả nguyên văn.
 SETTINGS = {
-    "ANTHROPIC_API_KEY": (True, r"(sk-ant-[\w-]+)?"),
-    "KURO_MODEL": (False, r"(sonnet|opus|haiku|claude-[\w.-]+)?"),
+    "KURO_PROVIDER": (False, "(" + "|".join(PROVIDERS) + ")?"),
+    "KURO_AI_KEY": (True, r"[\w.:-]*"),
+    "KURO_BASE_URL": (False, r"(https?://[\w.:/-]+)?"),
+    "KURO_MODEL": (False, r"[\w.:/\[\]-]*"),
     "KURO_ALLOWED_TOOLS": (False, r"[\w-]+(,[\w-]+)*"),
     "TELEGRAM_BOT_TOKEN": (True, r"(\d+:[\w-]+)?"),
     "TELEGRAM_OWNER_IDS": (False, r"(\d+(,\d+)*)?"),

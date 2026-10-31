@@ -160,6 +160,8 @@
   #sf .btn.main { color:#031018; background:var(--cyan); border-color:var(--cyan); }
   #sf .btn.main:hover { background:var(--cyan-soft); }
   #sf .foot { display:flex; align-items:center; gap:10px; margin-top:22px; }
+  #sf .test { margin-top:14px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  #s-test-msg { font-size:13px; } #s-test-msg.ok { color:#34d399; } #s-test-msg.err { color:var(--amber); }
   #s-msg { flex:1; font-size:13px; color:var(--cyan-soft); } #s-msg.err { color:var(--amber); }
   .chip { display:inline-block; margin-right:6px; padding:2px 8px; font:500 11px/1.6 var(--hud); letter-spacing:.08em; border:1px solid var(--line-hi); }
   .chip.ok { color:#34d399; border-color:rgba(52,211,153,.5); } .chip.no { color:var(--amber); border-color:rgba(245,158,11,.5); }
@@ -216,14 +218,24 @@
 
     <fieldset>
       <legend>Lõi AI</legend>
-      <label for="s-ANTHROPIC_API_KEY">Anthropic API key</label>
-      <div class="row"><input id="s-ANTHROPIC_API_KEY" name="ANTHROPIC_API_KEY" type="password" autocomplete="off" data-secret="1" spellcheck="false">
-        <button class="btn" type="button" data-clear="ANTHROPIC_API_KEY">Xóa</button></div>
-      <small>Để trống thì Kuro dùng tài khoản Claude đã đăng nhập (<code>claude auth login</code>). Có key thì tính tiền theo token ở console.anthropic.com.</small>
+      <label for="s-KURO_PROVIDER">Chọn AI</label>
+      <select id="s-KURO_PROVIDER" name="KURO_PROVIDER"><option value="">- Chưa chọn -</option></select>
+      <small id="s-hint"></small>
+      <div id="s-keyrow">
+        <label for="s-KURO_AI_KEY">API key</label>
+        <div class="row"><input id="s-KURO_AI_KEY" name="KURO_AI_KEY" type="password" autocomplete="off" data-secret="1" spellcheck="false">
+          <button class="btn" type="button" data-clear="KURO_AI_KEY">Xóa</button></div>
+        <small>Đổi sang AI khác thì nhập key của AI đó.</small>
+      </div>
+      <div id="s-urlrow">
+        <label for="s-KURO_BASE_URL">Địa chỉ máy chủ</label>
+        <input id="s-KURO_BASE_URL" name="KURO_BASE_URL" spellcheck="false">
+        <small>Để trống = địa chỉ mặc định của hãng.</small>
+      </div>
       <label for="s-KURO_MODEL">Model</label>
-      <select id="s-KURO_MODEL" name="KURO_MODEL">
-        <option value="">Mặc định của gói</option><option value="sonnet">Sonnet</option><option value="opus">Opus</option><option value="haiku">Haiku</option>
-      </select>
+      <input id="s-KURO_MODEL" name="KURO_MODEL" spellcheck="false">
+      <small>Để trống = model mặc định. Với Claude có thể ghi: sonnet, opus, haiku.</small>
+      <div class="test"><button class="btn" type="button" id="s-test">Lưu và kiểm tra kết nối</button> <span id="s-test-msg" role="status"></span></div>
     </fieldset>
 
     <fieldset>
@@ -251,6 +263,6 @@
     </div>
   </form>
 </dialog>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 """Chạy: .venv\\Scripts\\python -m unittest discover -s tests"""
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -134,6 +135,28 @@ class Settings(unittest.TestCase):
         self.assertTrue(main.is_local({"host": "127.0.0.1:7788", "origin": "http://127.0.0.1:7788"}))
         self.assertFalse(main.is_local({"host": "127.0.0.1:7788", "origin": "https://evil.example"}))
         self.assertFalse(main.is_local({"host": "evil.example:7788"}))                 # DNS rebinding
+
+
+class Providers(unittest.TestCase):
+    def setUp(self):
+        self.keep = (config.PROVIDER, config.AI_KEY, config.BASE_URL, config.MODEL)
+
+    def tearDown(self):
+        config.PROVIDER, config.AI_KEY, config.BASE_URL, config.MODEL = self.keep
+
+    def test_env_per_provider(self):
+        config.PROVIDER, config.AI_KEY, config.BASE_URL, config.MODEL = "claude", "", "", ""
+        self.assertEqual(config.provider_env(), {})                                     # dùng đăng nhập Claude
+        config.PROVIDER, config.AI_KEY = "anthropic", "sk-ant-x"
+        self.assertEqual(config.provider_env(), {"ANTHROPIC_API_KEY": "sk-ant-x"})
+        config.PROVIDER, config.AI_KEY, config.MODEL = "deepseek", "k1", "m1"
+        env = config.provider_env()
+        self.assertEqual((env["ANTHROPIC_BASE_URL"], env["ANTHROPIC_AUTH_TOKEN"], env["ANTHROPIC_API_KEY"]),
+                         ("https://api.deepseek.com/anthropic", "k1", ""))
+        self.assertEqual(env["CLAUDE_CODE_SUBAGENT_MODEL"], "m1")                      # agent con cũng dùng model hãng đó
+        config.PROVIDER, config.AI_KEY, config.BASE_URL = "ollama", "", "http://192.168.1.5:11434"
+        self.assertEqual(config.provider_env()["ANTHROPIC_BASE_URL"], "http://192.168.1.5:11434")
+        self.assertTrue(all(re.fullmatch(config.SETTINGS["KURO_PROVIDER"][1], p) for p in config.PROVIDERS))
 
 
 class Bundled(unittest.TestCase):

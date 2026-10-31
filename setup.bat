@@ -2,7 +2,8 @@
 REM Cai Kuro OS mot lan: venv Python 3.13, thu vien, file .env
 cd /d "%~dp0"
 echo [1/4] Kiem tra Claude Code va Python...
-where /q claude || (echo [LOI] Chua co Claude Code. Mo PowerShell, chay: npm install -g @anthropic-ai/claude-code & pause & exit /b 1)
+REM Claude Code la phan chay nen mien phi, dung duoc voi moi AI (Claude, OpenRouter, DeepSeek, GLM, Kimi, Ollama)
+where /q claude || (echo [LOI] Chua co Claude Code - phan chay nen MIEN PHI, khong can tai khoan Claude. Cai Node.js tu nodejs.org, roi mo PowerShell chay: npm install -g @anthropic-ai/claude-code & pause & exit /b 1)
 where /q py || (echo [LOI] Chua co Python. Cai Python 3.13 tu python.org, nho tich "Add python.exe to PATH". & pause & exit /b 1)
 REM Kiem tra python.exe chu khong chi thu muc: lan truoc tao do dang thi tao lai
 if not exist ".venv\Scripts\python.exe" (
@@ -15,6 +16,6 @@ echo [3/4] Cai thu vien (lan dau mat 5-15 phut tuy mang, dung tat cua so)...
 echo [4/4] Tao file cau hinh...
 if not exist ".env" copy env.example .env >nul
 echo.
-echo Xong. Neu chua dang nhap Claude thi mo PowerShell chay: claude auth login
-echo Chay Kuro: bam dup run.bat
+echo Xong. Bam dup run.bat - lan dau mo, Kuro hien man hinh CHON AI de ban chon va nhap key.
+echo Neu chon "Tai khoan Claude" thi mo PowerShell chay truoc: claude auth login
 pause

@@ -6,9 +6,11 @@ Luồng sự kiện gửi cho giao diện:
   {"type": "final", "text", "cost"}  hết lượt
   {"type": "error", "text"}
 """
+import asyncio
 import json
 from datetime import datetime
 
+import httpx
 import yaml
 from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOptions, ResultMessage,
                               StreamEvent, ToolUseBlock, query)
@@ -66,6 +68,7 @@ def options(claude_id: str | None) -> ClaudeAgentOptions:
         system_prompt={"type": "preset", "preset": "claude_code", "append": system_append()},
         cwd=str(config.BRAIN),
         model=config.MODEL or None,
+        env=config.provider_env(),
         resume=claude_id,
         skills="all",
         setting_sources=["project"],      # chỉ đọc cấu hình trong brain, KHÔNG nạp ~/.claude của máy
@@ -78,6 +81,41 @@ def options(claude_id: str | None) -> ClaudeAgentOptions:
         mcp_servers={**mcp_from_file(), "kuro": calc.SERVER},
         include_partial_messages=True,
     )
+
+
+async def ping() -> dict:
+    """Hỏi AI đã chọn một câu ngắn, không tool, để màn hình chọn AI báo kết nối được hay chưa."""
+    opts = ClaudeAgentOptions(model=config.MODEL or None, env=config.provider_env(), max_turns=1, tools=[],
+                              setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
+    text, err = "", ""
+    env = config.provider_env()
+    url = env.get("ANTHROPIC_BASE_URL")
+    if url:
+        # Claude Code tự thử lại rất lâu khi máy chủ im lặng hoặc báo sai key (đã thử: treo đủ 90 giây với lỗi 401),
+        # nên gõ cửa trước. Model giả "kuro-kiem-tra" để không tốn token: key đúng thì máy chủ chỉ chê model.
+        try:
+            async with httpx.AsyncClient(timeout=10) as c:
+                r = await c.post(url.rstrip("/") + "/v1/messages", json={
+                    "model": "kuro-kiem-tra", "max_tokens": 1, "messages": [{"role": "user", "content": "hi"}]},
+                    headers={"Authorization": f"Bearer {env['ANTHROPIC_AUTH_TOKEN']}",
+                             "x-api-key": env["ANTHROPIC_AUTH_TOKEN"], "anthropic-version": "2023-06-01"})
+        except httpx.HTTPError:
+            return {"ok": False, "text": "", "error": f"Không kết nối được tới {url}. Kiểm tra mạng, địa chỉ, "
+                                                      "hoặc Ollama đã mở chưa."}
+        if r.status_code in (401, 403):
+            return {"ok": False, "text": "", "error": f"Máy chủ từ chối key (lỗi {r.status_code}): {r.text[:200]}"}
+    try:
+        async with asyncio.timeout(90):
+            async for m in query(prompt="Trả lời đúng một từ: OK", options=opts):
+                if isinstance(m, ResultMessage):
+                    text = m.result or ""
+                    if m.is_error:
+                        err = text or "; ".join(map(str, m.errors or [])) or m.subtype
+    except TimeoutError:
+        err = "Quá 90 giây không thấy trả lời. Kiểm tra mạng, địa chỉ máy chủ, hoặc Ollama đã chạy chưa."
+    except Exception as e:  # chưa cài Claude Code, sai địa chỉ...
+        err = f"{type(e).__name__}: {e}"
+    return {"ok": bool(text) and not err, "text": text[:200], "error": err[:500]}
 
 
 async def run_turn(prompt: str, claude_id: str | None = None):

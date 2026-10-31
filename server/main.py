@@ -59,7 +59,8 @@ def get_settings():
     for k, (secret, _) in config.SETTINGS.items():
         v = os.getenv(k, "")
         out[k] = {"set": bool(v), "hint": "…" + v[-4:] if v else ""} if secret else {"value": v}
-    return {"settings": out, "claude_cli": bool(shutil.which("claude")), "telegram_on": bool(config.TG_TOKEN)}
+    return {"settings": out, "providers": config.PROVIDERS, "claude_cli": bool(shutil.which("claude")),
+            "telegram_on": bool(config.TG_TOKEN)}
 
 
 @app.post("/api/settings", dependencies=[Depends(local_only)])
@@ -76,6 +77,11 @@ def save_settings(body: dict[str, str]):
     config.save_env(updates)
     # Model, tool, API key có hiệu lực từ lượt chat kế tiếp; vòng Telegram chỉ khởi tạo lúc server lên.
     return {"ok": True, "restart": (config.TG_TOKEN, config.TG_OWNERS) != old_tg}
+
+
+@app.post("/api/test-ai", dependencies=[Depends(local_only)])
+async def test_ai():
+    return await engine.ping()
 
 
 @app.get("/api/update")
