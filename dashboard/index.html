@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuro</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2322d3ee' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2367e8f9'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Chakra+Petch:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  /* Giao diện HUD kiểu Jarvis: một tông tối, xanh lam năng lượng, cam cảnh báo */
+  :root {
+    --bg:#05090f; --panel:rgba(10,22,34,.72); --panel-solid:#0a1622; --text:#d7f3fb; --muted:#6f93a3;
+    --line:rgba(34,211,238,.18); --line-hi:rgba(34,211,238,.55); --cyan:#22d3ee; --cyan-soft:#67e8f9; --amber:#f59e0b;
+    --hud:"Chakra Petch", "Segoe UI", sans-serif; --body:"Be Vietnam Pro", system-ui, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; height:100vh; height:100dvh; display:flex; font:15px/1.6 var(--body); color:var(--text); background:var(--bg);
+    background-image:
+      radial-gradient(ellipse 80% 60% at 60% 0%, rgba(34,211,238,.10), transparent 70%),
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: auto, 48px 48px, 48px 48px;
+    background-position: 0 0, -1px -1px, -1px -1px;
+  }
+  body::after { /* vạch quét màn hình mờ */
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:10;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  }
+  ::selection { background:rgba(34,211,238,.35); }
+  ::-webkit-scrollbar { width:8px; } ::-webkit-scrollbar-thumb { background:var(--line-hi); border-radius:4px; }
+
+  /* Thanh bên */
+  aside { width:272px; display:flex; flex-direction:column; background:var(--panel); border-right:1px solid var(--line); backdrop-filter:blur(8px); }
+  .brand { display:flex; align-items:center; gap:12px; padding:20px 18px 14px; }
+  .brand b { font:600 20px/1 var(--hud); letter-spacing:.42em; color:var(--cyan-soft); text-shadow:0 0 12px rgba(34,211,238,.6); }
+  .brand small { display:block; margin-top:6px; font:500 10px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
+  .label { padding:14px 18px 6px; font:500 11px/1 var(--hud); letter-spacing:.24em; color:var(--muted); text-transform:uppercase; }
+  #new {
+    margin:6px 16px 4px; padding:10px 12px; font:600 13px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase;
+    color:var(--cyan-soft); background:rgba(34,211,238,.06); border:1px solid var(--line-hi); cursor:pointer;
+    clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+    transition:background .2s, box-shadow .2s;
+  }
+  #new:hover { background:rgba(34,211,238,.16); box-shadow:inset 0 0 18px rgba(34,211,238,.25); }
+  #new:active { transform:scale(.98); }
+  #sessions { overflow:auto; flex:1; padding:2px 8px 12px; }
+  #sessions div {
+    position:relative; padding:8px 12px 8px 20px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:var(--muted); font-size:14px; border-left:2px solid transparent; transition:color .15s, background .15s;
+  }
+  #sessions div::before { content:""; position:absolute; left:9px; top:50%; width:4px; height:4px; margin-top:-2px; background:currentColor; opacity:.5; }
+  #sessions div:hover { color:var(--text); background:rgba(34,211,238,.05); }
+  #sessions div.on { color:var(--cyan-soft); background:rgba(34,211,238,.08); border-left-color:var(--cyan); }
+  .sys { padding:12px 18px 16px; border-top:1px solid var(--line); font:500 11px/1.9 var(--hud); letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+  .sys span { float:right; color:var(--text); }
+  .dot { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber); vertical-align:1px; }
+  body.online .dot { background:#34d399; box-shadow:0 0 8px #34d399; }
+
+  /* Lõi phản ứng hồ quang */
+  .orb { --s:40px; position:relative; width:var(--s); height:var(--s); flex:none; border-radius:50%; }
+  .orb i { position:absolute; inset:0; border-radius:50%; }
+  .orb i:nth-child(1) { background:conic-gradient(from 0deg, var(--cyan) 0 12%, transparent 0 25%, var(--cyan) 0 37%, transparent 0 50%, var(--cyan) 0 62%, transparent 0 75%, var(--cyan) 0 87%, transparent 0);
+    -webkit-mask:radial-gradient(circle, transparent 62%, #000 63% 70%, transparent 71%); mask:radial-gradient(circle, transparent 62%, #000 63% 70%, transparent 71%); animation:spin 14s linear infinite; }
+  .orb i:nth-child(2) { inset:12%; border:1px solid var(--line-hi); border-top-color:var(--cyan-soft); border-bottom-color:var(--cyan-soft); animation:spin 6s linear infinite reverse; }
+  .orb i:nth-child(3) { inset:32%; background:radial-gradient(circle, #ecfeff 0 18%, var(--cyan-soft) 40%, rgba(34,211,238,.15) 72%, transparent 73%);
+    box-shadow:0 0 calc(var(--s) * .35) rgba(34,211,238,.7); animation:breathe 4s ease-in-out infinite; }
+  body.busy .orb i:nth-child(1) { animation-duration:2.4s; }
+  body.busy .orb i:nth-child(2) { animation-duration:1.2s; border-left-color:var(--amber); }
+  body.busy .orb i:nth-child(3) { animation-duration:1s; }
+  @keyframes spin { to { transform:rotate(1turn); } }
+  @keyframes breathe { 50% { transform:scale(.82); opacity:.75; } }
+
+  /* Vùng chính */
+  main { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; }
+  header { display:flex; align-items:center; gap:14px; padding:14px max(16px, calc(50% - 400px)); border-bottom:1px solid var(--line);
+    font:500 12px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
+  header .orb { --s:28px; display:none; }
+  #state { color:var(--cyan-soft); }
+  body.busy #state { color:var(--amber); }
+  #clock { margin-left:auto; color:var(--text); font-variant-numeric:tabular-nums; }
+
+  #hero { display:none; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px; position:absolute; inset:56px 0 110px; text-align:center; pointer-events:none; }
+  main:has(#log:empty) #hero { display:flex; }
+  #hero .orb { --s:min(210px, 46vw); }
+  #hero .orb::before { content:""; position:absolute; inset:-14%; border-radius:50%; border:1px dashed var(--line-hi); animation:spin 40s linear infinite; }
+  #hero h1 { margin:0; font:600 clamp(22px, 3vw, 30px)/1.2 var(--hud); letter-spacing:.32em; color:var(--cyan-soft); text-shadow:0 0 18px rgba(34,211,238,.5); }
+  #hero p { margin:0; max-width:46ch; color:var(--muted); }
+
+  #log { flex:1; overflow:auto; padding:28px max(16px, calc(50% - 400px)); scroll-behavior:smooth; }
+  .msg { margin:0 0 22px; animation:rise .35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes rise { from { opacity:0; transform:translateY(6px); } }
+  .msg::before { display:block; margin-bottom:6px; font:600 11px/1 var(--hud); letter-spacing:.24em; }
+  .user { margin-left:auto; max-width:85%; width:fit-content; padding:10px 16px; white-space:pre-wrap;
+    background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.28); border-right:2px solid var(--amber); }
+  .user::before { content:"BẠN"; color:var(--amber); text-align:right; }
+  .bot { position:relative; padding:14px 18px; background:var(--panel); border:1px solid var(--line); backdrop-filter:blur(6px); }
+  .bot::before { content:"KURO //"; color:var(--cyan); }
+  .bot::after { /* góc khung HUD */
+    content:""; position:absolute; inset:-1px; pointer-events:none;
+    background:
+      linear-gradient(var(--cyan),var(--cyan)) top left/14px 2px, linear-gradient(var(--cyan),var(--cyan)) top left/2px 14px,
+      linear-gradient(var(--cyan),var(--cyan)) bottom right/14px 2px, linear-gradient(var(--cyan),var(--cyan)) bottom right/2px 14px;
+    background-repeat:no-repeat;
+  }
+  .bot > :first-child { margin-top:0; } .bot > :last-child { margin-bottom:0; }
+  .bot strong { color:var(--cyan-soft); font-weight:600; }
+  .bot a { color:var(--cyan-soft); }
+  .bot h1, .bot h2, .bot h3 { font-family:var(--hud); letter-spacing:.06em; color:var(--cyan-soft); }
+  .bot table { border-collapse:collapse; display:block; overflow-x:auto; }
+  .bot td, .bot th { border:1px solid var(--line); padding:5px 10px; } .bot th { background:rgba(34,211,238,.08); font-family:var(--hud); }
+  .bot code { font:13px/1.5 Consolas, "Cascadia Mono", monospace; color:var(--cyan-soft); }
+  .bot pre { background:rgba(0,0,0,.35); border:1px solid var(--line); padding:12px; overflow:auto; }
+  .tool { display:inline-block; margin:6px 6px 0 0; padding:2px 10px; font:500 11px/1.6 var(--hud); letter-spacing:.08em; color:var(--cyan-soft);
+    border:1px solid var(--line-hi); background:rgba(34,211,238,.06); }
+  .tool::before { content:"▸ "; color:var(--amber); }
+  body.busy .bot:last-child::before { content:"KURO // ĐANG XỬ LÝ"; animation:blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:.4; } }
+
+  form { padding:12px max(16px, calc(50% - 400px)) 22px; }
+  .input { position:relative; }
+  .input::before { content:"›"; position:absolute; left:14px; top:11px; font:600 20px/1 var(--hud); color:var(--cyan); }
+  textarea {
+    display:block; width:100%; min-height:58px; max-height:40vh; resize:vertical; padding:13px 16px 13px 34px; font:inherit; color:var(--text);
+    background:var(--panel-solid); border:1px solid var(--line-hi); border-radius:0; transition:box-shadow .2s, border-color .2s;
+  }
+  textarea::placeholder { color:var(--muted); }
+  textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 24px rgba(34,211,238,.25); }
+  .hint { margin-top:8px; font:500 11px/1 var(--hud); letter-spacing:.14em; color:var(--muted); text-transform:uppercase; }
+
+
+  /* Hộp thoại cài đặt */
+  #gear { display:block; width:100%; margin-top:10px; padding:8px; font:600 12px/1 var(--hud); letter-spacing:.16em; text-transform:uppercase;
+    color:var(--cyan-soft); background:transparent; border:1px solid var(--line); cursor:pointer; }
+  #gear:hover { border-color:var(--line-hi); background:rgba(34,211,238,.06); }
+  dialog { width:min(560px, calc(100vw - 32px)); max-height:calc(100dvh - 48px); padding:0; color:var(--text); background:var(--panel-solid);
+    border:1px solid var(--line-hi); box-shadow:0 24px 80px rgba(0,0,0,.6); }
+  dialog::backdrop { background:rgba(2,6,10,.72); backdrop-filter:blur(3px); }
+  dialog[open] { animation:rise .25s cubic-bezier(.2,.8,.2,1); }
+  #sf { padding:22px 24px 20px; }
+  #sf h2 { margin:0 0 4px; font:600 18px/1.2 var(--hud); letter-spacing:.24em; color:var(--cyan-soft); }
+  #sf .sub { margin:0 0 6px; color:var(--muted); font-size:13px; }
+  #sf fieldset { margin:18px 0 0; padding:0; border:0; }
+  #sf legend { margin-bottom:10px; font:600 11px/1 var(--hud); letter-spacing:.24em; color:var(--amber); text-transform:uppercase; }
+  #sf label { display:block; margin:12px 0 5px; font:500 12px/1.3 var(--hud); letter-spacing:.1em; color:var(--text); text-transform:uppercase; }
+  #sf .row { display:flex; gap:8px; }
+  #sf input, #sf select { flex:1; min-width:0; width:100%; padding:9px 11px; font:14px/1.4 var(--body); color:var(--text);
+    background:rgba(0,0,0,.3); border:1px solid var(--line-hi); border-radius:0; }
+  #sf input:focus, #sf select:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan); }
+  #sf input::placeholder { color:var(--muted); }
+  #sf small { display:block; margin-top:5px; color:var(--muted); font-size:12.5px; line-height:1.5; }
+  #sf .btn { padding:9px 14px; font:600 12px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase; cursor:pointer;
+    color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi); }
+  #sf .btn:hover { background:rgba(34,211,238,.1); }
+  #sf .btn.main { color:#031018; background:var(--cyan); border-color:var(--cyan); }
+  #sf .btn.main:hover { background:var(--cyan-soft); }
+  #sf .foot { display:flex; align-items:center; gap:10px; margin-top:22px; }
+  #s-msg { flex:1; font-size:13px; color:var(--cyan-soft); } #s-msg.err { color:var(--amber); }
+  .chip { display:inline-block; margin-right:6px; padding:2px 8px; font:500 11px/1.6 var(--hud); letter-spacing:.08em; border:1px solid var(--line-hi); }
+  .chip.ok { color:#34d399; border-color:rgba(52,211,153,.5); } .chip.no { color:var(--amber); border-color:rgba(245,158,11,.5); }
+
+  #update { padding:10px max(16px, calc(50% - 400px)); font-size:13.5px; color:var(--text); background:rgba(245,158,11,.08);
+    border-bottom:1px solid rgba(245,158,11,.35); }
+  #update b { font:600 12px/1 var(--hud); letter-spacing:.16em; color:var(--amber); text-transform:uppercase; margin-right:8px; }
+  #update ul { margin:6px 0 4px; padding-left:20px; color:var(--muted); }
+  #update code { color:var(--amber); }
+  :focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
+  #gear2 { display:none; padding:4px 8px; font-size:16px; line-height:1; color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi); cursor:pointer; }
+  @media (max-width:760px) { aside { display:none; } header .orb, #gear2 { display:block; } .user { max-width:100%; } }
+  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <div class="orb" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div><b>KURO</b><small>Trợ lý kỹ sư hạ tầng</small></div>
+  </div>
+  <button id="new" type="button">+ Phiên mới</button>
+  <div class="label">Nhật ký phiên</div>
+  <div id="sessions"></div>
+  <div class="sys">
+    <div><span class="dot"></span>Kết nối <span id="net">Đang nối</span></div>
+    <div>Lõi <span>Claude</span></div>
+    <button id="gear" type="button">⚙ Cài đặt</button>
+  </div>
+</aside>
+<main>
+  <header>
+    <div class="orb" aria-hidden="true"><i></i><i></i><i></i></div>
+    <span id="state">Sẵn sàng</span>
+    <span id="clock"></span>
+    <button id="gear2" type="button" aria-label="Cài đặt">⚙</button>
+  </header>
+  <div id="update" role="status" hidden></div>
+  <div id="hero" aria-hidden="true">
+    <div class="orb"><i></i><i></i><i></i></div>
+    <h1>KURO TRỰC TUYẾN</h1>
+    <p>Hỏi về biện pháp thi công, bóc khối lượng, QC, tiến độ hay BIM. Mọi phép tính đều chạy bằng script có lưu lại.</p>
+  </div>
+  <div id="log" aria-live="polite"></div>
+  <form id="f">
+    <div class="input"><textarea id="q" placeholder="Hỏi Kuro..." aria-label="Câu hỏi"></textarea></div>
+    <div class="hint">Enter gửi · Shift+Enter xuống dòng</div>
+  </form>
+</main>
+<dialog id="settings" aria-labelledby="s-title">
+  <form id="sf">
+    <h2 id="s-title">CÀI ĐẶT</h2>
+    <p class="sub" id="s-status"></p>
+
+    <fieldset>
+      <legend>Lõi AI</legend>
+      <label for="s-ANTHROPIC_API_KEY">Anthropic API key</label>
+      <div class="row"><input id="s-ANTHROPIC_API_KEY" name="ANTHROPIC_API_KEY" type="password" autocomplete="off" data-secret="1" spellcheck="false">
+        <button class="btn" type="button" data-clear="ANTHROPIC_API_KEY">Xóa</button></div>
+      <small>Để trống thì Kuro dùng tài khoản Claude đã đăng nhập (<code>claude auth login</code>). Có key thì tính tiền theo token ở console.anthropic.com.</small>
+      <label for="s-KURO_MODEL">Model</label>
+      <select id="s-KURO_MODEL" name="KURO_MODEL">
+        <option value="">Mặc định của gói</option><option value="sonnet">Sonnet</option><option value="opus">Opus</option><option value="haiku">Haiku</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Telegram</legend>
+      <label for="s-TELEGRAM_BOT_TOKEN">Bot token</label>
+      <div class="row"><input id="s-TELEGRAM_BOT_TOKEN" name="TELEGRAM_BOT_TOKEN" type="password" autocomplete="off" data-secret="1" spellcheck="false">
+        <button class="btn" type="button" data-clear="TELEGRAM_BOT_TOKEN">Xóa</button></div>
+      <small>Lấy ở @BotFather. Đổi token cần khởi động lại Kuro.</small>
+      <label for="s-TELEGRAM_OWNER_IDS">ID chủ (cách nhau bằng dấu phẩy)</label>
+      <input id="s-TELEGRAM_OWNER_IDS" name="TELEGRAM_OWNER_IDS" inputmode="numeric" spellcheck="false">
+      <small>Lấy ở @userinfobot. Kuro chỉ trả lời các ID này.</small>
+    </fieldset>
+
+    <fieldset>
+      <legend>Nâng cao</legend>
+      <label for="s-KURO_ALLOWED_TOOLS">Tool được phép</label>
+      <input id="s-KURO_ALLOWED_TOOLS" name="KURO_ALLOWED_TOOLS" spellcheck="false">
+      <small>Thêm <code>Bash</code> để chạy script của skill, <code>mcp__revit-mcp</code> để mở một MCP. Tool ngoài danh sách bị chặn.</small>
+    </fieldset>
+
+    <div class="foot">
+      <span id="s-msg" role="status"></span>
+      <button class="btn" type="button" id="s-close">Đóng</button>
+      <button class="btn main" type="submit">Lưu</button>
+    </div>
+  </form>
+</dialog>
+<script src="app.js?v=5"></script>
+</body>
+</html>

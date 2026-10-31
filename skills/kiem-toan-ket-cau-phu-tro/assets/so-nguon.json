@@ -1,0 +1,261 @@
+[
+ {
+  "ma": "N01",
+  "so_hieu": "TCVN 11815:2017",
+  "ten": "Thiết kế công trình phụ trợ trong thi công cầu",
+  "dung_cho": "Căn cứ chính cho mọi KCPT thi công cầu đường bộ và đường sắt, theo trạng thái giới hạn: tải, hệ số, ổn định, vòng vây, ván khuôn, đà giáo, trụ tạm, lao lắp, hệ nổi, neo, nền móng tạm",
+  "xac_minh": "Đã đối chiếu (09/2026): mục lục đầy đủ, xem `tcvn-11815-chi-muc.md`. Do Cục Đường sắt VN chủ trì biên soạn"
+ },
+ {
+  "ma": "N02",
+  "so_hieu": "TCVN 4453:1995",
+  "ten": "Kết cấu BT và BTCT toàn khối - Quy phạm thi công và nghiệm thu",
+  "dung_cho": "Ván khuôn, đà giáo công trình dân dụng: tải trọng, hệ số vượt tải, áp lực ngang (Phụ lục A), độ võng cho phép, tháo dỡ",
+  "xac_minh": "Đã đối chiếu (09/2026): vẫn được viện dẫn rộng rãi; **đang có dự thảo TCVN 4453:202x soát xét**. Người dùng xác nhận bản đang áp dụng"
+ },
+ {
+  "ma": "N03",
+  "so_hieu": "TCVN 2737:2023",
+  "ten": "Tải trọng và tác động",
+  "dung_cho": "Tải, tổ hợp, gió cho KCPT dân dụng - công nghiệp; tiêu chuẩn này nêu phải kể tải xuất hiện trong thi công",
+  "xac_minh": "Đã đối chiếu (09/2026): **thay thế TCVN 2737:1995**; Điều 11 và Phụ lục G thay Phụ lục M của TCVN 5574:2018"
+ },
+ {
+  "ma": "N04",
+  "so_hieu": "TCVN 5575:2024",
+  "ten": "Thiết kế kết cấu thép",
+  "dung_cho": "Kiểm tra cấu kiện và liên kết thép của KCPT dân dụng - công nghiệp - cảng",
+  "xac_minh": "Đã đối chiếu (09/2026): **thay thế TCVN 5575:2012**; phạm vi **không áp dụng cho cầu đường bộ, cầu đường sắt, công trình thủy lợi, công trình biển**"
+ },
+ {
+  "ma": "N05",
+  "so_hieu": "QCVN 18:2021/BXD",
+  "ten": "Quy chuẩn kỹ thuật quốc gia về an toàn trong thi công xây dựng",
+  "dung_cho": "Yêu cầu bắt buộc: 2.2 giàn giáo và thang; 2.3 kết cấu chống đỡ tạm; 2.4 thiết bị nâng; 2.8 đào đắp, công trình ngầm; 2.9 cốp-phơ-đem, cai-sờn; 2.10 lắp dựng, tháo dỡ cấu kiện; 2.11 ván khuôn và thi công bê tông; 2.12 thi công cọc; 2.13 làm việc trên mặt nước; 2.14 dưới nước",
+  "xac_minh": "Đã đối chiếu (09/2026): ban hành theo TT 16/2021/TT-BXD, hiệu lực 20/6/2022, thay QCVN 18:2014/BXD; mục lục như ghi"
+ },
+ {
+  "ma": "N06",
+  "so_hieu": "TCVN 11823:2017 (bộ nhiều phần)",
+  "ten": "Thiết kế cầu đường bộ",
+  "dung_cho": "Kiểm tra tác động tạm lên kết cấu cầu chính; thép, BT khi N01 dẫn chiếu",
+  "xac_minh": "Tồn tại bộ tiêu chuẩn đã đối chiếu (phần 5 Kết cấu bê tông). Số phần cho tải trọng, thép, nền móng, mố trụ: **cần xác nhận**"
+ },
+ {
+  "ma": "N07",
+  "so_hieu": "TCVN 10304:2014",
+  "ten": "Móng cọc - Tiêu chuẩn thiết kế",
+  "dung_cho": "Cọc tạm, móng cọc sàn đạo, trụ tạm (khi không theo N01 Phụ lục I)",
+  "xac_minh": "Đã đối chiếu (09/2026). Lưu ý: viện dẫn TCVN 2737:1995 đã bị thay"
+ },
+ {
+  "ma": "N08",
+  "so_hieu": "TCVN 9362:2012",
+  "ten": "Tiêu chuẩn thiết kế nền nhà và công trình",
+  "dung_cho": "Sức chịu tải, lún nền móng nông tạm",
+  "xac_minh": "**Cần xác nhận** số hiệu và hiệu lực"
+ },
+ {
+  "ma": "N09",
+  "so_hieu": "TCVN 14213-1:2024",
+  "ten": "Tường barrette - Phần 1: Yêu cầu thiết kế thi công",
+  "dung_cho": "Thiết kế tường và **kết cấu chống giữ** hố đào sâu (tham khảo SP 381.1325800.2018); Phần 2 là yêu cầu kỹ thuật thi công",
+  "xac_minh": "Đã đối chiếu (09/2026). Không áp dụng cho công trình thủy lợi"
+ },
+ {
+  "ma": "N10",
+  "so_hieu": "TCVN 9685:2013",
+  "ten": "Cọc ván thép cán nóng",
+  "dung_cho": "Đặc trưng tiết diện, vật liệu cọc ván",
+  "xac_minh": "Đã đối chiếu (09/2026) qua danh mục viện dẫn của TCVN 11820-4-1:2020. **Xem lưu ý 3.4**"
+ },
+ {
+  "ma": "N11",
+  "so_hieu": "TCVN 9245:2012; TCVN 9246:2012",
+  "ten": "Cọc ống thép; Cọc ống ván thép",
+  "dung_cho": "Vòng vây cọc ống, trụ tạm cọc ống",
+  "xac_minh": "Đã đối chiếu (09/2026) qua danh mục viện dẫn của TCVN 11820-4-1:2020"
+ },
+ {
+  "ma": "N12",
+  "so_hieu": "TCVN 11820 (bộ), trong đó 11820-4-1:2020",
+  "ten": "Công trình cảng biển - Yêu cầu thiết kế; Phần 4-1 Nền móng",
+  "dung_cho": "KCPT công trình cảng, bến tạm, tường cừ",
+  "xac_minh": "Đã đối chiếu phần 4-1 (09/2026); các phần khác cần xác nhận"
+ },
+ {
+  "ma": "N13",
+  "so_hieu": "TCVN 13661:2023",
+  "ten": "Cột chống thép kiểu ống lồng - Thông số kỹ thuật, thiết kế",
+  "dung_cho": "Nhóm tải danh định, đánh giá cột chống bằng tính toán và thử nghiệm",
+  "xac_minh": "Đã đối chiếu (09/2026). Không hướng dẫn cách sử dụng cột chống"
+ },
+ {
+  "ma": "N14",
+  "so_hieu": "TCVN 10202:2013",
+  "ten": "Cần trục - Yêu cầu ổn định",
+  "dung_cho": "Ổn định cẩu, tải truyền xuống nền đỡ cẩu (nhà sản xuất phải công bố)",
+  "xac_minh": "Đã đối chiếu (09/2026)"
+ },
+ {
+  "ma": "N15",
+  "so_hieu": "TCVN 9394:2012; TCVN 9395:2012; TCVN 9393:2012",
+  "ten": "Đóng và ép cọc; Cọc khoan nhồi; Thử tĩnh cọc",
+  "dung_cho": "Thi công cọc tạm, sàn thao tác khoan cọc, thử tải",
+  "xac_minh": "Đã đối chiếu (09/2026) qua danh mục viện dẫn"
+ },
+ {
+  "ma": "N16",
+  "so_hieu": "TCVN 4244:2005",
+  "ten": "Thiết bị nâng - Thiết kế, chế tạo và kiểm tra kỹ thuật",
+  "dung_cho": "Thiết bị nâng tự chế, móc, cáp, pa lăng",
+  "xac_minh": "Tồn tại đã đối chiếu; hiệu lực **cần xác nhận**"
+ },
+ {
+  "ma": "N17",
+  "so_hieu": "TCVN 5574:2018",
+  "ten": "Thiết kế kết cấu BT và BTCT",
+  "dung_cho": "Kết cấu vĩnh cửu dân dụng chịu tải tạm; bệ BT tạm",
+  "xac_minh": "**Cần xác nhận** hiệu lực"
+ },
+ {
+  "ma": "N18",
+  "so_hieu": "TCVN 9152:2012",
+  "ten": "Công trình thủy lợi - Quy trình thiết kế tường chắn",
+  "dung_cho": "Chỉ tường cứng; **không dùng cho tường cừ, tường cọc, tường có neo**",
+  "xac_minh": "Đã đối chiếu phạm vi (09/2026). Ghi ở đây để tránh dùng nhầm"
+ },
+ {
+  "ma": "Q01",
+  "so_hieu": "EN 12812",
+  "ten": "EN 12812",
+  "dung_cho": "Đà giáo chống đỡ (falsework): phân loại thiết kế, tải, sai lệch hình học",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q02",
+  "so_hieu": "BS 5975",
+  "ten": "BS 5975",
+  "dung_cho": "Quy phạm công trình tạm và falsework, quy trình quản lý temporary works",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q03",
+  "so_hieu": "EN 1991-1-6",
+  "ten": "EN 1991-1-6",
+  "dung_cho": "Tác động trong quá trình thi công",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q04",
+  "so_hieu": "EN 1997-1",
+  "ten": "EN 1997-1",
+  "dung_cho": "Địa kỹ thuật: tường chắn, ổn định đáy, đẩy nổi, thấm",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q05",
+  "so_hieu": "EN 1993-5",
+  "ten": "EN 1993-5",
+  "dung_cho": "Cọc và cọc ván thép",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q06",
+  "so_hieu": "CIRIA C760",
+  "ten": "CIRIA C760",
+  "dung_cho": "Tường chắn ngàm (embedded retaining walls)",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q07",
+  "so_hieu": "CIRIA Report 108; DIN 18218",
+  "ten": "CIRIA Report 108; DIN 18218",
+  "dung_cho": "Áp lực bê tông tươi lên ván khuôn thành",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q08",
+  "so_hieu": "ACI 347",
+  "ten": "ACI 347",
+  "dung_cho": "Ván khuôn",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q09",
+  "so_hieu": "AASHTO Guide Design Specifications for Bridge Temporary Works",
+  "ten": "AASHTO Guide Design Specifications for Bridge Temporary Works",
+  "dung_cho": "KCPT cầu theo hệ AASHTO",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q10",
+  "so_hieu": "EAU (khuyến nghị công trình bến)",
+  "ten": "EAU (khuyến nghị công trình bến)",
+  "dung_cho": "Tường cừ, vòng vây cảng",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "Q11",
+  "so_hieu": "EN 12811-1",
+  "ten": "EN 12811-1",
+  "dung_cho": "Giàn giáo công tác",
+  "xac_minh": "Chưa xác minh phiên bản - người dùng xác nhận"
+ },
+ {
+  "ma": "N01",
+  "so_hieu": "TCVN 11815:2017",
+  "ten": "chính",
+  "dung_cho": "có / chưa",
+  "xac_minh": ""
+ },
+ {
+  "ma": "D01",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Chỉ dẫn kỹ thuật, điều khoản hợp đồng về biện pháp thi công",
+  "dung_cho": "Quyết định hệ tiêu chuẩn, yêu cầu thẩm tra",
+  "xac_minh": "Người dùng cung cấp"
+ },
+ {
+  "ma": "D02",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Hồ sơ khảo sát địa chất (hố khoan gần vị trí nhất)",
+  "dung_cho": "Chỉ tiêu đất, mực nước ngầm",
+  "xac_minh": "Người dùng cung cấp"
+ },
+ {
+  "ma": "D03",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Số liệu thủy văn: mực nước theo mùa, lũ, triều, lưu tốc",
+  "dung_cho": "Mực nước thi công bất lợi, thủy động, xói",
+  "xac_minh": "Người dùng cung cấp"
+ },
+ {
+  "ma": "D04",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Hồ sơ nhà sản xuất: giáo, cột chống, cọc ván, xe đúc, giá lao, cẩu (biểu đồ tải)",
+  "dung_cho": "Khả năng chịu lực thiết bị, điều kiện sử dụng",
+  "xac_minh": "Người dùng cung cấp"
+ },
+ {
+  "ma": "D05",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Bản vẽ biện pháp, trình tự thi công",
+  "dung_cho": "Sơ đồ tính, giai đoạn",
+  "xac_minh": "Người dùng cung cấp"
+ },
+ {
+  "ma": "D06",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Kết quả thí nghiệm hiện trường nền (tấm nén, CBR, xuyên), thử tải cọc",
+  "dung_cho": "Sức chịu nền thực tế",
+  "xac_minh": "Người dùng cung cấp"
+ },
+ {
+  "ma": "D07",
+  "so_hieu": "Tài liệu dự án",
+  "ten": "Thiết kế quan trắc, ngưỡng cảnh báo",
+  "dung_cho": "Điều kiện hiệu lực của kết luận",
+  "xac_minh": "Người dùng cung cấp"
+ }
+]

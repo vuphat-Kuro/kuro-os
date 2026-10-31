@@ -1,0 +1,8 @@
+[
+  {
+    "id": "tien-do-tuan",
+    "cron": "0 7 * * 1",
+    "prompt": "Đọc ghi chú trong sources/ và wiki/ của tuần trước, tổng hợp tiến độ các dự án, nêu 3 việc cần ưu tiên tuần này.",
+    "enabled": false
+  }
+]

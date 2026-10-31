@@ -1,0 +1,634 @@
+[
+ {
+  "ma": "VK-01",
+  "nhom": "VK",
+  "trang_thai": "Áp lực ngang bê tông tươi lên ván thành",
+  "dang": "xác định tải",
+  "cau": "5.13, Bảng 5.5 (theo phương pháp đầm, tốc độ đổ V, chiều cao H, k1, k2, k3)",
+  "khac": "[N02] Phụ lục A (bảng áp lực ngang §?)"
+ },
+ {
+  "ma": "VK-02",
+  "nhom": "VK",
+  "trang_thai": "Tải ngang do xả bê tông",
+  "dang": "xác định tải",
+  "cau": "5.13, Bảng 5.6",
+  "khac": "[N02] Phụ lục A §?"
+ },
+ {
+  "ma": "VK-03",
+  "nhom": "VK",
+  "trang_thai": "Tải đứng do đầm lên ván đáy",
+  "dang": "xác định tải",
+  "cau": "5.13 a)",
+  "khac": "[N02] Phụ lục A §?"
+ },
+ {
+  "ma": "VK-04",
+  "nhom": "VK",
+  "trang_thai": "Ván mặt: uốn, võng cục bộ",
+  "dang": "S ≤ R; δ ≤ [δ]",
+  "cau": "8.2; hệ số m ván khuôn Bảng 4.1; gỗ mục 11, thép mục 13",
+  "khac": "[N02] Phụ lục A (độ võng cho phép §?); [N04]"
+ },
+ {
+  "ma": "VK-05",
+  "nhom": "VK",
+  "trang_thai": "Sườn, nẹp, xà gồ: uốn, cắt, võng",
+  "dang": "S ≤ R; δ ≤ [δ]",
+  "cau": "8.2; mục 11 / 13",
+  "khac": "[N02]; [N04]"
+ },
+ {
+  "ma": "VK-06",
+  "nhom": "VK",
+  "trang_thai": "Ty giằng, bu lông, cùm",
+  "dang": "S·K ≤ R",
+  "cau": "8.2; 4.3.5",
+  "khac": "[N04] liên kết §?; [D04]"
+ },
+ {
+  "ma": "VK-07",
+  "nhom": "VK",
+  "trang_thai": "Ván khuôn trượt",
+  "dang": "S ≤ R",
+  "cau": "8.3",
+  "khac": ""
+ },
+ {
+  "ma": "VK-08",
+  "nhom": "VK",
+  "trang_thai": "Ổn định ván thành, chống lật trước khi đổ (gió)",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.6, 5.16",
+  "khac": "[N03] gió §?"
+ },
+ {
+  "ma": "DG-01",
+  "nhom": "DG",
+  "trang_thai": "Dầm ngang, dầm dọc đỡ ván khuôn: uốn, cắt, ổn định ngang cánh nén",
+  "dang": "S ≤ R",
+  "cau": "9.1; mục 13",
+  "khac": "[N04] cấu kiện chịu uốn §?"
+ },
+ {
+  "ma": "DG-02",
+  "nhom": "DG",
+  "trang_thai": "Cột chống / thanh đứng: bền, ổn định (uốn dọc) theo chiều dài tính toán thực có giằng",
+  "dang": "S ≤ R",
+  "cau": "9.1.5; mục 13; hệ số m Bảng 4.1",
+  "khac": "[N04] cấu kiện chịu nén §?; [N13] cho cột ống lồng"
+ },
+ {
+  "ma": "DG-03",
+  "nhom": "DG",
+  "trang_thai": "Cột chống ống lồng chế tạo sẵn",
+  "dang": "S ≤ R",
+  "cau": "[D04]",
+  "khac": "[N13] nhóm tải danh định; [D04]"
+ },
+ {
+  "ma": "DG-04",
+  "nhom": "DG",
+  "trang_thai": "Mối nối giáo, chân đế, đầu kích, cùm",
+  "dang": "S ≤ R",
+  "cau": "9.1; mục 13; [D04]",
+  "khac": "[N04] liên kết §?; [D04]"
+ },
+ {
+  "ma": "DG-05",
+  "nhom": "DG",
+  "trang_thai": "Hệ giằng: đủ cứng, truyền lực ngang",
+  "dang": "S ≤ R; KT",
+  "cau": "9.1.1 cấu tạo; 4.3.11",
+  "khac": "[N04]; [N05] 2.3"
+ },
+ {
+  "ma": "DG-06",
+  "nhom": "DG",
+  "trang_thai": "Ổn định chống lật tổng thể (gió, đổ lệch, dòng chảy, va chạm)",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.6 CT (4-1), 4.3.8; gió 5.16-5.17; va ô tô 5.19",
+  "khac": "[N02] (hệ số ổn định chống lật §?); [N03] gió"
+ },
+ {
+  "ma": "DG-07",
+  "nhom": "DG",
+  "trang_thai": "Ổn định chống trượt",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.7 CT (4-2); Phụ lục B",
+  "khac": "[N03]"
+ },
+ {
+  "ma": "DG-08",
+  "nhom": "DG",
+  "trang_thai": "Biến dạng tổng và độ vồng đặt trước",
+  "dang": "δ ≤ [δ]",
+  "cau": "4.3.10 (tải tiêu chuẩn, tăng võng mối nối bu lông thường, biến dạng dư tiếp giáp, lún tà vẹt - hộp cát); 5.20 lún nền",
+  "khac": "[N02] §?"
+ },
+ {
+  "ma": "DG-09",
+  "nhom": "DG",
+  "trang_thai": "Trụ tạm (thân, mũ, liên kết chân)",
+  "dang": "S ≤ R; S·K ≤ R",
+  "cau": "9.1.3, 9.1.4, 9.1.5; 9.2 nếu là trụ lao",
+  "khac": ""
+ },
+ {
+  "ma": "DG-10",
+  "nhom": "DG",
+  "trang_thai": "Đà giáo lắp hẫng, nửa hẫng",
+  "dang": "S ≤ R",
+  "cau": "9.1.4, 9.1.5",
+  "khac": ""
+ },
+ {
+  "ma": "DG-11",
+  "nhom": "DG",
+  "trang_thai": "Bệ đúc dầm",
+  "dang": "S ≤ R; δ ≤ [δ]",
+  "cau": "mục 8, 10",
+  "khac": "[N08]"
+ },
+ {
+  "ma": "DG-12",
+  "nhom": "DG",
+  "trang_thai": "Yêu cầu an toàn bắt buộc về giàn giáo, chống đỡ tạm",
+  "dang": "KT",
+  "cau": "[N05] 2.2, 2.3",
+  "khac": "[N05] 2.2, 2.3"
+ },
+ {
+  "ma": "DG-13",
+  "nhom": "DG",
+  "trang_thai": "Sàn công tác, giá treo, lan can, thang",
+  "dang": "S ≤ R; δ ≤ [δ]; KT",
+  "cau": "6.7 (6.7.2 cấu tạo, 6.7.3 tính toán)",
+  "khac": "[N05] 2.2, 2.7"
+ },
+ {
+  "ma": "NM-01",
+  "nhom": "NM",
+  "trang_thai": "Sức chịu tải nền dưới đế cột, tấm kê, dầm kê",
+  "dang": "S ≤ R",
+  "cau": "10.3, 10.5; Phụ lục C",
+  "khac": "[N08]"
+ },
+ {
+  "ma": "NM-02",
+  "nhom": "NM",
+  "trang_thai": "Phân bố tải qua lớp đệm, tấm kê",
+  "dang": "[CH] + S ≤ R",
+  "cau": "10.4",
+  "khac": "[N08]"
+ },
+ {
+  "ma": "NM-03",
+  "nhom": "NM",
+  "trang_thai": "Lún và lún lệch giữa các chân",
+  "dang": "δ ≤ [δ]",
+  "cau": "5.20; 10.5",
+  "khac": "[N08]"
+ },
+ {
+  "ma": "NM-04",
+  "nhom": "NM",
+  "trang_thai": "Móng nông tạm: trượt, lật",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.6, 4.3.7",
+  "khac": "[N08]"
+ },
+ {
+  "ma": "NM-05",
+  "nhom": "NM",
+  "trang_thai": "Cọc tạm: sức chịu dọc, nhổ, ngang; độ ngàm sau xói",
+  "dang": "S ≤ R",
+  "cau": "10; Phụ lục I; 4.1.5 xói",
+  "khac": "[N07]; [N12] cảng"
+ },
+ {
+  "ma": "NM-06",
+  "nhom": "NM",
+  "trang_thai": "Đường cẩu, ray, tà vẹt, nền ray",
+  "dang": "S ≤ R",
+  "cau": "6.1.1 (ray, tà vẹt, lớp ba lát); 5.12 lực cẩu",
+  "khac": "[N14] tải từ cẩu xuống nền"
+ },
+ {
+  "ma": "NM-07",
+  "nhom": "NM",
+  "trang_thai": "Kết cấu vĩnh cửu chịu tải tạm (bản, dầm, bệ)",
+  "dang": "S ≤ R",
+  "cau": "6.7.3 (kiểm bộ phận công trình nhận tải); [N06]",
+  "khac": "[N17]"
+ },
+ {
+  "ma": "NM-08",
+  "nhom": "NM",
+  "trang_thai": "Mái dốc gần chân giáo, mép hố đào",
+  "dang": "S·K ≤ R",
+  "cau": "6.1.1 (khoảng cách chân taluy nền đắp tới mép hố); mục 7",
+  "khac": "[N05] 2.8"
+ },
+ {
+  "ma": "VV-01",
+  "nhom": "VV",
+  "trang_thai": "Áp lực đất ngang lên vòng vây",
+  "dang": "xác định tải",
+  "cau": "5.5; Phụ lục C (chỉ tiêu đất), **Phụ lục D**",
+  "khac": "[N09]; [N12]"
+ },
+ {
+  "ma": "VV-02",
+  "nhom": "VV",
+  "trang_thai": "Áp lực nước, mực nước thi công bất lợi (cao nhất và thấp nhất)",
+  "dang": "xác định tải",
+  "cau": "5.6 CT (5-2); 4.2.3",
+  "khac": "[N09]; [D03]"
+ },
+ {
+  "ma": "VV-03",
+  "nhom": "VV",
+  "trang_thai": "Cao độ đỉnh vòng vây so mực nước thi công",
+  "dang": "KT",
+  "cau": "4.2.3 b)",
+  "khac": ""
+ },
+ {
+  "ma": "VV-04",
+  "nhom": "VV",
+  "trang_thai": "Cọc ván không chống (công-xôn): độ ngàm, mômen, chuyển vị",
+  "dang": "S·K ≤ R; S ≤ R",
+  "cau": "7.3.2, 7.3.3; hệ số m tường cọc ván Bảng 4.1 và mục 7",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-05",
+  "nhom": "VV",
+  "trang_thai": "Cọc ván một tầng chống",
+  "dang": "S ≤ R",
+  "cau": "7.3.4",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-06",
+  "nhom": "VV",
+  "trang_thai": "Cọc ván nhiều tầng chống, giai đoạn trước khi lắp tầng chống mới",
+  "dang": "S ≤ R",
+  "cau": "7.3.5 (tên cần xác nhận); 7.3.6",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-07",
+  "nhom": "VV",
+  "trang_thai": "Đặc trưng tiết diện, vật liệu cọc ván",
+  "dang": "nhập liệu",
+  "cau": "[N10] (xem lưu ý số hiệu 3.4); [D04]",
+  "khac": "[N10]; [N11] cọc ống ván"
+ },
+ {
+  "ma": "VV-08",
+  "nhom": "VV",
+  "trang_thai": "Thanh chống, văng chống vách: nén, lệch tâm, ổn định",
+  "dang": "S ≤ R",
+  "cau": "7.5; mục 13",
+  "khac": "[N09]; [N04]"
+ },
+ {
+  "ma": "VV-09",
+  "nhom": "VV",
+  "trang_thai": "Dầm đai (vành đai): uốn, cắt, liên kết",
+  "dang": "S ≤ R",
+  "cau": "7.3; mục 13",
+  "khac": "[N09]; [N04]"
+ },
+ {
+  "ma": "VV-10",
+  "nhom": "VV",
+  "trang_thai": "Neo trong đất (cọc neo, neo đứng, neo nằm)",
+  "dang": "S·K ≤ R",
+  "cau": "6.6.2 CT (6-1) đến (6-11)",
+  "khac": "[N09] (neo §?)"
+ },
+ {
+  "ma": "VV-11",
+  "nhom": "VV",
+  "trang_thai": "Ổn định tổng thể (trượt sâu)",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.1; 7.3.2",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-12",
+  "nhom": "VV",
+  "trang_thai": "Trồi đáy, đùn đất",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.1 (trồi của đất nền); 7.3.6",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-13",
+  "nhom": "VV",
+  "trang_thai": "Thấm, xói ngầm, cát chảy, lưu lượng bơm",
+  "dang": "S·K ≤ R; tính lưu lượng",
+  "cau": "4.3.2; **Phụ lục J**",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-14",
+  "nhom": "VV",
+  "trang_thai": "Đẩy nổi (bịt đáy, bệ, giai đoạn bơm khô)",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.8 CT (4-3) (dạng tổng quát độ nổi); 7.9 bê tông dưới nước",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-15",
+  "nhom": "VV",
+  "trang_thai": "Lớp bê tông bịt đáy: uốn, cắt, dính bám với cọc ván - cọc",
+  "dang": "S ≤ R",
+  "cau": "7.9; mục 12",
+  "khac": "[N17]"
+ },
+ {
+  "ma": "VV-16",
+  "nhom": "VV",
+  "trang_thai": "Vòng vây đất (đê quai)",
+  "dang": "S·K ≤ R; KT",
+  "cau": "7.2 (Bảng 7.1, 7.2.3)",
+  "khac": ""
+ },
+ {
+  "ma": "VV-17",
+  "nhom": "VV",
+  "trang_thai": "Khung dẫn hướng hạ cọc ván",
+  "dang": "S ≤ R",
+  "cau": "7.8",
+  "khac": ""
+ },
+ {
+  "ma": "VV-18",
+  "nhom": "VV",
+  "trang_thai": "Tháo chống từng tầng",
+  "dang": "S ≤ R",
+  "cau": "4.3.4 (mọi giai đoạn); 4.3.11",
+  "khac": "[N09]"
+ },
+ {
+  "ma": "VV-19",
+  "nhom": "VV",
+  "trang_thai": "Ảnh hưởng xung quanh, quan trắc, ngưỡng",
+  "dang": "δ ≤ [δ]; KT",
+  "cau": "4.1.6",
+  "khac": "[N09]; [N05] 2.8"
+ },
+ {
+  "ma": "VV-20",
+  "nhom": "VV",
+  "trang_thai": "An toàn đào đắp, cofferdam",
+  "dang": "KT",
+  "cau": "[N05] 2.8, 2.9",
+  "khac": "[N05] 2.8, 2.9"
+ },
+ {
+  "ma": "TB-01",
+  "nhom": "TB",
+  "trang_thai": "Xe đúc: khung chính, dàn treo, thanh treo, chốt",
+  "dang": "S ≤ R",
+  "cau": "Không có mục riêng: tải theo 5.9, 5.13, 5.16; kết cấu mục 13; [D04]",
+  "khac": "[N04] khi được chấp thuận"
+ },
+ {
+  "ma": "TB-02",
+  "nhom": "TB",
+  "trang_thai": "Xe đúc: neo sau, chống lật",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.6; Bảng 4.1 (kết cấu kim loại của neo giữ chống lật; neo chôn trong BT)",
+  "khac": ""
+ },
+ {
+  "ma": "TB-03",
+  "nhom": "TB",
+  "trang_thai": "Xe đúc: di chuyển, gió khi ngừng",
+  "dang": "S·K ≤ R",
+  "cau": "5.12, 5.16",
+  "khac": ""
+ },
+ {
+  "ma": "TB-04",
+  "nhom": "TB",
+  "trang_thai": "MSS: kết cấu, gối, di chuyển",
+  "dang": "S ≤ R",
+  "cau": "9.1, 5.12, 5.16; [D04]",
+  "khac": ""
+ },
+ {
+  "ma": "TB-05",
+  "nhom": "TB",
+  "trang_thai": "Giá lao, cầu cho cẩu lao lắp",
+  "dang": "S ≤ R; S·K ≤ R",
+  "cau": "6.1.4 Bảng 6.3; 5.10, 5.12; 9.6",
+  "khac": "[N14]"
+ },
+ {
+  "ma": "TB-06",
+  "nhom": "TB",
+  "trang_thai": "Lao dọc: đường trượt, thiết bị trượt, lực ma sát, lực hông",
+  "dang": "S ≤ R",
+  "cau": "9.4; 5.12 CT (5-9)-(5-13); 5.15 CT (5-17)-(5-19)",
+  "khac": ""
+ },
+ {
+  "ma": "TB-07",
+  "nhom": "TB",
+  "trang_thai": "Mũi dẫn, giá đón, kết cấu neo khi lao",
+  "dang": "S ≤ R",
+  "cau": "9.4",
+  "khac": ""
+ },
+ {
+  "ma": "TB-08",
+  "nhom": "TB",
+  "trang_thai": "Thiết bị kéo đẩy, hãm",
+  "dang": "S ≤ R",
+  "cau": "9.5",
+  "khac": ""
+ },
+ {
+  "ma": "TB-09",
+  "nhom": "TB",
+  "trang_thai": "Trụ lao cầu",
+  "dang": "S ≤ R",
+  "cau": "9.2",
+  "khac": ""
+ },
+ {
+  "ma": "TB-10",
+  "nhom": "TB",
+  "trang_thai": "Kích điều chỉnh ứng suất, vị trí, độ vồng",
+  "dang": "S ≤ R",
+  "cau": "5.14; hệ số vượt tải kích Bảng 5.12",
+  "khac": ""
+ },
+ {
+  "ma": "TB-11",
+  "nhom": "TB",
+  "trang_thai": "Phản lực tạm lên trụ, mố, dầm đã lắp",
+  "dang": "S ≤ R",
+  "cau": "6.7.3; [N06]",
+  "khac": "[N17]"
+ },
+ {
+  "ma": "TB-12",
+  "nhom": "TB",
+  "trang_thai": "Cẩu: sức nâng - tầm với, ổn định, gió giới hạn",
+  "dang": "S ≤ R",
+  "cau": "5.10; [D04] biểu đồ tải",
+  "khac": "[N14]; [N05] 2.4"
+ },
+ {
+  "ma": "TB-13",
+  "nhom": "TB",
+  "trang_thai": "Cáp treo, móc, pa lăng",
+  "dang": "S·K ≤ R",
+  "cau": "6.7.3.3 (hệ số cho cáp treo đà giáo)",
+  "khac": "[N16]; [N05] 2.4"
+ },
+ {
+  "ma": "CT-01",
+  "nhom": "CT",
+  "trang_thai": "Cầu tạm thi công: mặt sàn, dầm, xung kích, tổ hợp",
+  "dang": "S ≤ R",
+  "cau": "6.2.1, 6.2.2 (Bảng 6.4)",
+  "khac": ""
+ },
+ {
+  "ma": "CT-02",
+  "nhom": "CT",
+  "trang_thai": "Cầu cho cẩu chân dê: nhịp, trụ, độ võng giới hạn",
+  "dang": "S ≤ R; δ ≤ [δ]",
+  "cau": "6.1.4 (Bảng 6.2, 6.3)",
+  "khac": ""
+ },
+ {
+  "ma": "CT-03",
+  "nhom": "CT",
+  "trang_thai": "Sàn đạo lắp ráp",
+  "dang": "S ≤ R",
+  "cau": "9.3",
+  "khac": ""
+ },
+ {
+  "ma": "CT-04",
+  "nhom": "CT",
+  "trang_thai": "Sàn thao tác khoan cọc nhồi",
+  "dang": "S ≤ R",
+  "cau": "Không có mục riêng: 6.2 (cầu tạm), 6.7 (sàn công tác), 7.8 (khung dẫn hướng), 10 + Phụ lục I (cọc); tải máy khoan theo 5.10",
+  "khac": "[N15]"
+ },
+ {
+  "ma": "CT-05",
+  "nhom": "CT",
+  "trang_thai": "Cao độ đáy nhịp so mực nước thi công, tĩnh không",
+  "dang": "KT",
+  "cau": "4.2.3 c), 6.1.1",
+  "khac": ""
+ },
+ {
+  "ma": "CT-06",
+  "nhom": "CT",
+  "trang_thai": "Chống va trôi",
+  "dang": "S ≤ R; KT",
+  "cau": "6.5; 5.21",
+  "khac": ""
+ },
+ {
+  "ma": "CT-07",
+  "nhom": "CT",
+  "trang_thai": "Va tàu vào trụ cầu tạm, sàn đạo",
+  "dang": "S ≤ R",
+  "cau": "5.18 Bảng 5.11",
+  "khac": ""
+ },
+ {
+  "ma": "TH-01",
+  "nhom": "TH",
+  "trang_thai": "Thùng chụp ngăn nước",
+  "dang": "S ≤ R; S·K ≤ R",
+  "cau": "7.6; áp lực thủy động 5.7 (F, S cho thùng chụp)",
+  "khac": ""
+ },
+ {
+  "ma": "TH-02",
+  "nhom": "TH",
+  "trang_thai": "Đảo nhân tạo",
+  "dang": "KT; S·K ≤ R",
+  "cau": "7.7; 4.2.3 b)",
+  "khac": ""
+ },
+ {
+  "ma": "TH-03",
+  "nhom": "TH",
+  "trang_thai": "Bê tông dưới nước: phễu, ống dẫn, sàn đỡ",
+  "dang": "S ≤ R",
+  "cau": "7.9; áp lực bê tông đổ dưới nước Bảng 5.5",
+  "khac": ""
+ },
+ {
+  "ma": "TH-04",
+  "nhom": "TH",
+  "trang_thai": "Bến tạm (bến cọc, bến phao)",
+  "dang": "S ≤ R; S·K ≤ R",
+  "cau": "6.3 (6.3.2)",
+  "khac": "[N12]"
+ },
+ {
+  "ma": "TH-05",
+  "nhom": "TH",
+  "trang_thai": "Triền tàu, hạ thủy",
+  "dang": "S ≤ R",
+  "cau": "6.4",
+  "khac": ""
+ },
+ {
+  "ma": "TH-06",
+  "nhom": "TH",
+  "trang_thai": "Độ nổi hệ nổi, sà lan",
+  "dang": "S·K ≤ R",
+  "cau": "4.3.8 CT (4-3); Bảng 4.1 (trụ nổi, sà lan)",
+  "khac": ""
+ },
+ {
+  "ma": "TH-07",
+  "nhom": "TH",
+  "trang_thai": "Ổn định hệ nổi (tâm nghiêng, mép boong, đáy)",
+  "dang": "KT + tính",
+  "cau": "4.3.9; 9.7, 9.8",
+  "khac": ""
+ },
+ {
+  "ma": "TH-08",
+  "nhom": "TH",
+  "trang_thai": "Nội lực trụ nổi do sóng",
+  "dang": "S ≤ R",
+  "cau": "9.7; Phụ lục G; mômen quán tính hệ phao Phụ lục F",
+  "khac": ""
+ },
+ {
+  "ma": "TH-09",
+  "nhom": "TH",
+  "trang_thai": "Thủy động, sóng lên phần ngập",
+  "dang": "xác định tải",
+  "cau": "5.7 CT (5-3)-(5-8)",
+  "khac": "[N12]"
+ },
+ {
+  "ma": "TH-10",
+  "nhom": "TH",
+  "trang_thai": "An toàn làm việc trên và dưới nước",
+  "dang": "KT",
+  "cau": "[N05] 2.13, 2.14",
+  "khac": ""
+ }
+]

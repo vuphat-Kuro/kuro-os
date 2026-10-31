@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "revit-mcp": {
+      "command": "node",
+      "args": ["C:/duong-dan/toi/revit-mcp/build/index.js"]
+    }
+  }
+}
