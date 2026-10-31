@@ -4,17 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kuro</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2322d3ee' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2367e8f9'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='12' width='20' height='17' rx='6' fill='%2310283a' stroke='%2322d3ee' stroke-width='2'/%3E%3Cpath d='M6 14 C6 1 26 1 26 14 Z' fill='%23facc15'/%3E%3Crect x='3' y='12' width='26' height='3.5' rx='1.7' fill='%23eab308'/%3E%3Ccircle cx='16' cy='7.5' r='2' fill='%23ecfeff'/%3E%3Cellipse cx='12.5' cy='21' rx='2' ry='2.6' fill='%2367e8f9'/%3E%3Cellipse cx='19.5' cy='21' rx='2' ry='2.6' fill='%2367e8f9'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Chakra+Petch:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <style>
-  /* Giao diện HUD kiểu Jarvis: một tông tối, xanh lam năng lượng, cam cảnh báo */
+  /* HUD kiểu Jarvis trên nền bản vẽ: xanh lam năng lượng (công nghệ) + vàng an toàn (công trường) */
   :root {
     --bg:#05090f; --panel:rgba(10,22,34,.72); --panel-solid:#0a1622; --text:#d7f3fb; --muted:#6f93a3;
-    --line:rgba(34,211,238,.18); --line-hi:rgba(34,211,238,.55); --cyan:#22d3ee; --cyan-soft:#67e8f9; --amber:#f59e0b;
+    --line:rgba(34,211,238,.18); --line-hi:rgba(34,211,238,.55); --cyan:#22d3ee; --cyan-soft:#67e8f9; --amber:#fbbf24;
+    --hazard:repeating-linear-gradient(-45deg, #facc15 0 9px, #111827 9px 18px);
     --hud:"Chakra Petch", "Segoe UI", sans-serif; --body:"Be Vietnam Pro", system-ui, "Segoe UI", sans-serif;
     color-scheme: dark;
   }
@@ -62,33 +63,56 @@
   .dot { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber); vertical-align:1px; }
   body.online .dot { background:#34d399; box-shadow:0 0 8px #34d399; }
 
-  /* Lõi phản ứng hồ quang */
-  .orb { --s:40px; position:relative; width:var(--s); height:var(--s); flex:none; border-radius:50%; }
-  .orb i { position:absolute; inset:0; border-radius:50%; }
-  .orb i:nth-child(1) { background:conic-gradient(from 0deg, var(--cyan) 0 12%, transparent 0 25%, var(--cyan) 0 37%, transparent 0 50%, var(--cyan) 0 62%, transparent 0 75%, var(--cyan) 0 87%, transparent 0);
-    -webkit-mask:radial-gradient(circle, transparent 62%, #000 63% 70%, transparent 71%); mask:radial-gradient(circle, transparent 62%, #000 63% 70%, transparent 71%); animation:spin 14s linear infinite; }
-  .orb i:nth-child(2) { inset:12%; border:1px solid var(--line-hi); border-top-color:var(--cyan-soft); border-bottom-color:var(--cyan-soft); animation:spin 6s linear infinite reverse; }
-  .orb i:nth-child(3) { inset:32%; background:radial-gradient(circle, #ecfeff 0 18%, var(--cyan-soft) 40%, rgba(34,211,238,.15) 72%, transparent 73%);
-    box-shadow:0 0 calc(var(--s) * .35) rgba(34,211,238,.7); animation:breathe 4s ease-in-out infinite; }
-  body.busy .orb i:nth-child(1) { animation-duration:2.4s; }
-  body.busy .orb i:nth-child(2) { animation-duration:1.2s; border-left-color:var(--amber); }
-  body.busy .orb i:nth-child(3) { animation-duration:1s; }
+  /* Băng cảnh báo công trường chạy dọc mép trên màn hình */
+  body::before { content:""; position:fixed; top:0; left:0; right:0; height:4px; z-index:11; background:var(--hazard); opacity:.9; }
+
+  /* Linh vật: chibi kỹ sư robot (SVG trong app.js). Biểu cảm theo class trên body. */
+  .mascot { --s:44px; width:var(--s); height:var(--s); flex:none; }
+  .mascot svg { width:100%; height:100%; overflow:visible; display:block; }
+  .m-ring { fill:none; stroke:var(--cyan); stroke-width:3; stroke-dasharray:150 40 60 40 120 40 60 93; stroke-linecap:round; animation:spin 16s linear infinite; }
+  .m-ring2 { fill:none; stroke:var(--line-hi); stroke-width:1.5; stroke-dasharray:2 7; animation:spin 30s linear infinite reverse; }
+  .m-head { fill:#10283a; stroke:var(--cyan); stroke-width:3; }
+  .m-screen { fill:#04121c; stroke:rgba(103,232,249,.35); stroke-width:2; }
+  .m-bolt { fill:#0f2a3a; stroke:var(--cyan); stroke-width:2.5; }
+  .m-eyes { transform:translate(calc(var(--lx, 0) * 6px), calc(var(--ly, 0) * 4px)); transition:transform .25s ease-out; filter:drop-shadow(0 0 4px var(--cyan)); }
+  .m-open ellipse { fill:var(--cyan-soft); transform-box:fill-box; transform-origin:center; animation:blink 5s infinite; }
+  .m-happy, .m-err { display:none; fill:none; stroke:var(--cyan-soft); stroke-width:5; stroke-linecap:round; }
+  .m-mouth { fill:none; stroke:var(--cyan-soft); stroke-width:3.5; stroke-linecap:round; }
+  .m-blush { fill:#f472b6; opacity:.35; }
+  .m-hat { fill:#facc15; }
+  .m-hat-hl { fill:none; stroke:#fef9c3; stroke-width:5; stroke-linecap:round; opacity:.7; }
+  .m-ridge, .m-brim { fill:#eab308; } .m-brim { stroke:#a16207; stroke-width:1.5; }
+  .m-lamp-ring { fill:#1f2937; stroke:#a16207; stroke-width:2; }
+  .m-lamp { fill:#ecfeff; filter:drop-shadow(0 0 6px var(--cyan)) drop-shadow(0 0 2px #fff); transform-box:fill-box; transform-origin:center; animation:breathe 3s ease-in-out infinite; }
+  .m-vest { fill:#f97316; } .m-reflect { fill:#e2e8f0; opacity:.85; } .m-collar { fill:#0f172a; }
+  /* Đang xử lý: liếc lên như đang tính, đèn mũ và vành quay nhanh, vành đổi vàng */
+  body.busy .m-eyes { transform:translate(7px, -6px); }
+  body.busy .m-ring { stroke:var(--amber); animation-duration:2s; }
+  body.busy .m-lamp { animation-duration:.8s; }
+  body.happy .m-open, body.err .m-open { display:none; }
+  body.happy .m-happy, body.err .m-err { display:inline; }
+  body.err .m-ring { stroke:#f87171; }
+  body.err .m-mouth { d:path("M-8 25 H8"); }
   @keyframes spin { to { transform:rotate(1turn); } }
-  @keyframes breathe { 50% { transform:scale(.82); opacity:.75; } }
+  @keyframes breathe { 50% { transform:scale(.8); opacity:.7; } }
+  @keyframes blink { 0%, 95%, 100% { transform:scaleY(1); } 97% { transform:scaleY(.1); } }
+  @keyframes tape { to { background-position:36px 0; } }
 
   /* Vùng chính */
   main { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; }
   header { display:flex; align-items:center; gap:14px; padding:14px max(16px, calc(50% - 400px)); border-bottom:1px solid var(--line);
     font:500 12px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
-  header .orb { --s:28px; display:none; }
+  header .mascot { --s:30px; display:none; }
   #state { color:var(--cyan-soft); }
   body.busy #state { color:var(--amber); }
   #clock { margin-left:auto; color:var(--text); font-variant-numeric:tabular-nums; }
 
   #hero { display:none; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px; position:absolute; inset:56px 0 110px; text-align:center; pointer-events:none; }
   main:has(#log:empty) #hero { display:flex; }
-  #hero .orb { --s:min(210px, 46vw); }
-  #hero .orb::before { content:""; position:absolute; inset:-14%; border-radius:50%; border:1px dashed var(--line-hi); animation:spin 40s linear infinite; }
+  #hero .mascot { --s:min(230px, 52vw, 34vh); }
+  #hero .tags { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  #hero .tags span { padding:3px 10px; font:500 11px/1.6 var(--hud); letter-spacing:.12em; text-transform:uppercase; color:var(--amber);
+    border:1px solid rgba(251,191,36,.4); background:rgba(251,191,36,.06); }
   #hero h1 { margin:0; font:600 clamp(22px, 3vw, 30px)/1.2 var(--hud); letter-spacing:.32em; color:var(--cyan-soft); text-shadow:0 0 18px rgba(34,211,238,.5); }
   #hero p { margin:0; max-width:46ch; color:var(--muted); }
 
@@ -124,6 +148,8 @@
 
   form { padding:12px max(16px, calc(50% - 400px)) 22px; }
   .input { position:relative; }
+  /* Đang xử lý: băng cảnh báo chạy trên ô nhập, như biển "đang thi công" */
+  body.busy .input::after { content:""; position:absolute; left:0; right:0; top:-6px; height:4px; background:var(--hazard); animation:tape .8s linear infinite; }
   .input::before { content:"›"; position:absolute; left:14px; top:11px; font:600 20px/1 var(--hud); color:var(--cyan); }
   textarea {
     display:block; width:100%; min-height:58px; max-height:40vh; resize:vertical; padding:13px 16px 13px 34px; font:inherit; color:var(--text);
@@ -173,14 +199,14 @@
   #update code { color:var(--amber); }
   :focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
   #gear2 { display:none; padding:4px 8px; font-size:16px; line-height:1; color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi); cursor:pointer; }
-  @media (max-width:760px) { aside { display:none; } header .orb, #gear2 { display:block; } .user { max-width:100%; } }
+  @media (max-width:760px) { aside { display:none; } header .mascot, #gear2 { display:block; } .user { max-width:100%; } }
   @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
 <aside>
   <div class="brand">
-    <div class="orb" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="mascot" aria-hidden="true"></div>
     <div><b>KURO</b><small>Trợ lý kỹ sư hạ tầng</small></div>
   </div>
   <button id="new" type="button">+ Phiên mới</button>
@@ -188,22 +214,23 @@
   <div id="sessions"></div>
   <div class="sys">
     <div><span class="dot"></span>Kết nối <span id="net">Đang nối</span></div>
-    <div>Lõi <span>Claude</span></div>
+    <div>AI <span id="core">-</span></div>
     <button id="gear" type="button">⚙ Cài đặt</button>
   </div>
 </aside>
 <main>
   <header>
-    <div class="orb" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="mascot" aria-hidden="true"></div>
     <span id="state">Sẵn sàng</span>
     <span id="clock"></span>
     <button id="gear2" type="button" aria-label="Cài đặt">⚙</button>
   </header>
   <div id="update" role="status" hidden></div>
   <div id="hero" aria-hidden="true">
-    <div class="orb"><i></i><i></i><i></i></div>
+    <div class="mascot"></div>
     <h1>KURO TRỰC TUYẾN</h1>
-    <p>Hỏi về biện pháp thi công, bóc khối lượng, QC, tiến độ hay BIM. Mọi phép tính đều chạy bằng script có lưu lại.</p>
+    <p>Kỹ sư AI của công trường: biện pháp thi công, bóc khối lượng, QC, tiến độ, BIM. Mọi phép tính chạy bằng script có lưu lại.</p>
+    <div class="tags"><span>Cầu</span><span>Đường</span><span>Cống</span><span>Cảng</span><span>Dân dụng</span></div>
   </div>
   <div id="log" aria-live="polite"></div>
   <form id="f">
@@ -263,6 +290,6 @@
     </div>
   </form>
 </dialog>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

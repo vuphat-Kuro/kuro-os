@@ -2,9 +2,47 @@ const $ = (id) => document.getElementById(id);
 const md = (t) => DOMPurify.sanitize(marked.parse(t || ""));
 let session = null, ws, bot = null, botText = "", busy = false;
 
+// Linh vật Kuro: chibi kỹ sư robot đội mũ bảo hộ, mặc áo phản quang; đèn mũ là lõi năng lượng.
+// Biểu cảm đi theo class trên body (busy, happy, err) nên mọi bản trên trang đổi cùng lúc.
+const MASCOT = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
+  <circle class="m-ring2" r="88"/><circle class="m-ring" r="96"/>
+  <path class="m-vest" d="M-40 88 Q-40 58 -14 50 H14 Q40 58 40 88 Z"/>
+  <rect class="m-reflect" x="-40" y="70" width="80" height="7"/>
+  <path class="m-collar" d="M-14 50 L0 63 L14 50 Z"/>
+  <circle class="m-bolt" cx="-60" cy="4" r="7"/><circle class="m-bolt" cx="60" cy="4" r="7"/>
+  <rect class="m-head" x="-56" y="-40" width="112" height="90" rx="32"/>
+  <rect class="m-screen" x="-42" y="-22" width="84" height="58" rx="20"/>
+  <g class="m-eyes">
+    <g class="m-open"><ellipse cx="-19" cy="4" rx="8" ry="11"/><ellipse cx="19" cy="4" rx="8" ry="11"/></g>
+    <path class="m-happy" d="M-28 8 Q-19 -6 -10 8 M10 8 Q19 -6 28 8"/>
+    <path class="m-err" d="M-26 -4 L-12 10 M-12 -4 L-26 10 M12 -4 L26 10 M26 -4 L12 10"/>
+  </g>
+  <path class="m-mouth" d="M-8 22 Q0 28 8 22"/>
+  <ellipse class="m-blush" cx="-31" cy="20" rx="6" ry="3.5"/><ellipse class="m-blush" cx="31" cy="20" rx="6" ry="3.5"/>
+  <path class="m-hat" d="M-60 -40 C-60 -96 60 -96 60 -40 Z"/>
+  <path class="m-hat-hl" d="M-46 -50 C-46 -70 -28 -80 -14 -82"/>
+  <rect class="m-ridge" x="-9" y="-86" width="18" height="46" rx="7"/>
+  <rect class="m-brim" x="-70" y="-46" width="140" height="11" rx="5.5"/>
+  <circle class="m-lamp-ring" cy="-64" r="10"/><circle class="m-lamp" cy="-64" r="6"/>
+</svg>`;
+document.querySelectorAll(".mascot").forEach((el) => { el.innerHTML = MASCOT; });
+// Mắt nhìn theo con trỏ.
+document.addEventListener("pointermove", (e) => {
+  document.documentElement.style.setProperty("--lx", (e.clientX / innerWidth * 2 - 1).toFixed(2));
+  document.documentElement.style.setProperty("--ly", (e.clientY / innerHeight * 2 - 1).toFixed(2));
+});
+let happyTimer;
+function mood(cls) {
+  document.body.classList.remove("happy", "err");
+  clearTimeout(happyTimer);
+  if (cls) document.body.classList.add(cls);
+  if (cls === "happy") happyTimer = setTimeout(() => document.body.classList.remove("happy"), 2500);
+}
+
 function setBusy(b) {
   busy = b;
   document.body.classList.toggle("busy", b);
+  if (b) mood(null);
   $("state").textContent = b ? "Đang xử lý" : "Sẵn sàng";
 }
 
@@ -25,10 +63,11 @@ function connect() {
     if (!bot) { bot = add("bot", ""); botText = ""; }
     if (m.type === "text") { botText += m.text; bot.innerHTML = md(botText); }
     else if (m.type === "tool") bot.insertAdjacentHTML("beforeend", `<span class="tool">${DOMPurify.sanitize(m.name)}</span>`);
-    else if (m.type === "error") { botText += `\n\n**Lỗi:** ${m.text}`; bot.innerHTML = md(botText); }
+    else if (m.type === "error") { botText += `\n\n**Lỗi:** ${m.text}`; bot.innerHTML = md(botText); mood("err"); }
     else if (m.type === "final") {
       if (!botText && m.text) bot.innerHTML = md(m.text);
       bot = null; setBusy(false); loadSessions();
+      if (!document.body.classList.contains("err")) mood("happy");
     }
     $("log").scrollTop = $("log").scrollHeight;
   };
@@ -95,6 +134,7 @@ async function openSettings() {
     el.value = el.dataset.orig = v.value;
   }
   // Lần đầu mở Kuro (chưa chọn AI): hộp này thành màn hình chào, chọn AI trước khi dùng.
+  showCore(r);
   const first = !r.settings.KURO_PROVIDER.value;
   $("s-title").textContent = first ? "CHỌN AI CHO KURO" : "CÀI ĐẶT";
   if (first) $("s-status").insertAdjacentHTML("afterbegin", "<p>Chọn AI bạn có tài khoản hoặc key, rồi bấm <b>Lưu và kiểm tra kết nối</b>. Đổi lại lúc nào cũng được ở ⚙ Cài đặt.</p>");
@@ -147,8 +187,13 @@ $("sf").addEventListener("click", (e) => {
 });
 $("gear").onclick = $("gear2").onclick = openSettings;
 $("s-close").onclick = () => $("settings").close();
+// Góc dưới thanh bên ghi AI đang dùng (chỉ tên hãng; tài khoản là tài khoản đăng nhập trên chính máy này).
+function showCore(r) {
+  const id = r.settings.KURO_PROVIDER.value;
+  $("core").textContent = id ? r.providers[id].ten.split(" (")[0] : "Chưa chọn";
+}
 // Chưa chọn AI thì mở màn hình chọn AI ngay khi vào trang.
-fetch("/api/settings").then((r) => r.json()).then((r) => { if (!r.settings.KURO_PROVIDER.value) openSettings(); }).catch(() => {});
+fetch("/api/settings").then((r) => r.json()).then((r) => { showCore(r); if (!r.settings.KURO_PROVIDER.value) openSettings(); }).catch(() => {});
 
 // Báo bản mới: server tự hỏi GitHub 6 giờ một lần, trang hỏi server mỗi giờ.
 async function checkUpdate() {
