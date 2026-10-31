@@ -16,7 +16,7 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
 
 1. Mở cửa sổ lệnh ở thư mục muốn đặt Kuro, rồi gõ:
    ```bat
-   git clone https://github.com/<TAI-KHOAN>/<TEN-REPO>.git Kuro
+   git clone https://github.com/VNP-Kuro/kuro-os.git Kuro
    ```
    Lần đầu, cửa sổ đăng nhập GitHub sẽ hiện ra. Đăng nhập bằng tài khoản đã được mời.
 2. Vào thư mục `Kuro`, bấm đúp `setup.bat`.
