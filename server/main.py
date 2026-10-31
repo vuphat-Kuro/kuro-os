@@ -10,6 +10,7 @@ import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+import cli_engines
 import config
 import engine
 import scheduler
@@ -60,6 +61,7 @@ def get_settings():
         v = os.getenv(k, "")
         out[k] = {"set": bool(v), "hint": "…" + v[-4:] if v else ""} if secret else {"value": v}
     return {"settings": out, "providers": config.PROVIDERS, "claude_cli": bool(shutil.which("claude")),
+            "cli": {k: bool(cli_engines.find(k)) for k in ("codex", "agy")},
             "telegram_on": bool(config.TG_TOKEN)}
 
 

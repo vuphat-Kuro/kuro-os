@@ -127,6 +127,8 @@ async function openSettings() {
   const sel = $("s-KURO_PROVIDER");
   if (sel.options.length === 1) for (const [id, p] of Object.entries(providers)) sel.add(new Option(p.ten, id));
   $("s-status").innerHTML = `<span class="chip ${r.claude_cli ? "ok" : "no"}">Claude Code ${r.claude_cli ? "có" : "chưa cài"}</span>` +
+    `<span class="chip ${r.cli.codex ? "ok" : "no"}">Codex ${r.cli.codex ? "có" : "chưa cài"}</span>` +
+    `<span class="chip ${r.cli.agy ? "ok" : "no"}">Antigravity ${r.cli.agy ? "có" : "chưa cài"}</span>` +
     `<span class="chip ${r.telegram_on ? "ok" : "no"}">Telegram ${r.telegram_on ? "đang chạy" : "tắt"}</span>`;
   for (const [k, v] of Object.entries(r.settings)) {
     const el = $("sf").elements[k];
@@ -202,7 +204,7 @@ async function checkUpdate() {
   box.hidden = !u.behind;
   if (!u.behind) return;
   const esc = (t) => DOMPurify.sanitize(t, { ALLOWED_TAGS: [] });
-  box.innerHTML = `<b>Có bản mới ${esc(u.latest)}</b>Bạn đang dùng ${esc(u.current)}. Bấm đúp <code>cap-nhat.bat</code> trong thư mục Kuro rồi chạy lại <code>run.bat</code>.` +
+  box.innerHTML = `<b>Có bản mới ${esc(u.latest)}</b>Bạn đang dùng ${esc(u.current)}. Bấm đúp <code>cap-nhat.bat</code> trong thư mục Kuro, cập nhật xong Kuro tự mở lại.` +
     (u.notes.length ? `<ul>${u.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
 }
 checkUpdate().catch(() => {});

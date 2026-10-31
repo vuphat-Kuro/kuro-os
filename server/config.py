@@ -29,6 +29,13 @@ REMINDERS_FILE = STATE / "reminders.json"
 PROVIDERS = {
     "claude": {"ten": "Tài khoản Claude (gói Pro/Max)", "goi_y": "Không cần key. Mở PowerShell gõ: claude auth login"},
     "anthropic": {"ten": "Anthropic API key", "key": True, "goi_y": "Lấy key ở console.anthropic.com. Tính tiền theo token."},
+    # Hai bộ não chạy bằng chương trình riêng của hãng (server/cli_engines.py), không qua Claude Code.
+    "chatgpt": {"ten": "Tài khoản ChatGPT (qua Codex)", "cli": "codex",
+                "goi_y": "Không cần key. Cài: npm install -g @openai/codex, rồi mở PowerShell gõ: codex login "
+                         "và chọn Sign in with ChatGPT. Muốn AI tự chạy script tính toán thì thêm Bash ở Tool được phép."},
+    "antigravity": {"ten": "Google Antigravity (agy)", "cli": "agy",
+                    "goi_y": "Không cần key. Cài: mở PowerShell gõ: irm https://antigravity.google/cli/install.ps1 | iex, "
+                             "rồi gõ agy một lần để đăng nhập Google. Muốn AI tự chạy lệnh thì thêm Bash ở Tool được phép."},
     "openrouter": {"ten": "OpenRouter (GPT, Gemini, Claude... một key)", "url": "https://openrouter.ai/api", "key": True,
                    "goi_y": "Lấy key ở openrouter.ai/keys. Model: chép tên ở openrouter.ai/models; để trống = Claude."},
     "deepseek": {"ten": "DeepSeek", "url": "https://api.deepseek.com/anthropic", "key": True,
@@ -48,7 +55,7 @@ _MODEL_ENVS = ("ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEF
 def provider_env() -> dict[str, str]:
     """Biến môi trường cho tiến trình Claude Code theo AI đã chọn; đè lên biến sẵn có của máy."""
     p = PROVIDERS.get(PROVIDER) or PROVIDERS["claude"]
-    if PROVIDER in ("", "claude"):
+    if PROVIDER in ("", "claude") or p.get("cli"):
         return {}
     if PROVIDER == "anthropic":
         return {"ANTHROPIC_API_KEY": AI_KEY}

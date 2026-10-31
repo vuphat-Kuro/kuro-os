@@ -159,6 +159,42 @@ class Providers(unittest.TestCase):
         self.assertTrue(all(re.fullmatch(config.SETTINGS["KURO_PROVIDER"][1], p) for p in config.PROVIDERS))
 
 
+class CliEngines(unittest.TestCase):
+    """Sự kiện mẫu chép từ đầu ra thật của codex-cli 0.156.1 và agy 1.3.3 (31/10/2026)."""
+
+    def run_parse(self, parse, events):
+        import cli_engines  # noqa: F401
+        st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
+        out = [o for e in events for o in parse(e, st)]
+        return st, out
+
+    def test_codex(self):
+        import cli_engines
+        st, out = self.run_parse(cli_engines._codex_event, [
+            {"type": "thread.started", "thread_id": "t1"},
+            {"type": "item.started", "item": {"type": "command_execution"}},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": "OK"}}])
+        self.assertEqual((st["id"], [o["type"] for o in out], out[-1]["text"]), ("t1", ["tool", "text"], "OK"))
+
+    def test_agy_denied_is_not_silent(self):
+        import cli_engines
+        st, out = self.run_parse(cli_engines._agy_event, [
+            {"event": "init", "conversation_id": "c1"},
+            {"event": "step_update", "step_update": {"step_index": 2, "state": "ACTIVE", "step_type": "tool",
+                                                     "tool_name": "write_file"}},
+            {"event": "result", "result": {"status": "SUCCESS", "response": "",
+                                           "denied_actions": [{"action": "write_file", "display_name": "WriteFile"}]}}])
+        self.assertEqual(st["id"], "c1")
+        self.assertIn("WriteFile", st["error"])        # agy dừng vì bị chặn: phải báo, không trả bong bóng rỗng
+
+    def test_agy_text(self):
+        import cli_engines
+        st, out = self.run_parse(cli_engines._agy_event, [
+            {"event": "step_update", "step_update": {"step_type": "agent_response", "text_delta": "OK"}},
+            {"event": "result", "result": {"status": "SUCCESS", "response": "OK\n"}}])
+        self.assertEqual(([o["text"] for o in out], st["error"]), (["OK"], ""))   # không lặp lại response
+
+
 class Bundled(unittest.TestCase):
     def test_update_but_keep_user_edits(self):
         keep = (config.ROOT, config.BRAIN, config.STATE)

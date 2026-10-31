@@ -11,6 +11,8 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
 - [Node.js](https://nodejs.org) và Claude Code: mở cửa sổ lệnh rồi gõ `npm install -g @anthropic-ai/claude-code`. Claude Code là phần chạy nền **miễn phí**, không cần tài khoản Claude.
 - **Một AI để Kuro dùng**, chọn một trong các loại sau:
   - Tài khoản Claude (gói Pro/Max)
+  - Tài khoản ChatGPT: cài thêm Codex (`npm install -g @openai/codex`) rồi chạy `codex login`
+  - Google Antigravity: cài `agy` theo hướng dẫn trong ⚙ Cài đặt, rồi chạy `agy` một lần để đăng nhập
   - Anthropic API key
   - [OpenRouter](https://openrouter.ai): một key dùng được GPT, Gemini, Claude...
   - DeepSeek
@@ -28,20 +30,22 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
    Lần đầu, cửa sổ đăng nhập GitHub sẽ hiện ra. Đăng nhập bằng tài khoản đã được mời.
 2. Vào thư mục `Kuro`, bấm đúp `setup.bat`.
 3. Nếu chọn tài khoản Claude: mở PowerShell, gõ `claude auth login` và đăng nhập. Dùng AI khác thì bỏ qua bước này.
-4. Bấm đúp `run.bat`. Trình duyệt tự mở http://127.0.0.1:7788.
+4. Trên màn hình chính (Desktop) và trong menu Start có biểu tượng **Kuro** (chibi kỹ sư đội mũ bảo hộ). Bấm đúp vào biểu tượng: Kuro chạy ngầm, không hiện cửa sổ đen, và trình duyệt tự mở http://127.0.0.1:7788.
 5. Lần đầu mở, Kuro hiện màn hình **Chọn AI cho Kuro**:
    - Chọn AI, dán key, điền tên model nếu hãng yêu cầu.
    - Bấm **Lưu và kiểm tra kết nối**.
    - Thấy dòng chữ xanh "Kết nối được" là dùng được.
    - Đổi AI lúc nào cũng được ở **⚙ Cài đặt**.
 
+## Tắt Kuro
+
+Bấm đúp `tat-kuro.bat` trong thư mục Kuro. Nếu Kuro không mở được, bấm đúp `run.bat` để xem lỗi hiện trên cửa sổ đen.
+
 ## Cập nhật
 
 Khi có bản mới, Kuro hiện thông báo màu cam trên giao diện, kèm danh sách thay đổi. Nếu bạn đã bật Telegram, Kuro nhắn thêm qua Telegram. Cách cập nhật:
 
-1. Tắt cửa sổ Kuro đang chạy.
-2. Bấm đúp `cap-nhat.bat`.
-3. Bấm đúp `run.bat`.
+Bấm đúp `cap-nhat.bat`. Script tự tắt Kuro, tải bản mới, làm mới biểu tượng rồi mở lại Kuro.
 
 Cập nhật **không** đụng tới key (`.env`), lịch sử chat (`state/`) hay ký ức của bạn (`brains/`).
 
@@ -50,6 +54,7 @@ Skill và agent đi kèm cũng được cập nhật theo. Riêng skill bạn đ
 ## Lưu ý
 
 - Mỗi người dùng một máy, một tài khoản AI hoặc key riêng.
+- ChatGPT và Antigravity chỉ được tự chạy lệnh (viết và chạy script tính toán) khi thêm `Bash` ở ⚙ Cài đặt > Tool được phép. Khi đó AI chạy lệnh trên máy bạn không có hộp cát, nên chỉ bật trên máy của mình.
 - Với AI khác Claude, chất lượng dùng công cụ (đọc file, tính toán, gọi skill) tuỳ model. Nên chọn model mạnh của hãng. Kuro chỉ mở ở `127.0.0.1`, máy khác trong mạng không vào được.
 - Câu trả lời của Kuro là bản nháp hỗ trợ. Hồ sơ chính thức phải được người có chứng chỉ hành nghề kiểm tra và ký.
 - Tài liệu kỹ thuật chi tiết: [KE-HOACH.md](KE-HOACH.md).
