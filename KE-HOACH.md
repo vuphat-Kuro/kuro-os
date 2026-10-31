@@ -279,4 +279,6 @@ Dữ liệu chat thử đã được xoá; brain hiện chứa đúng ký ức, 
 | File Windows có `\r\n` | YAML và regex đọc sai | Chuẩn hoá `\r\n` thành `\n` khi đọc |
 | Skill riêng của Javis (`javis-builder`, `html-to-webcake`) | Chỉ dẫn sai trong Kuro | Script nhập loại hai skill này |
 | Python 3.14 trên máy thiếu pip và thư viện | Script hỏng | Dùng `.venv` Python 3.13 |
+| Ghi file `.bat` bằng lệnh Git Bash | Công cụ tự đổi `>nul` thành `>/dev/null`, cmd báo "The system cannot find the path specified" | Sửa `.bat` bằng công cụ Edit/Write; trong `.bat` dùng `where /q` thay vì chuyển hướng vào `nul` |
+| `pip install -q` trong `setup.bat` | Máy mới thấy màn hình đen 5-15 phút, tưởng treo | In từng bước `[1/4]...` và để pip hiện tiến độ |
 | Danh sách skill quá dài (49 skill, có 21 skill lập trình) | Claude chọn skill kém chính xác hơn | Xoá bớt skill không dùng trong `.claude/skills` |
