@@ -105,6 +105,9 @@
   header .mascot { --s:30px; display:none; }
   #state { color:var(--cyan-soft); }
   body.busy #state { color:var(--amber); }
+  #model-pick { padding:4px 8px; font:500 12px/1.2 var(--hud); letter-spacing:.06em; color:var(--cyan-soft); background:var(--panel-solid);
+    border:1px solid var(--line-hi); border-radius:0; cursor:pointer; max-width:46vw; }
+  #model-pick:focus { outline:2px solid var(--cyan); outline-offset:1px; }
   #clock { margin-left:auto; color:var(--text); font-variant-numeric:tabular-nums; }
 
   #hero { display:none; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px; position:absolute; inset:56px 0 110px; text-align:center; pointer-events:none; }
@@ -222,6 +225,7 @@
   <header>
     <div class="mascot" aria-hidden="true"></div>
     <span id="state">Sẵn sàng</span>
+    <select id="model-pick" aria-label="Đổi model" hidden></select>
     <span id="clock"></span>
     <button id="gear2" type="button" aria-label="Cài đặt">⚙</button>
   </header>
@@ -290,6 +294,6 @@
     </div>
   </form>
 </dialog>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

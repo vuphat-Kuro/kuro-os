@@ -30,6 +30,31 @@ def find(binary: str) -> str | None:
     return shutil.which(binary) or (str(extra) if binary == "agy" and extra.is_file() else None)
 
 
+_models: dict[str, list[dict]] = {}
+
+
+async def models(kind: str) -> list[dict]:
+    """Model mà tài khoản đăng nhập trên máy được dùng, lấy từ chính CLI (agy 1.3.3: dòng "slug<TAB>tên").
+    Không giữ bảng model chép tay: Google đổi tên model liên tục. Chỉ agy có lệnh liệt kê; codex chưa có."""
+    if kind != "agy" or not find("agy"):
+        return []
+    if kind not in _models:
+        proc = await asyncio.create_subprocess_exec(
+            find("agy"), "models", stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), 60)
+        except TimeoutError:
+            proc.kill()
+            return []
+        found = [dict(zip(("id", "ten"), l.strip().split("\t", 1)))
+                 for l in out.decode("utf-8", "replace").splitlines() if "\t" in l]
+        if found:   # lỗi mạng thì lần sau hỏi lại, không nhớ danh sách rỗng
+            _models[kind] = found
+        return found
+    return _models[kind]
+
+
 def _cmd(kind: str, prompt: str, resume: str | None, shell: bool) -> tuple[list[str], bytes | None]:
     """Trả (lệnh, dữ liệu stdin). codex nhận prompt qua stdin nên không vướng giới hạn dòng lệnh Windows."""
     if kind == "codex":

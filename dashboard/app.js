@@ -164,7 +164,7 @@ async function saveSettings() {
   const j = await r.json().catch(() => ({}));
   msg.className = r.ok ? "" : "err";
   msg.textContent = !r.ok ? (j.detail || "Lưu thất bại") : j.restart ? "Đã lưu. Khởi động lại Kuro để áp dụng Telegram." : "Đã lưu. Có hiệu lực từ câu hỏi kế tiếp.";
-  if (r.ok) await openSettings();
+  if (r.ok) { await openSettings(); loadModels().catch(() => {}); }
   return r.ok;
 }
 $("sf").onsubmit = (e) => { e.preventDefault(); saveSettings(); };
@@ -189,6 +189,24 @@ $("sf").addEventListener("click", (e) => {
 });
 $("gear").onclick = $("gear2").onclick = openSettings;
 $("s-close").onclick = () => $("settings").close();
+// Đổi model nhanh trên thanh trên cùng: danh sách lấy từ chính CLI của hãng (hiện có Antigravity).
+async function loadModels() {
+  const r = await (await fetch("/api/models")).json();
+  const sel = $("model-pick");
+  sel.hidden = !r.models.length;
+  if (!r.models.length) return;
+  sel.replaceChildren(new Option("Model mặc định", ""), ...r.models.map((m) => new Option(m.ten, m.id)));
+  if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
+  sel.value = r.current;
+}
+$("model-pick").onchange = async (e) => {
+  const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ KURO_MODEL: e.target.value }) });
+  $("state").textContent = r.ok ? "Đã đổi model" : "Đổi model lỗi";
+  setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
+};
+loadModels().catch(() => {});
+
 // Góc dưới thanh bên ghi AI đang dùng (chỉ tên hãng; tài khoản là tài khoản đăng nhập trên chính máy này).
 function showCore(r) {
   const id = r.settings.KURO_PROVIDER.value;

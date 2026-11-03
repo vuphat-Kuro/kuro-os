@@ -81,6 +81,12 @@ def save_settings(body: dict[str, str]):
     return {"ok": True, "restart": (config.TG_TOKEN, config.TG_OWNERS) != old_tg}
 
 
+@app.get("/api/models", dependencies=[Depends(local_only)])
+async def get_models():
+    kind = engine.cli_kind()
+    return {"models": await cli_engines.models(kind) if kind else [], "current": config.MODEL}
+
+
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])
 async def test_ai():
     return await engine.ping()
