@@ -161,7 +161,7 @@ Chạy kiểm tra:
 | `KURO_BRAINS_DIR`, `KURO_BRAIN` | `brains`, `Brain Default` | Brain đang dùng; đổi tên để có nhiều brain (mỗi dự án một brain) |
 | `KURO_HOST`, `KURO_PORT` | `127.0.0.1`, `7788` | **Giữ 127.0.0.1** chừng nào chưa có đăng nhập (mục 7) |
 | `KURO_PROVIDER`, `KURO_AI_KEY`, `KURO_BASE_URL` | trống | AI chạy Kuro (`config.PROVIDERS`). Mọi hãng đều chạy qua Claude Code; hãng khác Claude được trỏ tới bằng `ANTHROPIC_BASE_URL` (cổng tương thích Anthropic), nên skill, agent và tool đều giữ nguyên. Trống = lần đầu mở hiện màn hình chọn AI |
-| `KURO_MODEL` | trống | Trống = model mặc định của gói; hoặc `sonnet`, `opus`, `haiku` |
+| `KURO_MODEL_<AI>` | trống | Model riêng cho từng AI (vd `KURO_MODEL_CLAUDE=sonnet`). Lưu qua giao diện thì bị chặn nếu tên không thuộc AI đó (Claude, Antigravity). `KURO_MODEL` chung của bản cũ được chuyển đổi tự động lúc khởi động. Đặc tả: `specs/001-model-rieng-tung-ai/` |
 | `KURO_ALLOWED_TOOLS` | `Read,Glob,Grep,Write,Edit,WebSearch,WebFetch,mcp__kuro__tinh_python` | Tool Claude được dùng. Bỏ `mcp__kuro__tinh_python` là tắt tool tính. Thêm `Bash` để chạy script Python của skill; thêm `mcp__revit-mcp` để mở một MCP |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_IDS` | trống | Bật Telegram. Token lấy ở @BotFather, ID của bạn ở @userinfobot |
 

@@ -1,4 +1,5 @@
 """Cấu hình đọc từ .env, và tạo khung brain lần đầu chạy."""
+import difflib
 import hashlib
 import json
 import os
@@ -66,6 +67,47 @@ def provider_env() -> dict[str, str]:
     return env | ({k: MODEL for k in _MODEL_ENVS} if MODEL else {})
 
 
+# Bí danh model mà Claude Code nhận (dùng thật từ bản 1.0); tên đầy đủ "claude-..." cũng hợp lệ.
+CLAUDE_MODELS = [{"id": "", "ten": "Mặc định"}, {"id": "sonnet", "ten": "Sonnet"}, {"id": "opus", "ten": "Opus"},
+                 {"id": "haiku", "ten": "Haiku"}]
+
+
+def model_key(provider: str) -> str:
+    """Mỗi AI một khóa model riêng trong .env; AI chưa chọn coi là claude."""
+    return f"KURO_MODEL_{(provider or 'claude').upper()}"
+
+
+def model_error(provider: str, model: str, agy_models: list[dict]) -> str:
+    """Câu lỗi tiếng Việt nếu model không dùng được với AI có danh sách; rỗng nếu hợp lệ hoặc không kiểm được."""
+    provider = provider or "claude"
+    if not model:
+        return ""
+    if provider == "claude":
+        ids = [m["id"] for m in CLAUDE_MODELS if m["id"]]
+        if model in ids or model.startswith("claude-"):
+            return ""
+        goi_y = ", ".join(ids) + " (hoặc tên bắt đầu claude-)"
+    elif provider == "antigravity" and agy_models:   # không lấy được danh sách thì không chặn
+        ids = [m["id"] for m in agy_models]
+        if model.lower() in (i.lower() for i in ids):   # đo thật: agy 1.3.3 nhận tên không phân biệt hoa thường
+            return ""
+        goi_y = ", ".join(difflib.get_close_matches(model, ids, n=3, cutoff=0.4) or ids[:5])
+    else:
+        return ""
+    return f'Model "{model}" không dùng được với {PROVIDERS[provider]["ten"]}. Chọn: Mặc định, {goi_y}.'
+
+
+def migrate_model() -> None:
+    """Máy cài bản cũ có một KURO_MODEL chung: hợp lệ với AI đang chọn thì chuyển sang khóa của AI đó, rồi xoá trắng.
+    Antigravity coi là hợp lệ vì lúc khởi động chưa lấy được danh sách (lúc lưu lần sau mới chặn)."""
+    old = os.getenv("KURO_MODEL", "")
+    if not old:
+        return
+    keep = not model_error(PROVIDER, old, []) and not os.getenv(model_key(PROVIDER))
+    save_env(({model_key(PROVIDER): old} if keep else {}) | {"KURO_MODEL": ""})
+    print(f"[model] chuyển KURO_MODEL cũ '{old}': " + (f"giữ cho {PROVIDER or 'claude'}" if keep else "bỏ (không hợp lệ)"))
+
+
 def load_runtime() -> None:
     """Các giá trị sửa được lúc đang chạy (mục Cài đặt), đọc lại từ os.environ."""
     global MODEL, ALLOWED_TOOLS, TG_TOKEN, TG_OWNERS, PROVIDER, AI_KEY, BASE_URL
@@ -74,7 +116,7 @@ def load_runtime() -> None:
     PROVIDER = os.getenv("KURO_PROVIDER", "")       # trống = chưa chọn: giao diện mở màn hình chọn AI
     AI_KEY = os.getenv("KURO_AI_KEY", "")
     BASE_URL = os.getenv("KURO_BASE_URL", "")
-    MODEL = os.getenv("KURO_MODEL", "")
+    MODEL = os.getenv(model_key(PROVIDER), "")      # luôn là model của AI đang chọn (specs/001)
     # Tool không có trong danh sách này bị CLI từ chối (permission_mode=dontAsk): quyền được chặn bằng code.
     ALLOWED_TOOLS = [t.strip() for t in os.getenv(
         "KURO_ALLOWED_TOOLS", "Read,Glob,Grep,Write,Edit,WebSearch,WebFetch,mcp__kuro__tinh_python").split(",") if t.strip()]
@@ -131,6 +173,7 @@ def ensure_dirs() -> None:
     md = BRAIN / "CLAUDE.md"
     if not md.exists():
         md.write_text(BRAIN_CLAUDE_MD, encoding="utf-8")
+    migrate_model()
     sync_bundled()
 
 

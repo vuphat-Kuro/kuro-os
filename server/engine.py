@@ -129,7 +129,7 @@ async def ping() -> dict:
                     err = ev["text"] if ev["type"] == "error" else err
         except TimeoutError:
             err = f"Quá 120 giây không thấy trả lời. Thử mở PowerShell gõ `{kind}` xem đã đăng nhập chưa."
-        return {"ok": bool(text) and not err, "text": text[:200], "error": err[:500]}
+        return {"ok": bool(text) and not err, "text": text[:200], "error": loi_tieng_viet(err)[:600]}
     opts = ClaudeAgentOptions(model=config.MODEL or None, env=config.provider_env(), max_turns=1, tools=[],
                               setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
     text, err = "", ""
@@ -160,21 +160,52 @@ async def ping() -> dict:
         err = "Quá 90 giây không thấy trả lời. Kiểm tra mạng, địa chỉ máy chủ, hoặc Ollama đã chạy chưa."
     except Exception as e:  # chưa cài Claude Code, sai địa chỉ...
         err = f"{type(e).__name__}: {e}"
-    return {"ok": bool(text) and not err, "text": text[:200], "error": err[:500]}
+    return {"ok": bool(text) and not err, "text": text[:200], "error": loi_tieng_viet(err)[:600]}
+
+
+def split_conv(stored: str | None) -> tuple[str | None, str | None]:
+    """Mã hội thoại lưu dạng "<id AI>:<mã>". Mã trần (bản cũ) là của claude; tiền tố cũ codex/agy đổi về id AI."""
+    if not stored:
+        return None, None
+    if ":" not in stored:
+        return "claude", stored
+    owner, conv = stored.split(":", 1)
+    return {"codex": "chatgpt", "agy": "antigravity"}.get(owner, owner), conv
+
+
+# Dấu hiệu lỗi "model không tồn tại" đo được (Claude Code: "There's an issue with the selected model ... may not exist").
+_MODEL_LOI = ("issue with the selected model", "may not exist", "model_not_found", "model not found", "invalid model")
+
+
+def loi_tieng_viet(err: str) -> str:
+    if config.MODEL and any(k in err.lower() for k in _MODEL_LOI):
+        p = config.PROVIDERS.get(config.PROVIDER or "claude", {})
+        return f'Model "{config.MODEL}" không có ở {p.get("ten")}. {p.get("goi_y", "")} (Lỗi gốc: {err})'
+    return err
 
 
 async def run_turn(prompt: str, claude_id: str | None = None):
-    """Sinh sự kiện của một lượt; sự kiện final mang thêm claude_id để lượt sau nối tiếp."""
-    # claude_id của bộ não CLI có tiền tố "codex:"/"agy:"; đổi AI giữa chừng thì bắt đầu hội thoại mới.
+    """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
+    cur = config.PROVIDER or "claude"
+    owner, conv = split_conv(claude_id)
+    if owner and owner != cur:   # mỗi hãng giữ hội thoại riêng: AI mới không nối được mạch cũ (specs/001 FR-007)
+        yield {"type": "text", "text": f"_(Đã đổi sang {config.PROVIDERS.get(cur, {}).get('ten', cur)}: "
+                                       "AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
+    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur):
+        if ev["type"] == "error":
+            ev = {**ev, "text": loi_tieng_viet(ev["text"])}
+        elif ev["type"] == "final" and ev.get("claude_id"):
+            ev = {**ev, "claude_id": f"{cur}:{ev['claude_id']}"}
+        yield ev
+
+
+async def _engine_turn(prompt: str, resume: str | None, cur: str):
     if kind := cli_kind():
-        resume = claude_id[len(kind) + 1:] if claude_id and claude_id.startswith(kind + ":") else None
         async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None), resume):
             yield ev
         return
-    if claude_id and ":" in claude_id:
-        claude_id = None
     try:
-        async for m in query(prompt=prompt, options=options(claude_id)):
+        async for m in query(prompt=prompt, options=options(resume)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \

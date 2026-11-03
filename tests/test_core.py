@@ -113,12 +113,13 @@ class Calc(unittest.TestCase):
 class Settings(unittest.TestCase):
     def test_save_env_keeps_comments(self):
         root, keep = Path(tempfile.mkdtemp()), (config.ROOT, dict(os.environ))
-        (root / ".env").write_text("# ghi chú\nKURO_MODEL=\nKURO_PORT=7788\n", encoding="utf-8")
+        (root / ".env").write_text("# ghi chú\nKURO_MODEL_CLAUDE=\nKURO_PORT=7788\n", encoding="utf-8")
         config.ROOT = root
         try:
-            config.save_env({"KURO_MODEL": "opus", "TELEGRAM_OWNER_IDS": "12,34"})
+            config.save_env({"KURO_PROVIDER": "claude", "KURO_MODEL_CLAUDE": "opus", "TELEGRAM_OWNER_IDS": "12,34"})
             self.assertEqual((root / ".env").read_text(encoding="utf-8"),
-                             "# ghi chú\nKURO_MODEL=opus\nKURO_PORT=7788\nTELEGRAM_OWNER_IDS=12,34\n")
+                             "# ghi chú\nKURO_MODEL_CLAUDE=opus\nKURO_PORT=7788\nKURO_PROVIDER=claude\n"
+                             "TELEGRAM_OWNER_IDS=12,34\n")
             self.assertEqual((config.MODEL, config.TG_OWNERS), ("opus", {12, 34}))
         finally:
             config.ROOT = keep[0]
@@ -126,6 +127,77 @@ class Settings(unittest.TestCase):
             os.environ.update(keep[1])
             config.load_runtime()
 
+
+class ModelPerAI(unittest.TestCase):
+    """specs/001: mỗi AI nhớ model riêng, chặn tên sai, chuyển đổi bản cũ, báo khi đổi AI giữa phiên."""
+
+    def setUp(self):
+        self.root, self.keep = Path(tempfile.mkdtemp()), (config.ROOT, dict(os.environ))
+        (self.root / ".env").write_text("", encoding="utf-8")
+        config.ROOT = self.root
+        for k in [k for k in os.environ if k.startswith("KURO_MODEL") or k == "KURO_PROVIDER"]:
+            del os.environ[k]   # không để .env thật của máy chạy test lọt vào
+        config.load_runtime()
+
+    def tearDown(self):
+        config.ROOT = self.keep[0]
+        os.environ.clear()
+        os.environ.update(self.keep[1])
+        config.load_runtime()
+
+    def test_switch_keeps_each_model(self):
+        config.save_env({"KURO_PROVIDER": "antigravity", "KURO_MODEL_ANTIGRAVITY": "gemini-3.8-flash-medium"})
+        self.assertEqual(config.MODEL, "gemini-3.8-flash-medium")
+        config.save_env({"KURO_PROVIDER": "claude"})
+        self.assertEqual(config.MODEL, "")                                   # lỗi gốc: không mang model Gemini sang
+        config.save_env({"KURO_MODEL_CLAUDE": "sonnet", "KURO_PROVIDER": "antigravity"})
+        self.assertEqual(config.MODEL, "gemini-3.8-flash-medium")            # quay lại vẫn còn
+
+    def test_model_error(self):
+        agy = [{"id": "gemini-3.8-flash-medium", "ten": "x"}, {"id": "claude-sonnet-5-5-low", "ten": "y"}]
+        self.assertEqual(config.model_error("claude", "sonnet", []), "")
+        self.assertEqual(config.model_error("", "claude-opus-5-5", []), "")
+        self.assertIn("sonnet", config.model_error("claude", "gemini-3.8-flash-medium", []))
+        self.assertEqual(config.model_error("antigravity", "gemini-3.8-flash-medium", agy), "")
+        self.assertIn("gemini-3.8-flash-medium", config.model_error("antigravity", "gemini-3.8-flash-hi", agy))
+        self.assertEqual(config.model_error("antigravity", "gemini-3.8-Flash-medium", agy), "")   # agy không phân biệt hoa
+        self.assertEqual(config.model_error("antigravity", "bat-ky", []), "")    # chưa lấy được danh sách: không chặn
+        self.assertEqual(config.model_error("deepseek", "bat-ky", agy), "")      # AI không có danh sách: không chặn
+
+    def test_migrate_old_model(self):
+        config.save_env({"KURO_PROVIDER": "claude", "KURO_MODEL": "gemini-3.8-flash-medium"})
+        config.migrate_model()
+        self.assertEqual((os.getenv("KURO_MODEL"), config.MODEL), ("", ""))  # không hợp lệ với Claude: bỏ
+        config.save_env({"KURO_MODEL": "opus"})
+        config.migrate_model()
+        self.assertEqual((os.getenv("KURO_MODEL"), config.MODEL), ("", "opus"))
+
+    def test_conversation_prefix_and_notice(self):
+        import asyncio
+        import engine
+        seen = []
+
+        async def fake(prompt, resume, cur):
+            seen.append(resume)
+            yield {"type": "final", "text": "", "claude_id": "moi"}
+
+        async def collect(stored):
+            return [e async for e in engine.run_turn("hỏi", stored)]
+
+        keep_turn, engine._engine_turn = engine._engine_turn, fake
+        try:
+            config.save_env({"KURO_PROVIDER": "claude"})
+            out = asyncio.run(collect("antigravity:cu"))
+            self.assertIn("AI mới chưa biết", out[0]["text"])                # khác AI: báo một dòng
+            self.assertEqual((seen[-1], out[-1]["claude_id"]), (None, "claude:moi"))
+            out = asyncio.run(collect("abc"))                                 # mã trần bản cũ = claude: nối tiếp
+            self.assertEqual((len(out), seen[-1]), (1, "abc"))
+            self.assertEqual(engine.split_conv("agy:x"), ("antigravity", "x"))
+        finally:
+            engine._engine_turn = keep_turn
+
+
+class Origin(unittest.TestCase):
     def test_validation_and_origin(self):
         import re
         import main

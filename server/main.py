@@ -60,13 +60,15 @@ def get_settings():
     for k, (secret, _) in config.SETTINGS.items():
         v = os.getenv(k, "")
         out[k] = {"set": bool(v), "hint": "…" + v[-4:] if v else ""} if secret else {"value": v}
+    out["KURO_MODEL"] = {"value": config.MODEL}     # model của AI đang chọn, không phải khóa chung cũ
     return {"settings": out, "providers": config.PROVIDERS, "claude_cli": bool(shutil.which("claude")),
+            "model_theo_ai": {p: os.getenv(config.model_key(p), "") for p in config.PROVIDERS},
             "cli": {k: bool(cli_engines.find(k)) for k in ("codex", "agy")},
             "telegram_on": bool(config.TG_TOKEN)}
 
 
 @app.post("/api/settings", dependencies=[Depends(local_only)])
-def save_settings(body: dict[str, str]):
+async def save_settings(body: dict[str, str]):
     updates = {}
     for k, v in body.items():
         if k not in config.SETTINGS:
@@ -75,6 +77,15 @@ def save_settings(body: dict[str, str]):
         if not re.fullmatch(config.SETTINGS[k][1], v):     # cũng chặn xuống dòng chèn thêm khóa lạ vào .env
             raise HTTPException(400, f"Giá trị {k} không hợp lệ")
         updates[k] = v
+    if "KURO_MODEL" in updates:
+        # Model luôn ghi vào khóa của AI đích (AI vừa chọn trong cùng lần lưu, không thì AI đang dùng): specs/001
+        provider = updates.get("KURO_PROVIDER", config.PROVIDER)
+        model = updates.pop("KURO_MODEL")
+        agy = await cli_engines.models("agy") if provider == "antigravity" and model else []
+        if err := config.model_error(provider, model, agy):
+            raise HTTPException(400, err)
+        model = next((m["id"] for m in agy if m["id"].lower() == model.lower()), model)   # lưu đúng cách viết
+        updates[config.model_key(provider)] = model
     old_tg = (config.TG_TOKEN, config.TG_OWNERS)
     config.save_env(updates)
     # Model, tool, API key có hiệu lực từ lượt chat kế tiếp; vòng Telegram chỉ khởi tạo lúc server lên.
@@ -84,7 +95,8 @@ def save_settings(body: dict[str, str]):
 @app.get("/api/models", dependencies=[Depends(local_only)])
 async def get_models():
     kind = engine.cli_kind()
-    return {"models": await cli_engines.models(kind) if kind else [], "current": config.MODEL}
+    found = config.CLAUDE_MODELS if config.PROVIDER in ("", "claude") else await cli_engines.models(kind) if kind else []
+    return {"models": found, "current": config.MODEL}
 
 
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])

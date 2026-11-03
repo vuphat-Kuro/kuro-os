@@ -120,10 +120,11 @@ connect();
 loadSessions();
 
 // Cài đặt: khóa bí mật không bao giờ được trả về trình duyệt, ô trống nghĩa là giữ nguyên.
-let providers = {};
+let providers = {}, modelTheoAi = {};
 async function openSettings() {
   const r = await (await fetch("/api/settings")).json();
   providers = r.providers;
+  modelTheoAi = r.model_theo_ai;
   const sel = $("s-KURO_PROVIDER");
   if (sel.options.length === 1) for (const [id, p] of Object.entries(providers)) sel.add(new Option(p.ten, id));
   $("s-status").innerHTML = `<span class="chip ${r.claude_cli ? "ok" : "no"}">Claude Code ${r.claude_cli ? "có" : "chưa cài"}</span>` +
@@ -151,7 +152,12 @@ function showProvider() {
   $("s-urlrow").hidden = !p.url && $("s-KURO_PROVIDER").value !== "custom";
   $("s-KURO_BASE_URL").placeholder = p.url || "https://...";
 }
-$("s-KURO_PROVIDER").onchange = showProvider;
+// Mỗi AI nhớ model riêng: đổi AI thì ô Model hiện model đã lưu của AI đó, không mang model của AI cũ sang (specs/001).
+$("s-KURO_PROVIDER").onchange = () => {
+  const m = $("s-KURO_MODEL");
+  m.value = m.dataset.orig = modelTheoAi[$("s-KURO_PROVIDER").value || "claude"] || "";
+  showProvider();
+};
 
 async function saveSettings() {
   const body = {};
@@ -195,7 +201,9 @@ async function loadModels() {
   const sel = $("model-pick");
   sel.hidden = !r.models.length;
   if (!r.models.length) return;
-  sel.replaceChildren(new Option("Model mặc định", ""), ...r.models.map((m) => new Option(m.ten, m.id)));
+  const opts = r.models.map((m) => new Option(m.ten, m.id));
+  if (!r.models.some((m) => m.id === "")) opts.unshift(new Option("Model mặc định", ""));
+  sel.replaceChildren(...opts);
   if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
   sel.value = r.current;
 }

@@ -120,7 +120,7 @@ def _agy_event(e: dict, st: dict):
 
 
 async def run(kind: str, prompt: str, resume: str | None):
-    """Sinh sự kiện cùng khuôn với engine.run_turn; final mang claude_id dạng "<kind>:<id>"."""
+    """Sinh sự kiện cùng khuôn với engine.run_turn; final mang mã hội thoại trần, engine gắn tiền tố id AI."""
     if not find(kind):
         yield {"type": "error", "text": f"Chưa cài `{kind}` trên máy này. Xem hướng dẫn ở ⚙ Cài đặt."}
         yield {"type": "final", "text": ""}
@@ -154,4 +154,4 @@ async def run(kind: str, prompt: str, resume: str | None):
                        [f"{kind} thoát mã {code}" if code else "AI không trả lời gì."])[-1][:500]
     if st["error"]:
         yield {"type": "error", "text": st["error"]}
-    yield {"type": "final", "text": "", "claude_id": f"{kind}:{st['id']}" if st["id"] else None}
+    yield {"type": "final", "text": "", "claude_id": st["id"]}   # engine gắn tiền tố <id AI>:
