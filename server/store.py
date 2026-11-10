@@ -61,6 +61,14 @@ def delete_session(sid: str) -> None:
     _q("DELETE FROM sessions WHERE id=?", (sid,))
 
 
+def replace_messages(sid: str, new_messages: list[dict]) -> None:
+    _q("DELETE FROM messages WHERE session_id=?", (sid,))
+    now = time.time()
+    for m in new_messages:
+        _q("INSERT INTO messages(session_id,role,text,ts) VALUES(?,?,?,?)", (sid, m.get("role", "assistant"), m.get("text", ""), now))
+    _q("UPDATE sessions SET updated=?, claude_id=NULL WHERE id=?", (now, sid))
+
+
 def add(sid: str, role: str, text: str) -> None:
     _q("INSERT INTO messages(session_id,role,text,ts) VALUES(?,?,?,?)", (sid, role, text, time.time()))
     _q("UPDATE sessions SET updated=? WHERE id=?", (time.time(), sid))

@@ -51,13 +51,92 @@
 
   .sidebar-header-tabs { display:flex; padding:0 14px; gap:8px; border-bottom:1px solid var(--line); }
   .tab-item {
-    padding:8px 14px; font:600 12px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase; color:var(--cyan-soft);
-    border-bottom:2px solid var(--cyan); background:transparent; border-top:none; border-left:none; border-right:none;
-    display:flex; align-items:center; gap:6px; cursor:pointer;
+    padding:8px 14px; font:600 12px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+    border-bottom:2px solid transparent; background:transparent; border-top:none; border-left:none; border-right:none;
+    display:flex; align-items:center; gap:6px; cursor:pointer; transition:all .18s;
   }
+  .tab-item:hover { color:var(--cyan-soft); }
+  .tab-item.active { color:var(--cyan-soft); border-bottom-color:var(--cyan); }
   .tab-badge {
     padding:2px 6px; font-size:10px; border-radius:10px; background:rgba(34,211,238,.18); color:var(--cyan-soft);
   }
+
+  .sidebar-view { flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+
+  /* CÂY THƯ MỤC DỰ ÁN (PROJECT FILE EXPLORER) */
+  .explorer-toolbar {
+    display:flex; align-items:center; justify-content:space-between; padding:10px 14px 6px;
+    border-bottom:1px solid rgba(34,211,238,.1);
+  }
+  .explorer-title { font:700 11px/1 var(--hud); letter-spacing:.2em; color:var(--amber); text-transform:uppercase; }
+  .explorer-actions { display:flex; align-items:center; gap:4px; }
+  .btn-tool-sm {
+    background:transparent; border:1px solid transparent; color:var(--muted); cursor:pointer;
+    font-size:12px; width:24px; height:24px; border-radius:3px; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s;
+  }
+  .btn-tool-sm:hover { color:var(--cyan-soft); background:rgba(34,211,238,.1); border-color:var(--line); }
+
+  .fs-tree-container { flex:1; overflow-y:auto; padding:6px 8px 14px; font-family:"Consolas", "Cascadia Code", "Segoe UI", sans-serif; }
+  .tree-node { display:flex; flex-direction:column; }
+  .tree-item {
+    display:flex; align-items:center; gap:6px; padding:3px 6px; cursor:pointer; font-size:13px; color:var(--text);
+    border-left:2px solid transparent; user-select:none; border-radius:2px; transition:background .12s, color .12s;
+  }
+  .tree-item:hover { background:rgba(34,211,238,.08); color:var(--cyan-soft); }
+  .tree-item.active { background:rgba(34,211,238,.16); border-left-color:var(--cyan); color:var(--cyan-soft); font-weight:600; }
+  .tree-caret {
+    width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center;
+    font-size:10px; color:var(--muted); transition:transform .15s ease; flex:none;
+  }
+  .tree-caret.open { transform:rotate(90deg); color:var(--cyan); }
+  .tree-caret.empty { visibility:hidden; }
+  .tree-icon {
+    width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; flex:none;
+  }
+  .tree-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; line-height:1.3; }
+  .tree-size { font-size:10.5px; color:var(--muted); font-family:var(--hud); margin-left:auto; }
+  .tree-children {
+    display:flex; flex-direction:column; padding-left:14px; border-left:1px solid rgba(34,211,238,.12); margin-left:8px;
+  }
+
+  /* Huy hiệu icon file theo định dạng chuẩn IDE */
+  .f-badge {
+    display:inline-block; font-size:9px; font-weight:700; line-height:1; padding:2px 3px; border-radius:2px;
+    letter-spacing:.02em; text-transform:uppercase; font-family:var(--hud);
+  }
+  .f-badge.md { color:#38bdf8; background:rgba(56,189,248,.18); border:1px solid rgba(56,189,248,.35); }
+  .f-badge.html { color:#fb923c; background:rgba(251,146,60,.18); border:1px solid rgba(251,146,60,.35); }
+  .f-badge.py { color:#facc15; background:rgba(250,204,21,.18); border:1px solid rgba(250,204,21,.35); }
+  .f-badge.xls { color:#34d399; background:rgba(52,211,153,.18); border:1px solid rgba(52,211,153,.35); }
+  .f-badge.doc { color:#60a5fa; background:rgba(96,165,250,.18); border:1px solid rgba(96,165,250,.35); }
+  .f-badge.pdf { color:#f87171; background:rgba(248,113,113,.18); border:1px solid rgba(248,113,113,.35); }
+  .f-badge.cad { color:#22d3ee; background:rgba(34,211,238,.18); border:1px solid rgba(34,211,238,.35); }
+  .f-badge.zip { color:#c084fc; background:rgba(192,132,252,.18); border:1px solid rgba(192,132,252,.35); }
+  .f-badge.sh { color:#4ade80; background:rgba(74,222,128,.18); border:1px solid rgba(74,222,128,.35); }
+  .f-badge.json { color:#f59e0b; background:rgba(245,158,11,.18); border:1px solid rgba(245,158,11,.35); }
+
+  .explorer-footer {
+    padding:8px 14px; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;
+    font:500 11px/1 var(--hud); letter-spacing:.08em; color:var(--muted); background:var(--panel-solid);
+  }
+  .btn-link { background:none; border:none; color:var(--cyan); cursor:pointer; font:inherit; padding:0; }
+  .btn-link:hover { text-decoration:underline; }
+
+  /* Modal xem trước tệp tin (File Preview Modal) */
+  #file-preview-dialog { width:min(860px, calc(100vw - 32px)); height:min(680px, calc(100vh - 48px)); }
+  .file-preview-wrap { display:flex; flex-direction:column; height:100%; background:var(--panel-solid); }
+  .fp-header {
+    display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--line);
+    background:rgba(0,0,0,.35);
+  }
+  .fp-title-zone { display:flex; align-items:center; gap:12px; }
+  .fp-icon { font-size:22px; flex:none; }
+  .fp-filename { margin:0; font:700 15px/1.2 var(--hud); letter-spacing:.06em; color:var(--cyan-soft); }
+  .fp-filepath { color:var(--muted); font-size:12px; font-family:"Consolas", monospace; }
+  .fp-actions { display:flex; align-items:center; gap:8px; }
+  .fp-body { flex:1; overflow:auto; padding:20px; font:13.5px/1.6 var(--body); }
+  .fp-body pre { margin:0; font:12.5px/1.5 Consolas, monospace; color:var(--text); white-space:pre-wrap; }
 
   .search-wrap { padding:10px 14px; }
   .search-box {
@@ -230,7 +309,7 @@
   body.busy .bot:last-child::before { content:attr(data-sender) " // ĐANG XỬ LÝ..."; animation:blink 1s steps(2) infinite; }
 
   /* Form nhập tin nhắn */
-  form { padding:10px max(20px, calc(50% - 420px)) 16px; background:rgba(5,9,15,.7); backdrop-filter:blur(6px); }
+  form { padding:10px max(20px, calc(50% - 420px)) 16px; background:rgba(5,9,15,.7); backdrop-filter:blur(6px); position:relative; }
   .input { position:relative; }
   body.busy .input::after { content:""; position:absolute; left:0; right:0; top:-4px; height:3px; background:var(--hazard); animation:tape .8s linear infinite; }
   .input::before { content:"›"; position:absolute; left:14px; top:12px; font:700 20px/1 var(--hud); color:var(--cyan); }
@@ -246,6 +325,42 @@
   }
   .btn-send:hover { background:var(--cyan-soft); }
   .form-hint-row { display:flex; justify-content:space-between; margin-top:6px; font:500 11px/1 var(--hud); letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+
+  /* Menu gợi ý lệnh gạch chéo / (Slash Popover) */
+  .slash-popover {
+    position:absolute; bottom:calc(100% + 6px); left:0; right:0;
+    max-height:280px; background:var(--panel-solid); border:1px solid var(--line-hi);
+    box-shadow:0 -12px 36px rgba(0,0,0,.85); z-index:100; display:flex; flex-direction:column;
+    backdrop-filter:blur(12px);
+  }
+  .slash-header {
+    padding:8px 14px; font:700 11px/1 var(--hud); letter-spacing:.18em; color:var(--amber); text-transform:uppercase;
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,.3);
+  }
+  .slash-items { overflow-y:auto; flex:1; padding:4px 0; }
+  .slash-cat-title {
+    padding:6px 14px 2px; font:600 10px/1 var(--hud); letter-spacing:.18em; color:var(--muted); text-transform:uppercase;
+  }
+  .slash-item {
+    display:flex; align-items:center; gap:12px; padding:8px 14px; cursor:pointer; border-left:3px solid transparent;
+    transition:background .15s, border-color .15s;
+  }
+  .slash-item:hover, .slash-item.active {
+    background:rgba(34,211,238,.12); border-left-color:var(--cyan);
+  }
+  .slash-item .slash-cmd {
+    font:700 13px/1 var(--hud); letter-spacing:.04em; color:var(--cyan-soft); min-width:150px; flex:none;
+  }
+  .slash-item .slash-desc {
+    font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0;
+  }
+  .slash-item .slash-badge {
+    padding:2px 6px; font:600 9px/1 var(--hud); border-radius:3px; background:rgba(34,211,238,.1); color:var(--cyan-soft);
+    border:1px solid rgba(34,211,238,.25); text-transform:uppercase; flex:none;
+  }
+  .slash-item .slash-badge.skill {
+    background:rgba(251,191,36,.1); color:var(--amber); border-color:rgba(251,191,36,.3);
+  }
 
   /* CỘT 3: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ (HISTORY SIDEBAR) */
   #history-sidebar {
@@ -373,7 +488,7 @@
 </head>
 <body>
 
-<!-- CỘT 1: DANH SÁCH CỘNG SỰ -->
+<!-- CỘT 1: DANH SÁCH CỘNG SỰ & CÂY THƯ MỤC -->
 <aside id="agents-sidebar">
   <div class="brand">
     <div class="mascot" aria-hidden="true"></div>
@@ -381,32 +496,63 @@
   </div>
 
   <div class="sidebar-header-tabs">
-    <button class="tab-item" type="button">
+    <button class="tab-item active" id="tab-btn-agents" type="button">
       <span>Cộng sự</span>
       <span class="tab-badge" id="agent-count">7</span>
     </button>
-  </div>
-
-  <div class="search-wrap">
-    <div class="search-box">
-      <span>🔍</span>
-      <input id="agent-search" type="search" placeholder="Tất cả cộng sự..." aria-label="Tìm kiếm cộng sự">
-    </div>
-  </div>
-
-  <div id="agent-list">
-    <!-- Render động các Agent từ /api/agents -->
-  </div>
-
-  <div class="sidebar-bottom">
-    <button id="btn-create-agent" type="button" class="btn-create-agent">
-      <span>+</span> Tạo cộng sự mới
+    <button class="tab-item" id="tab-btn-explorer" type="button">
+      <span>📁 Tệp tin</span>
     </button>
-    <div class="sys-status-row">
-      <div><span class="dot"></span>Kết nối <span class="val" id="net">Đang nối</span></div>
-      <div>AI <span class="val" id="core">-</span></div>
+  </div>
+
+  <!-- VIEW 1: DANH SÁCH CỘNG SỰ (AGENTS) -->
+  <div id="view-agents" class="sidebar-view">
+    <div class="search-wrap">
+      <div class="search-box">
+        <span>🔍</span>
+        <input id="agent-search" type="search" placeholder="Tất cả cộng sự..." aria-label="Tìm kiếm cộng sự">
+      </div>
     </div>
-    <button id="gear" type="button">⚙ Cài đặt hệ thống</button>
+
+    <div id="agent-list">
+      <!-- Render động các Agent từ /api/agents -->
+    </div>
+
+    <div class="sidebar-bottom">
+      <button id="btn-create-agent" type="button" class="btn-create-agent">
+        <span>+</span> Tạo cộng sự mới
+      </button>
+      <div class="sys-status-row">
+        <div><span class="dot"></span>Kết nối <span class="val" id="net">Đang nối</span></div>
+        <div>AI <span class="val" id="core">-</span></div>
+      </div>
+      <button id="gear" type="button">⚙ Cài đặt hệ thống</button>
+    </div>
+  </div>
+
+  <!-- VIEW 2: CÂY THƯ MỤC DỰ ÁN (PROJECT EXPLORER KIỂU ANTIGRAVITY IDE) -->
+  <div id="view-explorer" class="sidebar-view" style="display:none;">
+    <div class="explorer-toolbar">
+      <span class="explorer-title">EXPLORER // DỰ ÁN</span>
+      <div class="explorer-actions">
+        <button id="btn-fs-refresh" class="btn-tool-sm" type="button" title="Làm mới cây thư mục">🔄</button>
+        <button id="btn-fs-collapse" class="btn-tool-sm" type="button" title="Thu gọn tất cả">⊖</button>
+        <button id="btn-fs-hidden" class="btn-tool-sm" type="button" title="Hiện/ẩn tệp ẩn">👁</button>
+      </div>
+    </div>
+    <div class="search-wrap" style="padding:6px 14px;">
+      <div class="search-box">
+        <span>🔍</span>
+        <input id="fs-search" type="search" placeholder="Tìm tệp tin dự án..." aria-label="Tìm kiếm file">
+      </div>
+    </div>
+    <div id="fs-tree-container" class="fs-tree-container">
+      <div id="fs-tree"></div>
+    </div>
+    <div class="explorer-footer">
+      <span id="fs-status">Sẵn sàng</span>
+      <button id="btn-fs-brain" class="btn-link" type="button" title="Xem thư mục Brain">🧠 Brain</button>
+    </div>
   </div>
 </aside>
 
@@ -428,6 +574,9 @@
     <div class="header-controls">
       <button id="new" class="btn-hdr primary" type="button">+ Phiên mới</button>
       <select id="model-pick" aria-label="Đổi model" hidden></select>
+      <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Bật/tắt cây thư mục">
+        📁 <span>Tệp tin</span>
+      </button>
       <button id="btn-toggle-history" class="btn-hdr" type="button" title="Ẩn/hiện lịch sử hội thoại">
         📋 <span>Lịch sử</span>
       </button>
@@ -453,11 +602,20 @@
 
   <form id="f">
     <div class="input">
-      <textarea id="q" placeholder="Hỏi Kuro..." aria-label="Câu hỏi" rows="1"></textarea>
+      <!-- Popover gợi ý lệnh gạch chéo / -->
+      <div id="slash-menu" class="slash-popover" style="display:none;" role="listbox" aria-label="Gợi ý lệnh gạch chéo">
+        <div class="slash-header">
+          <span>Lệnh nhanh (Slash Commands)</span>
+          <small style="color:var(--muted); font-size:10.5px; font-weight:normal;">↑↓ chọn · Enter/Tab chèn · Esc đóng</small>
+        </div>
+        <div id="slash-items" class="slash-items"></div>
+      </div>
+
+      <textarea id="q" placeholder="Hỏi Kuro... (Gõ / để gọi lệnh nhanh hoặc skill)" aria-label="Câu hỏi" rows="1"></textarea>
       <button class="btn-send" type="submit" id="btn-send" title="Gửi (Enter)">Gửi ▸</button>
     </div>
     <div class="form-hint-row">
-      <span>Enter để gửi · Shift+Enter xuống dòng</span>
+      <span>Gõ <code>/</code> để gọi lệnh & skill · Enter gửi · Shift+Enter xuống dòng</span>
       <span id="typing-indicator" style="display:none; color:var(--amber);">AI đang soạn phản hồi...</span>
     </div>
   </form>
@@ -573,6 +731,28 @@
   </form>
 </dialog>
 
-<script src="app.js?v=12"></script>
+<!-- DIALOG XEM TRƯỚC TỆP TIN -->
+<dialog id="file-preview-dialog" aria-labelledby="fp-title">
+  <div class="file-preview-wrap">
+    <div class="fp-header">
+      <div class="fp-title-zone">
+        <span class="fp-icon" id="fp-icon">📄</span>
+        <div>
+          <h3 id="fp-title" class="fp-filename">filename.md</h3>
+          <small id="fp-path" class="fp-filepath">path/to/file</small>
+        </div>
+      </div>
+      <div class="fp-actions">
+        <button id="btn-fp-chat" class="btn main" type="button">💬 Hỏi Kuro về file này</button>
+        <button id="btn-fp-close" class="btn" type="button">✕ Đóng</button>
+      </div>
+    </div>
+    <div id="fp-body" class="fp-body">
+      <!-- Nội dung file hiển thị đẹp mắt -->
+    </div>
+  </div>
+</dialog>
+
+<script src="app.js?v=16"></script>
 </body>
 </html>

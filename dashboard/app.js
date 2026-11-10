@@ -446,18 +446,314 @@ function connect() {
   };
 }
 
-// Xử lý gửi tin nhắn
+// Xử lý gửi tin nhắn & Lệnh gạch chéo Slash Commands
+const SYSTEM_SLASH_COMMANDS = [
+  { cmd: "/compact", name: "/compact", desc: "Thu gọn và tóm tắt ngữ cảnh hội thoại hiện tại", needArg: false },
+  { cmd: "/context", name: "/context", desc: "Xem thống kê ngữ cảnh, số tin nhắn, token và ký ức đang dùng", needArg: false },
+  { cmd: "/skill", name: "/skill <tên_skill>", desc: "Chỉ định áp dụng một skill kỹ thuật chuyên môn", needArg: true },
+  { cmd: "/plan", name: "/plan <nội dung>", desc: "Chế độ lập kế hoạch chi tiết từng bước trước khi thực thi", needArg: true },
+  { cmd: "/goal", name: "/goal <mục tiêu>", desc: "Chế độ tập trung theo đuổi mục tiêu kỹ thuật đến cùng", needArg: true },
+  { cmd: "/model", name: "/model", desc: "Xem hoặc đổi nhanh model AI đang sử dụng", needArg: false },
+  { cmd: "/clear", name: "/clear (hoặc /new)", desc: "Bắt đầu một phiên hội thoại mới sạch sẽ", needArg: false },
+  { cmd: "/help", name: "/help", desc: "Xem hướng dẫn danh sách toàn bộ các lệnh gạch chéo", needArg: false }
+];
+
+let skillsList = [];
+let slashActive = false;
+let slashSelectedIndex = 0;
+let slashFilteredItems = [];
+
+async function loadSkills() {
+  try {
+    const res = await fetch("/api/skills");
+    if (res.ok) {
+      const data = await res.json();
+      skillsList = Array.isArray(data) ? data : [];
+    }
+  } catch (e) {
+    console.error("Lỗi tải skills:", e);
+    skillsList = [];
+  }
+}
+
+function getAllSlashItems() {
+  const sysItems = SYSTEM_SLASH_COMMANDS.map((c) => ({ ...c, type: "system", badge: "Hệ thống" }));
+  const skillItems = Array.isArray(skillsList) ? skillsList.map((s) => ({
+    cmd: "/" + s.slug,
+    name: "/" + s.slug,
+    desc: s.desc || s.name,
+    needArg: true,
+    type: "skill",
+    badge: "Skill"
+  })) : [];
+  return [...sysItems, ...skillItems];
+}
+
+function showSlashMenu(query) {
+  const all = getAllSlashItems();
+  const q = (query || "").toLowerCase();
+  slashFilteredItems = all.filter((it) => {
+    return !q || it.cmd.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q) || it.name.toLowerCase().includes(q);
+  });
+
+  if (!slashFilteredItems.length) {
+    hideSlashMenu();
+    return;
+  }
+
+  slashSelectedIndex = 0;
+  renderSlashMenu();
+  $("slash-menu").style.display = "flex";
+  slashActive = true;
+}
+
+function hideSlashMenu() {
+  $("slash-menu").style.display = "none";
+  slashActive = false;
+}
+
+function renderSlashMenu() {
+  const container = $("slash-items");
+  container.innerHTML = "";
+
+  const sys = slashFilteredItems.filter((i) => i.type === "system");
+  const sk = slashFilteredItems.filter((i) => i.type === "skill");
+
+  let globalIdx = 0;
+
+  const renderSection = (title, items) => {
+    if (!items.length) return;
+    const cat = document.createElement("div");
+    cat.className = "slash-cat-title";
+    cat.textContent = title;
+    container.appendChild(cat);
+
+    items.forEach((item) => {
+      const idx = globalIdx++;
+      const el = document.createElement("div");
+      el.className = "slash-item" + (idx === slashSelectedIndex ? " active" : "");
+      el.innerHTML = `
+        <span class="slash-cmd">${DOMPurify.sanitize(item.name)}</span>
+        <span class="slash-desc">${DOMPurify.sanitize(item.desc)}</span>
+        <span class="slash-badge ${item.type === 'skill' ? 'skill' : ''}">${DOMPurify.sanitize(item.badge)}</span>
+      `;
+      el.onclick = () => selectSlashItem(item);
+      container.appendChild(el);
+    });
+  };
+
+  renderSection("Lệnh hệ thống", sys);
+  renderSection("Skill chuyên môn", sk);
+}
+
+function selectSlashItem(item) {
+  hideSlashMenu();
+  if (item.needArg) {
+    $("q").value = item.cmd + " ";
+    $("q").focus();
+    $("q").selectionStart = $("q").selectionEnd = $("q").value.length;
+  } else {
+    $("q").value = item.cmd;
+    $("f").requestSubmit();
+  }
+}
+
+// Lắng nghe sự kiện gõ phím trên textarea
+$("q").addEventListener("input", function() {
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 200) + "px";
+
+  const val = this.value;
+  if (val.startsWith("/")) {
+    const query = val.slice(1).split(/\s+/)[0];
+    showSlashMenu(query);
+  } else {
+    hideSlashMenu();
+  }
+});
+
 $("q").onkeydown = (e) => {
+  if (slashActive) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      slashSelectedIndex = (slashSelectedIndex + 1) % slashFilteredItems.length;
+      renderSlashMenu();
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      slashSelectedIndex = (slashSelectedIndex - 1 + slashFilteredItems.length) % slashFilteredItems.length;
+      renderSlashMenu();
+      return;
+    }
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      if (slashFilteredItems[slashSelectedIndex]) {
+        selectSlashItem(slashFilteredItems[slashSelectedIndex]);
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hideSlashMenu();
+      return;
+    }
+  }
+
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     $("f").requestSubmit();
   }
 };
 
-$("f").onsubmit = (e) => {
+// Đóng menu nếu click ra ngoài
+document.addEventListener("click", (e) => {
+  if (slashActive && !$("f").contains(e.target)) {
+    hideSlashMenu();
+  }
+});
+
+// Xử lý gửi tin nhắn và lệnh slash
+$("f").onsubmit = async (e) => {
   e.preventDefault();
+  hideSlashMenu();
   const text = $("q").value.trim();
   if (!text || busy) return;
+
+  // Xử lý lệnh gạch chéo
+  if (text.startsWith("/")) {
+    const parts = text.slice(1).split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const arg = parts.slice(1).join(" ").trim();
+
+    if (cmd === "help") {
+      $("q").value = "";
+      addMessage("user", "").textContent = text;
+      const helpHtml = `
+### 🛠️ DANH MỤC LỆNH GẠCH CHÉO (SLASH COMMANDS)
+
+| Lệnh | Ý nghĩa & Cách dùng |
+| :--- | :--- |
+| **\`/compact\`** | Thu gọn và tóm tắt hội thoại hiện tại để giải phóng cửa sổ ngữ cảnh |
+| **\`/context\`** | Kiểm tra thống kê phiên: tin nhắn, số token, agent, ký ức đang dùng |
+| **\`/skill <tên_skill>\`** | Chỉ định nạp quy trình của một skill cụ thể để xử lý bài toán |
+| **\`/plan <công việc>\`** | Yêu cầu AI lập kế hoạch chi tiết từng bước, phân tích rủi ro trước khi làm |
+| **\`/goal <mục tiêu>\`** | Chế độ bám đuổi mục tiêu: AI tập trung làm triệt để không dừng giữa chừng |
+| **\`/model\`** | Xem model hiện tại hoặc đổi model trên thanh điều khiển |
+| **\`/clear\`** *(hoặc \`/new\`)* | Tạo phiên hội thoại mới sạch sẽ |
+| **\`/<slug_skill>\`** | Kích hoạt trực tiếp 21 skill ngành (ví dụ: \`/bien-phap-thi-cong\`, \`/tinh-toan-ky-thuat\`, \`/kiem-toan-ket-cau-phu-tro\`, \`/qs-khoi-luong-du-toan\`, \`/tien-do-san-luong\`...) |
+      `;
+      addMessage("bot", md(helpHtml));
+      return;
+    }
+
+    if (cmd === "clear" || cmd === "new" || cmd === "reset") {
+      $("q").value = "";
+      newSession();
+      return;
+    }
+
+    if (cmd === "model") {
+      $("q").value = "";
+      addMessage("user", "").textContent = text;
+      const cur = $("model-pick").value || "Mặc định";
+      addMessage("bot", md(`Model AI hiện đang cấu hình: **${cur}**. Bạn có thể đổi nhanh tại thanh chọn model góc trên bên phải.`));
+      return;
+    }
+
+    if (cmd === "context") {
+      $("q").value = "";
+      addMessage("user", "").textContent = text;
+      if (!session) {
+        addMessage("bot", md("*(Phiên mới chưa có tin nhắn nào được lưu)*"));
+        return;
+      }
+      try {
+        const res = await fetch(`/api/sessions/${session}/context`);
+        const ctx = await res.json();
+        const ctxHtml = `
+### 📊 THÔNG SỐ NGỮ CẢNH PHIÊN (CONTEXT)
+- **Mã phiên:** \`${ctx.id}\`
+- **Cộng sự phụ trách:** **${DOMPurify.sanitize(currentAgent().name)}**
+- **Bộ não AI:** \`${ctx.provider}\` (Model: \`${ctx.model}\`)
+- **Số tin nhắn:** ${ctx.message_count} tin
+- **Tổng dung lượng ký tự:** ${ctx.total_chars.toLocaleString()} ký tự
+- **Ước tính Token:** ~${ctx.estimated_tokens.toLocaleString()} tokens
+- **Ký ức dài hạn (Brain Memory):** ${ctx.memory_bytes} bytes
+        `;
+        addMessage("bot", md(ctxHtml));
+      } catch (err) {
+        addMessage("bot", md("Không lấy được thông số ngữ cảnh: " + err));
+      }
+      return;
+    }
+
+    if (cmd === "compact") {
+      $("q").value = "";
+      addMessage("user", "").textContent = text;
+      if (!session) {
+        addMessage("bot", md("*(Phiên mới chưa có đủ tin nhắn để thu gọn)*"));
+        return;
+      }
+      setBusy(true);
+      const loadingMsg = addMessage("bot", "*(Đang thu gọn và cô đọng ngữ cảnh hội thoại, vui lòng đợi...)*");
+      try {
+        const res = await fetch(`/api/sessions/${session}/compact`, { method: "POST" });
+        const j = await res.json();
+        setBusy(false);
+        if (j.compacted) {
+          loadingMsg.remove();
+          await openSession(session);
+          addMessage("bot", md("✅ **Đã thu gọn ngữ cảnh thành công!** Phiên chat đã được tóm tắt tinh gọn để giải phóng bộ nhớ."));
+        } else {
+          loadingMsg.innerHTML = md(j.msg || "Chưa thể compact phiên này.");
+        }
+      } catch (err) {
+        setBusy(false);
+        loadingMsg.innerHTML = md("Lỗi khi thu gọn ngữ cảnh: " + err);
+      }
+      return;
+    }
+
+    // Nếu là lệnh /plan
+    if (cmd === "plan") {
+      $("q").value = "";
+      const prompt = `[CHẾ ĐỘ LẬP KẾ HOẠCH - PLAN MODE]\nTrước khi bắt tay vào thực hiện, hãy lập kế hoạch chi tiết từng bước cho yêu cầu sau. Phân tích: căn cứ tiêu chuẩn, dữ liệu đầu vào cần có, các bước thực hiện, điểm kiểm soát (Hold Points) và rủi ro tiềm ẩn:\n\n${arg}`;
+      addMessage("user", "").textContent = text;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      setBusy(true);
+      ws.send(JSON.stringify({ session: session, text: prompt, agent: selectedAgent }));
+      return;
+    }
+
+    // Nếu là lệnh /goal
+    if (cmd === "goal") {
+      $("q").value = "";
+      const prompt = `[CHẾ ĐỘ MỤC TIÊU BỀN BỈ - GOAL MODE]\nHãy tập trung giải quyết triệt để và trọn vẹn mục tiêu sau đây, không dừng lại giữa chừng khi bài toán chưa hoàn tất:\n\n${arg}`;
+      addMessage("user", "").textContent = text;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      setBusy(true);
+      ws.send(JSON.stringify({ session: session, text: prompt, agent: selectedAgent }));
+      return;
+    }
+
+    // Nếu là /skill <tên_skill> hoặc /<slug_skill>
+    const targetSkill = cmd === "skill" ? arg.split(/\s+/)[0] : cmd;
+    const skillArg = cmd === "skill" ? arg.slice(targetSkill.length).trim() : arg;
+    const isSkillMatch = skillsList.some((s) => s.slug === targetSkill);
+
+    if (isSkillMatch) {
+      $("q").value = "";
+      const prompt = `[KÍCH HOẠT SKILL: ${targetSkill}]\nHãy đọc và tuân thủ nghiêm ngặt quy trình của skill \`${targetSkill}\` trong thư mục skill để xử lý yêu cầu sau:\n\n${skillArg || 'Áp dụng quy trình chuẩn của skill này để hướng dẫn và triển khai.'}`;
+      addMessage("user", "").textContent = text;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      setBusy(true);
+      ws.send(JSON.stringify({ session: session, text: prompt, agent: selectedAgent }));
+      return;
+    }
+  }
+
+  // Tin nhắn thông thường
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     alert("Chưa kết nối được với máy chủ Kuro. Vui lòng đợi trong giây lát...");
     return;
@@ -468,12 +764,6 @@ $("f").onsubmit = (e) => {
   $("q").style.height = "auto";
   ws.send(JSON.stringify({ session: session, text: text, agent: selectedAgent }));
 };
-
-// Tự co giãn textarea theo nội dung
-$("q").addEventListener("input", function() {
-  this.style.height = "auto";
-  this.style.height = Math.min(this.scrollHeight, 200) + "px";
-});
 
 // Modal Tạo cộng sự mới
 $("btn-create-agent").onclick = () => {
@@ -661,11 +951,263 @@ async function checkUpdate() {
     (u.notes.length ? `<ul>${u.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
 }
 
+// ===================== CÂY THƯ MỤC DỰ ÁN (PROJECT EXPLORER) =====================
+let fsExpanded = new Set();
+let fsShowHidden = false;
+let currentPreviewPath = "";
+let fsRootData = null;
+
+// Chuyển đổi tab giữa Danh sách Cộng sự và Cây thư mục dự án
+function switchSidebarTab(tabName) {
+  const isExplorer = tabName === "explorer";
+  $("tab-btn-agents").classList.toggle("active", !isExplorer);
+  $("tab-btn-explorer").classList.toggle("active", isExplorer);
+  $("view-agents").style.display = isExplorer ? "none" : "flex";
+  $("view-explorer").style.display = isExplorer ? "flex" : "none";
+
+  if (isExplorer && !fsRootData) {
+    refreshFsTree();
+  }
+}
+
+$("tab-btn-agents").onclick = () => switchSidebarTab("agents");
+$("tab-btn-explorer").onclick = () => switchSidebarTab("explorer");
+$("btn-toggle-explorer").onclick = () => {
+  const isExp = $("view-explorer").style.display === "flex";
+  switchSidebarTab(isExp ? "agents" : "explorer");
+};
+
+// Biểu tượng tệp tin theo định dạng (chuẩn Antigravity IDE / VS Code)
+function getFileBadge(ext) {
+  ext = (ext || "").toLowerCase();
+  if (ext === ".md") return `<span class="f-badge md">M↓</span>`;
+  if (ext === ".html" || ext === ".htm") return `<span class="f-badge html">&lt;/&gt;</span>`;
+  if (ext === ".py") return `<span class="f-badge py">Py</span>`;
+  if (ext === ".xlsx" || ext === ".xls" || ext === ".csv") return `<span class="f-badge xls">田</span>`;
+  if (ext === ".docx" || ext === ".doc") return `<span class="f-badge doc">W</span>`;
+  if (ext === ".pdf") return `<span class="f-badge pdf">PDF</span>`;
+  if (ext === ".dwg" || ext === ".dxf" || ext === ".rvt") return `<span class="f-badge cad">CAD</span>`;
+  if (ext === ".zip" || ext === ".rar" || ext === ".7z" || ext === ".tar" || ext === ".gz") return `<span class="f-badge zip">ZIP</span>`;
+  if (ext === ".bat" || ext === ".ps1" || ext === ".sh" || ext === ".vbs" || ext === ".cmd") return `<span class="f-badge sh">&gt;_</span>`;
+  if (ext === ".json" || ext === ".yaml" || ext === ".yml" || ext === ".toml") return `<span class="f-badge json">{}</span>`;
+  if ([".png", ".jpg", ".jpeg", ".ico", ".svg"].includes(ext)) return `🖼️`;
+  return `📄`;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+// Tải và hiển thị cây thư mục
+async function refreshFsTree() {
+  $("fs-status").textContent = "Đang tải...";
+  try {
+    const res = await fetch(`/api/fs/tree?sub=&show_hidden=${fsShowHidden}`);
+    fsRootData = await res.json();
+    renderFsRoot();
+    $("fs-status").textContent = "Đã đồng bộ";
+  } catch (err) {
+    $("fs-status").textContent = "Lỗi đọc thư mục";
+    console.error("Lỗi fs tree:", err);
+  }
+}
+
+function renderFsRoot() {
+  const container = $("fs-tree");
+  container.innerHTML = "";
+  if (!fsRootData || !fsRootData.items) return;
+
+  // Root node: KURO-WORKSPACE
+  const rootNode = document.createElement("div");
+  rootNode.className = "tree-node";
+
+  const rootItem = document.createElement("div");
+  rootItem.className = "tree-item";
+  rootItem.innerHTML = `
+    <span class="tree-caret open">▶</span>
+    <span class="tree-icon">📂</span>
+    <strong class="tree-name" style="color:var(--amber);">KURO (DỰ ÁN)</strong>
+  `;
+
+  const rootChildren = document.createElement("div");
+  rootChildren.className = "tree-children";
+
+  renderFsItems(fsRootData.items, rootChildren);
+
+  rootItem.onclick = () => {
+    const isOpen = rootChildren.style.display !== "none";
+    rootChildren.style.display = isOpen ? "none" : "flex";
+    rootItem.querySelector(".tree-caret").className = "tree-caret " + (isOpen ? "" : "open");
+    rootItem.querySelector(".tree-icon").textContent = isOpen ? "📁" : "📂";
+  };
+
+  rootNode.appendChild(rootItem);
+  rootNode.appendChild(rootChildren);
+  container.appendChild(rootNode);
+}
+
+function renderFsItems(items, containerEl) {
+  containerEl.innerHTML = "";
+  const filter = ($("fs-search").value || "").trim().toLowerCase();
+
+  const filtered = items.filter((it) => {
+    return !filter || it.name.toLowerCase().includes(filter);
+  });
+
+  filtered.forEach((it) => {
+    const node = document.createElement("div");
+    node.className = "tree-node";
+
+    const itemEl = document.createElement("div");
+    itemEl.className = "tree-item";
+    itemEl.dataset.path = it.path;
+
+    if (it.is_dir) {
+      const isExpanded = fsExpanded.has(it.path);
+      itemEl.innerHTML = `
+        <span class="tree-caret ${isExpanded ? 'open' : ''}">▶</span>
+        <span class="tree-icon">${isExpanded ? '📂' : '📁'}</span>
+        <span class="tree-name">${DOMPurify.sanitize(it.name)}</span>
+      `;
+
+      const childrenEl = document.createElement("div");
+      childrenEl.className = "tree-children";
+      childrenEl.style.display = isExpanded ? "flex" : "none";
+
+      itemEl.onclick = async () => {
+        const currentlyExpanded = fsExpanded.has(it.path);
+        if (currentlyExpanded) {
+          fsExpanded.delete(it.path);
+          childrenEl.style.display = "none";
+          itemEl.querySelector(".tree-caret").className = "tree-caret";
+          itemEl.querySelector(".tree-icon").textContent = "📁";
+        } else {
+          fsExpanded.add(it.path);
+          childrenEl.style.display = "flex";
+          itemEl.querySelector(".tree-caret").className = "tree-caret open";
+          itemEl.querySelector(".tree-icon").textContent = "📂";
+
+          if (!childrenEl.hasChildNodes()) {
+            childrenEl.innerHTML = `<span style="padding:4px 8px; font-size:11px; color:var(--muted);">Đang mở...</span>`;
+            try {
+              const res = await fetch(`/api/fs/tree?sub=${encodeURIComponent(it.path)}&show_hidden=${fsShowHidden}`);
+              const subData = await res.json();
+              renderFsItems(subData.items, childrenEl);
+            } catch (e) {
+              childrenEl.innerHTML = `<span style="padding:4px 8px; font-size:11px; color:var(--amber);">Lỗi mở thư mục</span>`;
+            }
+          }
+        }
+      };
+
+      node.appendChild(itemEl);
+      node.appendChild(childrenEl);
+
+      // Nếu đã expand từ trước
+      if (isExpanded) {
+        fetch(`/api/fs/tree?sub=${encodeURIComponent(it.path)}&show_hidden=${fsShowHidden}`)
+          .then((r) => r.json())
+          .then((subData) => renderFsItems(subData.items, childrenEl))
+          .catch(() => {});
+      }
+    } else {
+      // File item
+      itemEl.innerHTML = `
+        <span class="tree-caret empty"></span>
+        <span class="tree-icon">${getFileBadge(it.ext)}</span>
+        <span class="tree-name">${DOMPurify.sanitize(it.name)}</span>
+        <span class="tree-size">${formatBytes(it.size)}</span>
+      `;
+
+      itemEl.onclick = () => {
+        document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
+        itemEl.classList.add("active");
+        openFilePreview(it.path, it.name, it.ext);
+      };
+
+      node.appendChild(itemEl);
+    }
+
+    containerEl.appendChild(node);
+  });
+}
+
+// Tìm kiếm tệp trong cây
+$("fs-search").oninput = () => {
+  if (fsRootData) renderFsRoot();
+};
+
+// Toolbar Explorer
+$("btn-fs-refresh").onclick = refreshFsTree;
+$("btn-fs-collapse").onclick = () => {
+  fsExpanded.clear();
+  renderFsRoot();
+};
+$("btn-fs-hidden").onclick = () => {
+  fsShowHidden = !fsShowHidden;
+  $("btn-fs-hidden").style.color = fsShowHidden ? "var(--cyan)" : "var(--muted)";
+  refreshFsTree();
+};
+$("btn-fs-brain").onclick = async () => {
+  fsExpanded.add("brains");
+  fsExpanded.add("brains/Brain Default");
+  switchSidebarTab("explorer");
+  await refreshFsTree();
+};
+
+// Mở modal xem trước tệp tin
+async function openFilePreview(filePath, fileName, ext) {
+  currentPreviewPath = filePath;
+  $("fp-icon").innerHTML = getFileBadge(ext);
+  $("fp-title").textContent = fileName;
+  $("fp-path").textContent = filePath;
+  $("fp-body").innerHTML = `<div style="color:var(--muted); padding:20px; text-align:center;">Đang đọc nội dung...</div>`;
+  $("file-preview-dialog").showModal();
+
+  try {
+    const res = await fetch(`/api/fs/file?path=${encodeURIComponent(filePath)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      $("fp-body").innerHTML = `<div style="color:var(--amber); padding:20px;">${DOMPurify.sanitize(err.detail || "Không đọc được tệp tin này.")}</div>`;
+      return;
+    }
+    const data = await res.json();
+    const content = data.content;
+
+    if (ext === ".md") {
+      $("fp-body").innerHTML = md(content);
+    } else {
+      $("fp-body").innerHTML = `<pre><code>${DOMPurify.sanitize(content)}</code></pre>`;
+    }
+  } catch (err) {
+    $("fp-body").innerHTML = `<div style="color:var(--amber); padding:20px;">Lỗi kết nối khi đọc tệp.</div>`;
+  }
+}
+
+// Đóng modal xem trước
+$("btn-fp-close").onclick = () => $("file-preview-dialog").close();
+
+// Nút "Hỏi Kuro về file này": Chèn đường dẫn file vào ô chat
+$("btn-fp-chat").onclick = () => {
+  $("file-preview-dialog").close();
+  const currentVal = $("q").value.trim();
+  const insertText = `@${currentPreviewPath} `;
+  $("q").value = currentVal ? `${currentVal}\n${insertText}` : `Hãy đọc và phân tích file ${insertText}: `;
+  $("q").focus();
+  $("q").style.height = "auto";
+  $("q").style.height = Math.min($("q").scrollHeight, 200) + "px";
+};
+
 // Khởi chạy
 connect();
+loadSkills();
 loadAgents().then(() => {
   loadSessions(selectedAgent);
 });
 loadModels().catch(() => {});
 checkUpdate().catch(() => {});
 setInterval(() => checkUpdate().catch(() => {}), 3600e3);
+

@@ -170,6 +170,134 @@ def get_messages(sid: str):
     return store.messages(sid)
 
 
+@app.get("/api/skills")
+def list_skills():
+    skills_dir = config.BRAIN / ".claude" / "skills"
+    if not skills_dir.is_dir():
+        skills_dir = config.ROOT / "skills"
+    out = []
+    if skills_dir.is_dir():
+        import yaml
+        for p in sorted(skills_dir.glob("*/SKILL.md")):
+            raw = p.read_text(encoding="utf-8").replace("\r\n", "\n")
+            meta = {}
+            if raw.startswith("---\n"):
+                try:
+                    meta = yaml.safe_load(raw.split("---\n", 2)[1]) or {}
+                except Exception:
+                    meta = {}
+            out.append({
+                "slug": p.parent.name,
+                "name": meta.get("name") or p.parent.name,
+                "desc": (meta.get("description") or "").replace("\n", " ").strip()[:180]
+            })
+    return out
+
+
+@app.get("/api/sessions/{sid}/context")
+def session_context(sid: str):
+    sess = store.get(sid)
+    if not sess:
+        raise HTTPException(404, "Không tìm thấy phiên")
+    msgs = store.messages(sid)
+    total_chars = sum(len(m.get("text", "")) for m in msgs)
+    est_tokens = int(total_chars / 3.5)
+    mem_file = config.BRAIN / "memory" / "MEMORY.md"
+    mem_size = len(mem_file.read_text(encoding="utf-8")) if mem_file.is_file() else 0
+    return {
+        "id": sid,
+        "title": sess.get("title", ""),
+        "agent": sess.get("agent", "kuro-core"),
+        "model": config.MODEL or "Mặc định",
+        "provider": config.PROVIDER or "antigravity",
+        "message_count": len(msgs),
+        "total_chars": total_chars,
+        "estimated_tokens": est_tokens,
+        "memory_bytes": mem_size
+    }
+
+
+@app.post("/api/sessions/{sid}/compact")
+async def compact_session(sid: str):
+    sess = store.get(sid)
+    if not sess:
+        raise HTTPException(404, "Không tìm thấy phiên")
+    msgs = store.messages(sid)
+    if len(msgs) <= 2:
+        return {"ok": True, "compacted": False, "msg": "Phiên còn quá ngắn (dưới 3 tin nhắn), chưa cần compact."}
+    
+    conversation_text = "\n\n".join(f"{'Người dùng' if m['role']=='user' else 'AI'}: {m['text']}" for m in msgs)
+    summary_prompt = (
+        "Hãy đọc toàn bộ cuộc trao đổi dưới đây và tóm tắt lại thật ngắn gọn, cô đọng nhưng giữ trọn vẹn "
+        "mọi dữ liệu kỹ thuật quan trọng (số liệu, công thức, phương án, quyết định, việc đang làm dở dang).\n\n"
+        f"Cuộc hội thoại:\n{conversation_text[:12000]}\n\n"
+        "Định dạng kết quả: Bắt đầu bằng dòng `### [BẢN TÓM TẮT NGỮ CẢNH HỘI THOẠI ĐÃ ĐƯỢC THU GỌN]` rồi gạch đầu dòng các điểm chính."
+    )
+    
+    summary_text = ""
+    async for ev in engine.run_turn(summary_prompt, None, agent=sess.get("agent", "kuro-core")):
+        if ev.get("type") == "text":
+            summary_text += ev.get("text", "")
+        elif ev.get("type") == "final" and not summary_text:
+            summary_text = ev.get("text", "")
+            
+    if not summary_text:
+        summary_text = f"### [BẢN TÓM TẮT NGỮ CẢNH THU GỌN]\n- Phiên thảo luận gồm {len(msgs)} tin nhắn đã được cô đọng.\n- Đã sẵn sàng tiếp tục mạch công việc."
+        
+    store.replace_messages(sid, [
+        {"role": "user", "text": "*(Hệ thống: Toàn bộ ngữ cảnh trước đó đã được thu gọn bằng lệnh /compact)*"},
+        {"role": "assistant", "text": summary_text}
+    ])
+    return {"ok": True, "compacted": True, "summary": summary_text}
+
+
+@app.get("/api/fs/tree")
+def get_fs_tree(sub: str = "", show_hidden: bool = False):
+    base = config.ROOT
+    target = (base / sub).resolve()
+    if not str(target).startswith(str(base.resolve())):
+        raise HTTPException(400, "Đường dẫn không hợp lệ")
+    if not target.is_dir():
+        raise HTTPException(404, "Thư mục không tồn tại")
+    
+    ignore_names = {".git", ".venv", "__pycache__", ".pytest_cache"} if not show_hidden else set()
+    
+    items = []
+    try:
+        for p in sorted(target.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+            if p.name in ignore_names:
+                continue
+            if not show_hidden and p.name.startswith(".") and p.name not in {".claude", ".env", ".gitignore"}:
+                continue
+            rel = p.relative_to(base).as_posix()
+            is_d = p.is_dir()
+            items.append({
+                "name": p.name,
+                "path": rel,
+                "is_dir": is_d,
+                "ext": p.suffix.lower() if not is_d else "",
+                "size": p.stat().st_size if not is_d else None
+            })
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi đọc thư mục: {e}")
+    return {"path": sub, "name": target.name or "Kuro", "items": items}
+
+
+@app.get("/api/fs/file")
+def get_fs_file(path: str):
+    base = config.ROOT
+    target = (base / path).resolve()
+    if not str(target).startswith(str(base.resolve())) or not target.is_file():
+        raise HTTPException(404, "Không tìm thấy file")
+    if target.stat().st_size > 3 * 1024 * 1024:
+        raise HTTPException(400, "File quá lớn để xem trực tiếp (> 3MB)")
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+        return {"path": path, "name": target.name, "content": content, "size": target.stat().st_size}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi đọc file: {e}")
+
+
 @app.websocket("/ws")
 async def ws(sock: WebSocket):
     # shortcut: không có đăng nhập vì chỉ nghe 127.0.0.1; trước khi mở ra mạng phải thêm đăng nhập (KE-HOACH.md mục 8)
