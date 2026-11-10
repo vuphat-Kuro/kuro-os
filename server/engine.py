@@ -54,6 +54,64 @@ def load_agents() -> dict[str, AgentDefinition]:
     return out
 
 
+def agent_persona(slug: str) -> tuple[dict, str]:
+    """Lấy metadata và nội dung hướng dẫn của agent từ file markdown."""
+    if not slug or slug == "kuro-core":
+        return {"name": "Kuro Core", "role": "Trợ lý hệ thống kỹ sư hạ tầng"}, ""
+    for d in (config.BRAIN / "agents", config.ROOT / "agents"):
+        p = d / f"{slug}.md"
+        if p.is_file():
+            raw = p.read_text(encoding="utf-8").replace("\r\n", "\n")
+            if raw.startswith("---\n"):
+                try:
+                    _, fm, body = raw.split("---\n", 2)
+                    return yaml.safe_load(fm) or {}, body.strip()
+                except Exception:
+                    pass
+            return {}, raw.strip()
+    return {}, ""
+
+
+def list_agents_info() -> list[dict]:
+    """Danh sách tất cả agent cho giao diện web (Kuro Core + các kỹ sư chuyên môn)."""
+    agents = [{
+        "slug": "kuro-core",
+        "name": "Kuro Core",
+        "role": "Trợ lý kỹ sư hạ tầng: điều phối chung, kết nối dữ liệu và giải quyết tổng thể dự án.",
+        "group": "Hệ thống",
+        "badge": "Hệ thống",
+        "icon": "kuro",
+        "is_core": True,
+        "pinned": True,
+    }]
+    seen = {"kuro-core"}
+    for d in (config.BRAIN / "agents", config.ROOT / "agents"):
+        if not d.is_dir():
+            continue
+        for p in sorted(d.glob("*.md")):
+            slug = p.stem
+            if slug in seen:
+                continue
+            meta, _ = agent_persona(slug)
+            name = meta.get("name") or slug
+            role = meta.get("role") or ""
+            group = meta.get("group") or "Chuyên môn"
+            skills = meta.get("skills") or []
+            seen.add(slug)
+            agents.append({
+                "slug": slug,
+                "name": name,
+                "role": role,
+                "group": group,
+                "badge": group,
+                "skills": skills,
+                "icon": slug,
+                "is_core": False,
+                "pinned": True,
+            })
+    return agents
+
+
 def system_append() -> str:
     """Kernel (CLAUDE.md gốc) + ký ức + giờ hiện tại, nối vào sau prompt mặc định của Claude Code."""
     parts = []
@@ -64,9 +122,14 @@ def system_append() -> str:
     return "\n\n".join(parts)
 
 
-def options(claude_id: str | None) -> ClaudeAgentOptions:
+def options(claude_id: str | None, agent: str = "kuro-core") -> ClaudeAgentOptions:
+    extra = ""
+    if agent and agent != "kuro-core":
+        meta, body = agent_persona(agent)
+        if meta or body:
+            extra = f"\n\n## VAI TRÒ CHUYÊN MÔN:\n**{meta.get('name', agent)}**: {meta.get('role', '')}\n{body}"
     return ClaudeAgentOptions(
-        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append()},
+        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra},
         cwd=str(config.BRAIN),
         model=config.MODEL or None,
         env=config.provider_env(),
@@ -103,7 +166,7 @@ def skill_index() -> str:
     return "\n".join(out)
 
 
-def cli_prompt(text: str, first: bool) -> str:
+def cli_prompt(text: str, first: bool, agent: str = "kuro-core") -> str:
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
         return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}.)\n\n{text}"
     if "Bash" in config.ALLOWED_TOOLS:
@@ -113,7 +176,15 @@ def cli_prompt(text: str, first: bool) -> str:
         calc_rule = ("Phiên này KHÔNG được ghi file và KHÔNG được chạy lệnh: thử là bị chặn và hỏng lượt trả lời. "
                      "Đọc file thì được nếu công cụ cho phép; không đọc được thì dựa vào mô tả skill ở trên. Phép tính "
                      "làm trực tiếp trong câu trả lời, ghi rõ \"(chưa kiểm bằng script)\" cạnh mỗi kết quả.")
-    return (f"<huong_dan_kuro>\n{system_append()}\n\n## Skill ngành\nCâu hỏi chuyên môn: đọc file SKILL.md phù hợp "
+    agent_info = ""
+    if agent and agent != "kuro-core":
+        meta, body = agent_persona(agent)
+        if meta or body:
+            agent_info = (f"\n\n## VAI TRÒ CHUYÊN MÔN CỦA BẠN TRONG PHIÊN NÀY\n"
+                          f"Bạn đang đảm nhiệm vai trò: **{meta.get('name', agent)}**\n"
+                          f"Chức trách: {meta.get('role', '')}\n"
+                          f"Quy trình và yêu cầu chuyên môn cụ thể:\n{body}\n")
+    return (f"<huong_dan_kuro>\n{system_append()}{agent_info}\n\n## Skill ngành\nCâu hỏi chuyên môn: đọc file SKILL.md phù hợp "
             f"TRƯỚC khi trả lời rồi làm theo.\n{skill_index()}\n\n## Tính toán\n{calc_rule}\n</huong_dan_kuro>\n\n"
             "Câu hỏi của người dùng:\n" + text)
 
@@ -184,14 +255,14 @@ def loi_tieng_viet(err: str) -> str:
     return err
 
 
-async def run_turn(prompt: str, claude_id: str | None = None):
+async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core"):
     """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
     cur = config.PROVIDER or "claude"
     owner, conv = split_conv(claude_id)
     if owner and owner != cur:   # mỗi hãng giữ hội thoại riêng: AI mới không nối được mạch cũ (specs/001 FR-007)
         yield {"type": "text", "text": f"_(Đã đổi sang {config.PROVIDERS.get(cur, {}).get('ten', cur)}: "
                                        "AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
-    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur):
+    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur, agent=agent):
         if ev["type"] == "error":
             ev = {**ev, "text": loi_tieng_viet(ev["text"])}
         elif ev["type"] == "final" and ev.get("claude_id"):
@@ -199,13 +270,13 @@ async def run_turn(prompt: str, claude_id: str | None = None):
         yield ev
 
 
-async def _engine_turn(prompt: str, resume: str | None, cur: str):
+async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core"):
     if kind := cli_kind():
-        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None), resume):
+        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent), resume):
             yield ev
         return
     try:
-        async for m in query(prompt=prompt, options=options(resume)):
+        async for m in query(prompt=prompt, options=options(resume, agent=agent)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
@@ -224,12 +295,12 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str):
         yield {"type": "error", "text": f"{type(e).__name__}: {e}"}
 
 
-async def chat(sid: str, text: str, emit=None) -> str:
+async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None) -> str:
     """Một lượt hoàn chỉnh: lưu câu hỏi, chạy, đẩy sự kiện qua emit (nếu có), lưu câu trả lời."""
-    store.ensure(sid, title=text)
+    store.ensure(sid, title=text, agent=agent)
     store.add(sid, "user", text)
     shown, final = [], ""
-    async for ev in run_turn(text, (store.get(sid) or {}).get("claude_id")):
+    async for ev in run_turn(text, (store.get(sid) or {}).get("claude_id"), agent=agent):
         if ev["type"] == "text":
             shown.append(ev["text"])
         elif ev["type"] == "error":

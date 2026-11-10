@@ -7,7 +7,7 @@ import config
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions(
-  id TEXT PRIMARY KEY, title TEXT, claude_id TEXT, created REAL, updated REAL);
+  id TEXT PRIMARY KEY, title TEXT, claude_id TEXT, created REAL, updated REAL, agent TEXT DEFAULT 'kuro-core');
 CREATE TABLE IF NOT EXISTS messages(
   id INTEGER PRIMARY KEY, session_id TEXT, role TEXT, text TEXT, ts REAL);
 CREATE INDEX IF NOT EXISTS ix_messages ON messages(session_id, id);
@@ -29,12 +29,17 @@ def _q(sql: str, args=(), script=False):
 
 def init() -> None:
     _q(SCHEMA, script=True)
+    try:
+        _q("ALTER TABLE sessions ADD COLUMN agent TEXT DEFAULT 'kuro-core'")
+    except Exception:
+        pass
 
 
-def ensure(sid: str | None, title: str = "Phiên mới") -> str:
+def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core") -> str:
     sid = sid or uuid.uuid4().hex[:12]
     now = time.time()
-    _q("INSERT OR IGNORE INTO sessions(id,title,created,updated) VALUES(?,?,?,?)", (sid, title[:80], now, now))
+    agent = agent or "kuro-core"
+    _q("INSERT OR IGNORE INTO sessions(id,title,agent,created,updated) VALUES(?,?,?,?,?)", (sid, title[:80], agent, now, now))
     return sid
 
 
@@ -47,13 +52,24 @@ def set_claude_id(sid: str, claude_id: str | None) -> None:
     _q("UPDATE sessions SET claude_id=?, updated=? WHERE id=?", (claude_id, time.time(), sid))
 
 
+def set_agent(sid: str, agent: str) -> None:
+    _q("UPDATE sessions SET agent=?, updated=? WHERE id=?", (agent, time.time(), sid))
+
+
+def delete_session(sid: str) -> None:
+    _q("DELETE FROM messages WHERE session_id=?", (sid,))
+    _q("DELETE FROM sessions WHERE id=?", (sid,))
+
+
 def add(sid: str, role: str, text: str) -> None:
     _q("INSERT INTO messages(session_id,role,text,ts) VALUES(?,?,?,?)", (sid, role, text, time.time()))
     _q("UPDATE sessions SET updated=? WHERE id=?", (time.time(), sid))
 
 
-def sessions(limit: int = 100) -> list[dict]:
-    return _q("SELECT id,title,updated FROM sessions ORDER BY updated DESC LIMIT ?", (limit,))
+def sessions(limit: int = 100, agent: str | None = None) -> list[dict]:
+    if agent and agent != "all":
+        return _q("SELECT id,title,updated,agent FROM sessions WHERE agent=? ORDER BY updated DESC LIMIT ?", (agent, limit))
+    return _q("SELECT id,title,updated,agent FROM sessions ORDER BY updated DESC LIMIT ?", (limit,))
 
 
 def messages(sid: str) -> list[dict]:

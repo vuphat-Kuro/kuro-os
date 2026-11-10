@@ -1,10 +1,17 @@
 const $ = (id) => document.getElementById(id);
 const md = (t) => DOMPurify.sanitize(marked.parse(t || ""));
-let session = null, ws, bot = null, botText = "", busy = false;
 
-// Linh vật Kuro: chibi kỹ sư robot đội mũ bảo hộ, mặc áo phản quang; đèn mũ là lõi năng lượng.
-// Biểu cảm đi theo class trên body (busy, happy, err) nên mọi bản trên trang đổi cùng lúc.
-const MASCOT = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
+let session = null;
+let ws;
+let bot = null;
+let botText = "";
+let busy = false;
+let agents = [];
+let selectedAgent = localStorage.getItem("kuro_active_agent") || "kuro-core";
+let currentSessions = [];
+
+// Linh vật Kuro: Chibi kỹ sư robot đội mũ bảo hộ
+const MASCOT_SVG = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
   <circle class="m-ring2" r="88"/><circle class="m-ring" r="96"/>
   <path class="m-vest" d="M-40 88 Q-40 58 -14 50 H14 Q40 58 40 88 Z"/>
   <rect class="m-reflect" x="-40" y="70" width="80" height="7"/>
@@ -25,12 +32,88 @@ const MASCOT = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
   <rect class="m-brim" x="-70" y="-46" width="140" height="11" rx="5.5"/>
   <circle class="m-lamp-ring" cy="-64" r="10"/><circle class="m-lamp" cy="-64" r="6"/>
 </svg>`;
-document.querySelectorAll(".mascot").forEach((el) => { el.innerHTML = MASCOT; });
-// Mắt nhìn theo con trỏ.
+
+// Icon chuyên môn theo từng Agent
+const AGENT_ICONS = {
+  "kuro-core": MASCOT_SVG,
+  "ky-su-bien-phap": `<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 18h20"></path><path d="M4 18v-4a8 8 0 0 1 16 0v4"></path><path d="M12 4v2"></path><path d="M12 10h.01"></path>
+  </svg>`,
+  "ky-su-kiem-toan-phu-tro": `<svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+    <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
+  </svg>`,
+  "ky-su-qs": `<svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line>
+    <line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line>
+    <line x1="16" y1="18" x2="16" y2="18.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="8" y1="18" x2="8" y2="18.01"></line>
+  </svg>`,
+  "ky-su-qaqc": `<svg viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+    <rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="m9 14 2 2 4-4"></path>
+  </svg>`,
+  "ky-su-ke-hoach": `<svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line>
+    <line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+    <path d="m8 14 2 2 4-4"></path>
+  </svg>`,
+  "dieu-phoi-bim": `<svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m21 16-9 5-9-5V8l9-5 9 5v8Z"></path><path d="M3.27 6.96 12 12.01l8.73-5.05"></path><path d="M12 22.08V12"></path>
+  </svg>`,
+};
+
+function getAgentIcon(slug) {
+  return AGENT_ICONS[slug] || `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`;
+}
+
+// Gợi ý câu hỏi nhanh (Quick Prompts) riêng cho từng Agent
+const AGENT_PROMPTS = {
+  "kuro-core": [
+    "Tóm tắt tiến độ, các vướng mắc kỹ thuật và công việc cần ưu tiên hôm nay",
+    "Rà soát căn cứ pháp lý và tiêu chuẩn kỹ thuật áp dụng cho dự án hạ tầng",
+    "Phối hợp giải quyết xung đột mặt bằng và biện pháp giữa các phân đoạn thi công"
+  ],
+  "ky-su-bien-phap": [
+    "Lập biện pháp thi công cọc khoan nhồi D1500 trong điều kiện chật hẹp đô thị",
+    "So sánh phương án đúc dầm Super T tại bãi đúc hiện trường vs đúc sẵn tại nhà máy",
+    "Xác định các điểm dừng kiểm soát (Hold Points) khi thi công kết cấu hầm/cống hộp"
+  ],
+  "ky-su-kiem-toan-phu-tro": [
+    "Kiểm toán kết cấu hệ đà giáo ván khuôn dầm bê tông bản theo TCVN 11823:2017",
+    "Rà soát tính ổn định tổng thể và chuyển vị đỉnh cừ ván thép Larsen IV đào hố móng",
+    "Kiểm tra tải trọng gió tác dụng lên hệ tháp tạm và dây neo thi công dầm cầu"
+  ],
+  "ky-su-qs": [
+    "Bóc tách khối lượng bê tông, cốt thép và ván khuôn kết cấu mố trụ cầu M1",
+    "Rà soát đối chiếu chênh lệch khối lượng bản vẽ BVTC so với khối lượng Hợp đồng EPC",
+    "Lập biểu tổng hợp khối lượng phụ lục phát sinh ngoài phạm vi hợp đồng xây lắp"
+  ],
+  "ky-su-qaqc": [
+    "Lập bảng kế hoạch kiểm tra và thí nghiệm (ITP) cho hạng mục móng cọc bê tông",
+    "Soạn thảo checklist nghiệm thu công tác lắp dựng cốt thép trước khi đổ bê tông",
+    "Rà soát danh mục tài liệu và biên bản để hoàn thiện bộ hồ sơ hoàn công công trình"
+  ],
+  "ky-su-ke-hoach": [
+    "Lập tiến độ thi công đường găng (CPM) gói thầu cầu hoàn thành trong 18 tháng",
+    "Phân tích chỉ số EVM (SPI, CPI) khi sản lượng thực tế chậm 12% so với kế hoạch",
+    "Đề xuất kịch bản bù tiến độ bằng cách bổ sung thêm mũi thi công đà giáo luân chuyển"
+  ],
+  "dieu-phoi-bim": [
+    "Hướng dẫn quy chuẩn đặt tên file mô hình và cây thư mục CDE theo ISO 19650",
+    "Viết kịch bản tự động gán tham số mã WBS và ngày thi công cho cấu kiện dầm",
+    "Kiểm tra xung đột hình học (Clash Detection) giữa mố trụ cầu và hệ thống hạ tầng ngầm"
+  ]
+};
+
+// Render mascots
+document.querySelectorAll(".mascot").forEach((el) => { el.innerHTML = MASCOT_SVG; });
+
+// Mắt mascot nhìn theo con trỏ
 document.addEventListener("pointermove", (e) => {
   document.documentElement.style.setProperty("--lx", (e.clientX / innerWidth * 2 - 1).toFixed(2));
   document.documentElement.style.setProperty("--ly", (e.clientY / innerHeight * 2 - 1).toFixed(2));
 });
+
 let happyTimer;
 function mood(cls) {
   document.body.classList.remove("happy", "err");
@@ -42,117 +125,428 @@ function mood(cls) {
 function setBusy(b) {
   busy = b;
   document.body.classList.toggle("busy", b);
+  $("typing-indicator").style.display = b ? "inline" : "none";
   if (b) mood(null);
   $("state").textContent = b ? "Đang xử lý" : "Sẵn sàng";
 }
 
-function add(cls, html) {
+function addMessage(role, html, senderName) {
   const d = document.createElement("div");
-  d.className = "msg " + cls;
+  d.className = "msg " + (role === "user" ? "user" : "bot");
+  if (role !== "user") {
+    d.setAttribute("data-sender", senderName || (currentAgent() ? currentAgent().name.toUpperCase() : "KURO"));
+  }
   d.innerHTML = html;
   $("log").append(d);
   $("log").scrollTop = $("log").scrollHeight;
   return d;
 }
 
+function currentAgent() {
+  return agents.find((a) => a.slug === selectedAgent) || agents[0] || { slug: "kuro-core", name: "Kuro Core", role: "" };
+}
+
+// Lấy danh sách Agents từ server
+async function loadAgents() {
+  try {
+    const res = await fetch("/api/agents");
+    agents = await res.json();
+    $("agent-count").textContent = agents.length;
+    renderAgentList();
+    updateActiveAgentUI();
+  } catch (e) {
+    console.error("Lỗi tải agents:", e);
+  }
+}
+
+// Render danh sách Agents (Cộng sự)
+function renderAgentList() {
+  const listEl = $("agent-list");
+  listEl.innerHTML = "";
+  const filter = ($("agent-search").value || "").trim().toLowerCase();
+
+  const filtered = agents.filter((a) => {
+    return !filter || a.name.toLowerCase().includes(filter) || (a.role && a.role.toLowerCase().includes(filter)) || a.slug.includes(filter);
+  });
+
+  const coreAgents = filtered.filter((a) => a.is_core);
+  const specAgents = filtered.filter((a) => !a.is_core);
+
+  if (coreAgents.length) {
+    const title = document.createElement("div");
+    title.className = "sec-title";
+    title.textContent = "Hệ thống";
+    listEl.appendChild(title);
+    coreAgents.forEach((a) => listEl.appendChild(createAgentCard(a)));
+  }
+
+  if (specAgents.length) {
+    const title = document.createElement("div");
+    title.className = "sec-title";
+    title.textContent = "Chuyên ngành (Đã ghim)";
+    listEl.appendChild(title);
+    specAgents.forEach((a) => listEl.appendChild(createAgentCard(a)));
+  }
+
+  if (!filtered.length) {
+    const empty = document.createElement("div");
+    empty.className = "session-empty";
+    empty.textContent = "Không tìm thấy cộng sự nào.";
+    listEl.appendChild(empty);
+  }
+}
+
+function createAgentCard(agent) {
+  const card = document.createElement("div");
+  card.className = "agent-card" + (agent.is_core ? " core-agent" : "") + (agent.slug === selectedAgent ? " on" : "");
+  card.onclick = () => selectAgent(agent.slug);
+
+  card.innerHTML = `
+    <div class="agent-avatar">${getAgentIcon(agent.slug)}</div>
+    <div class="agent-info">
+      <div class="agent-top-line">
+        <span class="agent-name">${DOMPurify.sanitize(agent.name)}</span>
+        <span class="agent-badge-tag ${agent.is_core ? 'sys' : ''}">${DOMPurify.sanitize(agent.badge || 'Chuyên môn')}</span>
+      </div>
+      <p class="agent-desc">${DOMPurify.sanitize(agent.role || '')}</p>
+    </div>
+  `;
+  return card;
+}
+
+// Khi người dùng bấm chọn một Agent
+async function selectAgent(slug) {
+  if (selectedAgent === slug && session) return;
+  selectedAgent = slug;
+  localStorage.setItem("kuro_active_agent", slug);
+
+  // Cập nhật highlight thẻ Agent
+  renderAgentList();
+  updateActiveAgentUI();
+
+  // Tải danh sách phiên riêng của Agent này
+  await loadSessions(slug);
+
+  // Mở phiên mới cho Agent này
+  newSession();
+}
+
+function updateActiveAgentUI() {
+  const a = currentAgent();
+  $("header-avatar").innerHTML = getAgentIcon(a.slug);
+  $("header-agent-name").textContent = a.name;
+  $("header-agent-badge").textContent = a.badge || (a.is_core ? "Hệ thống" : "Chuyên môn");
+  $("header-agent-badge").className = "agent-badge-tag " + (a.is_core ? "sys" : "");
+  $("header-agent-role").textContent = a.role || "";
+
+  $("q").placeholder = `Hỏi ${a.name}... (Enter để gửi)`;
+
+  // Hero view
+  $("hero-avatar").innerHTML = getAgentIcon(a.slug);
+  $("hero-title").textContent = a.name.toUpperCase();
+  $("hero-desc").textContent = a.role || "Trợ lý kỹ sư hạ tầng chuyên trách.";
+
+  // Quick prompts
+  const prompts = AGENT_PROMPTS[a.slug] || AGENT_PROMPTS["kuro-core"];
+  const promptsBox = $("hero-prompts");
+  promptsBox.innerHTML = "";
+  prompts.forEach((pText) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "prompt-btn";
+    btn.textContent = pText;
+    btn.onclick = () => {
+      $("q").value = pText;
+      $("f").requestSubmit();
+    };
+    promptsBox.appendChild(btn);
+  });
+}
+
+// Tìm kiếm Agent
+$("agent-search").oninput = renderAgentList;
+
+// Tải lịch sử phiên cho Agent được chọn
+async function loadSessions(agentSlug) {
+  agentSlug = agentSlug || selectedAgent;
+  try {
+    const res = await fetch(`/api/sessions?agent=${encodeURIComponent(agentSlug)}`);
+    currentSessions = await res.json();
+    renderSessionList();
+  } catch (e) {
+    console.error("Lỗi tải phiên:", e);
+  }
+}
+
+// Nhóm phiên theo mốc thời gian: Hôm nay / 7 ngày qua / Cũ hơn
+function renderSessionList() {
+  const container = $("sessions");
+  container.innerHTML = "";
+  const filter = ($("session-search").value || "").trim().toLowerCase();
+
+  const filtered = currentSessions.filter((s) => {
+    return !filter || s.title.toLowerCase().includes(filter);
+  });
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="session-empty">Chưa có hội thoại nào với ${DOMPurify.sanitize(currentAgent().name)}. Bấm "Phiên mới" để bắt đầu!</div>`;
+    return;
+  }
+
+  const now = Date.now() / 1000;
+  const ONE_DAY = 86400;
+  const SEVEN_DAYS = 7 * ONE_DAY;
+
+  const today = [];
+  const week = [];
+  const older = [];
+
+  filtered.forEach((s) => {
+    const diff = now - (s.updated || now);
+    if (diff < ONE_DAY) today.push(s);
+    else if (diff < SEVEN_DAYS) week.push(s);
+    else older.push(s);
+  });
+
+  const renderGroup = (label, list) => {
+    if (!list.length) return;
+    const gTitle = document.createElement("div");
+    gTitle.className = "session-group-title";
+    gTitle.textContent = label;
+    container.appendChild(gTitle);
+    list.forEach((s) => container.appendChild(createSessionItem(s)));
+  };
+
+  renderGroup("Hôm nay", today);
+  renderGroup("7 ngày qua", week);
+  renderGroup("Cũ hơn", older);
+}
+
+function formatSessionTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  }
+  return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+}
+
+function createSessionItem(s) {
+  const el = document.createElement("div");
+  el.className = "session-item" + (s.id === session ? " on" : "");
+  el.onclick = () => openSession(s.id);
+
+  el.innerHTML = `
+    <div class="session-title" title="${DOMPurify.sanitize(s.title)}">${DOMPurify.sanitize(s.title)}</div>
+    <div class="session-time">${formatSessionTime(s.updated)}</div>
+    <button class="btn-del-session" type="button" title="Xóa phiên này">🗑</button>
+  `;
+
+  el.querySelector(".btn-del-session").onclick = async (e) => {
+    e.stopPropagation();
+    if (!confirm(`Xóa phiên "${s.title}"?`)) return;
+    await fetch(`/api/sessions/${s.id}`, { method: "DELETE" });
+    if (session === s.id) newSession();
+    await loadSessions(selectedAgent);
+  };
+
+  return el;
+}
+
+$("session-search").oninput = renderSessionList;
+
+// Mở phiên hội thoại
+async function openSession(id) {
+  session = id;
+  $("log").replaceChildren();
+  renderSessionList();
+
+  try {
+    const res = await fetch(`/api/sessions/${id}`);
+    const msgs = await res.json();
+    const a = currentAgent();
+    for (const m of msgs) {
+      if (m.role === "user") {
+        addMessage("user", "").textContent = m.text;
+      } else {
+        addMessage("bot", md(m.text), a.name.toUpperCase());
+      }
+    }
+  } catch (e) {
+    console.error("Lỗi mở phiên:", e);
+  }
+}
+
+// Tạo phiên mới
+function newSession() {
+  session = null;
+  $("log").replaceChildren();
+  renderSessionList();
+  $("q").focus();
+}
+
+$("new").onclick = newSession;
+$("btn-new-conv").onclick = newSession;
+
+// Đóng mở cột Lịch sử
+$("btn-toggle-history").onclick = () => {
+  $("history-sidebar").classList.toggle("collapsed");
+};
+$("btn-close-history").onclick = () => {
+  $("history-sidebar").classList.add("collapsed");
+};
+
+// Đóng mở danh sách Agent trên điện thoại/màn hình nhỏ
+$("btn-menu-agents").onclick = () => {
+  $("agents-sidebar").classList.toggle("collapsed");
+};
+
+// Kết nối WebSocket
 function connect() {
   ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if (m.type === "session") { session = m.id; return; }
-    if (!bot) { bot = add("bot", ""); botText = ""; }
-    if (m.type === "text") { botText += m.text; bot.innerHTML = md(botText); }
-    else if (m.type === "tool") bot.insertAdjacentHTML("beforeend", `<span class="tool">${DOMPurify.sanitize(m.name)}</span>`);
-    else if (m.type === "error") { botText += `\n\n**Lỗi:** ${m.text}`; bot.innerHTML = md(botText); mood("err"); }
-    else if (m.type === "final") {
+    if (m.type === "session") {
+      session = m.id;
+      return;
+    }
+    const a = currentAgent();
+    if (!bot) {
+      bot = addMessage("bot", "", a.name.toUpperCase());
+      botText = "";
+    }
+    if (m.type === "text") {
+      botText += m.text;
+      bot.innerHTML = md(botText);
+    } else if (m.type === "tool") {
+      bot.insertAdjacentHTML("beforeend", `<span class="tool">${DOMPurify.sanitize(m.name)}</span>`);
+    } else if (m.type === "error") {
+      botText += `\n\n**Lỗi:** ${m.text}`;
+      bot.innerHTML = md(botText);
+      mood("err");
+    } else if (m.type === "final") {
       if (!botText && m.text) bot.innerHTML = md(m.text);
-      bot = null; setBusy(false); loadSessions();
+      bot = null;
+      setBusy(false);
+      loadSessions(selectedAgent);
       if (!document.body.classList.contains("err")) mood("happy");
     }
     $("log").scrollTop = $("log").scrollHeight;
   };
-  ws.onopen = () => { document.body.classList.add("online"); $("net").textContent = "Ổn định"; };
+  ws.onopen = () => {
+    document.body.classList.add("online");
+    $("net").textContent = "Ổn định";
+  };
   ws.onclose = () => {
-    document.body.classList.remove("online"); $("net").textContent = "Mất nối";
+    document.body.classList.remove("online");
+    $("net").textContent = "Mất nối";
     if (busy) setBusy(false);
     setTimeout(connect, 2000);
-  };   // server khởi động lại thì tự nối lại
+  };
 }
 
-async function loadSessions() {
-  const list = await (await fetch("/api/sessions")).json();
-  $("sessions").replaceChildren(...list.map((s) => {
-    const d = document.createElement("div");
-    d.textContent = s.title;
-    d.title = s.title;
-    d.className = s.id === session ? "on" : "";
-    d.onclick = () => openSession(s.id);
-    return d;
-  }));
-}
-
-async function openSession(id) {
-  session = id;
-  $("log").replaceChildren();
-  for (const m of await (await fetch(`/api/sessions/${id}`)).json()) {
-    if (m.role === "user") add("user", "").textContent = m.text;
-    else add("bot", md(m.text));
-  }
-  loadSessions();
-}
-
+// Xử lý gửi tin nhắn
 $("q").onkeydown = (e) => {
-  if (e.key !== "Enter" || e.shiftKey) return;
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    $("f").requestSubmit();
+  }
+};
+
+$("f").onsubmit = (e) => {
   e.preventDefault();
   const text = $("q").value.trim();
-  if (!text || busy || ws.readyState !== 1) return;
+  if (!text || busy) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    alert("Chưa kết nối được với máy chủ Kuro. Vui lòng đợi trong giây lát...");
+    return;
+  }
   setBusy(true);
-  add("user", "").textContent = text;
-  ws.send(JSON.stringify({ session, text }));
+  addMessage("user", "").textContent = text;
   $("q").value = "";
+  $("q").style.height = "auto";
+  ws.send(JSON.stringify({ session: session, text: text, agent: selectedAgent }));
 };
-$("f").onsubmit = (e) => e.preventDefault();
-$("new").onclick = () => { session = null; $("log").replaceChildren(); loadSessions(); $("q").focus(); };
 
-const tick = () => { $("clock").textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false }); };
-tick(); setInterval(tick, 1000);
-connect();
-loadSessions();
+// Tự co giãn textarea theo nội dung
+$("q").addEventListener("input", function() {
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 200) + "px";
+});
 
-// Cài đặt: khóa bí mật không bao giờ được trả về trình duyệt, ô trống nghĩa là giữ nguyên.
-let providers = {}, modelTheoAi = {};
+// Modal Tạo cộng sự mới
+$("btn-create-agent").onclick = () => {
+  $("caf").reset();
+  $("ca-msg").textContent = "";
+  $("create-agent-dialog").showModal();
+};
+$("ca-close").onclick = () => $("create-agent-dialog").close();
+
+$("caf").onsubmit = async (e) => {
+  e.preventDefault();
+  const data = {
+    name: $("ca-name").value.trim(),
+    slug: $("ca-slug").value.trim().toLowerCase(),
+    group: $("ca-group").value.trim(),
+    role: $("ca-role").value.trim(),
+    prompt: $("ca-prompt").value.trim()
+  };
+  const msg = $("ca-msg");
+  msg.textContent = "Đang lưu...";
+  try {
+    const res = await fetch("/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const j = await res.json();
+    if (res.ok) {
+      msg.textContent = "Đã tạo thành công!";
+      $("create-agent-dialog").close();
+      await loadAgents();
+      selectAgent(j.slug);
+    } else {
+      msg.textContent = j.detail || "Lỗi tạo cộng sự";
+    }
+  } catch (err) {
+    msg.textContent = "Lỗi kết nối máy chủ";
+  }
+};
+
+// Cài đặt hệ thống
+let modelTheoAi = {};
 async function openSettings() {
   const r = await (await fetch("/api/settings")).json();
-  providers = r.providers;
   modelTheoAi = r.model_theo_ai;
   const sel = $("s-KURO_PROVIDER");
-  if (sel.options.length === 1) for (const [id, p] of Object.entries(providers)) sel.add(new Option(p.ten, id));
-  $("s-status").innerHTML = `<span class="chip ${r.claude_cli ? "ok" : "no"}">Claude Code ${r.claude_cli ? "có" : "chưa cài"}</span>` +
-    `<span class="chip ${r.cli.codex ? "ok" : "no"}">Codex ${r.cli.codex ? "có" : "chưa cài"}</span>` +
-    `<span class="chip ${r.cli.agy ? "ok" : "no"}">Antigravity ${r.cli.agy ? "có" : "chưa cài"}</span>` +
-    `<span class="chip ${r.telegram_on ? "ok" : "no"}">Telegram ${r.telegram_on ? "đang chạy" : "tắt"}</span>`;
-  for (const [k, v] of Object.entries(r.settings)) {
+  sel.replaceChildren(
+    new Option("- Chưa chọn -", ""),
+    ...Object.entries(r.providers).map(([k, v]) => new Option(v.ten, k))
+  );
+  sel.value = r.settings.KURO_PROVIDER.value || "";
+  for (const [k, meta] of Object.entries(r.settings)) {
     const el = $("sf").elements[k];
-    if (el.dataset.secret) { el.value = ""; delete el.dataset.clear; el.placeholder = v.set ? `Đã lưu ${v.hint} - gõ để thay` : "Chưa có"; continue; }
-    el.value = el.dataset.orig = v.value;
+    if (!el) continue;
+    if (meta.set) {
+      el.value = "";
+      el.placeholder = "Đã lưu (" + meta.hint + ") - để trống = giữ nguyên";
+    } else {
+      el.value = el.dataset.orig = meta.value || "";
+      el.placeholder = "";
+    }
+    delete el.dataset.clear;
   }
-  // Lần đầu mở Kuro (chưa chọn AI): hộp này thành màn hình chào, chọn AI trước khi dùng.
-  showCore(r);
-  const first = !r.settings.KURO_PROVIDER.value;
-  $("s-title").textContent = first ? "CHỌN AI CHO KURO" : "CÀI ĐẶT";
-  if (first) $("s-status").insertAdjacentHTML("afterbegin", "<p>Chọn AI bạn có tài khoản hoặc key, rồi bấm <b>Lưu và kiểm tra kết nối</b>. Đổi lại lúc nào cũng được ở ⚙ Cài đặt.</p>");
   showProvider();
-  if (!$("settings").open) { $("s-msg").textContent = ""; $("s-test-msg").textContent = ""; $("settings").showModal(); }
+  $("settings").showModal();
 }
 
 function showProvider() {
-  const p = providers[$("s-KURO_PROVIDER").value] || {};
-  $("s-hint").textContent = p.goi_y || "";
-  $("s-keyrow").hidden = !p.key;
-  $("s-urlrow").hidden = !p.url && $("s-KURO_PROVIDER").value !== "custom";
-  $("s-KURO_BASE_URL").placeholder = p.url || "https://...";
+  const p = $("s-KURO_PROVIDER").value;
+  const info = window._providers ? window._providers[p] : null;
+  $("s-keyrow").style.display = p === "antigravity" || p === "codex" || !p ? "none" : "block";
 }
-// Mỗi AI nhớ model riêng: đổi AI thì ô Model hiện model đã lưu của AI đó, không mang model của AI cũ sang (specs/001).
+
 $("s-KURO_PROVIDER").onchange = () => {
   const m = $("s-KURO_MODEL");
   m.value = m.dataset.orig = modelTheoAi[$("s-KURO_PROVIDER").value || "claude"] || "";
@@ -165,37 +559,63 @@ async function saveSettings() {
     if (el.dataset.secret ? el.value || el.dataset.clear : el.value !== el.dataset.orig) body[el.name] = el.value;
   }
   const msg = $("s-msg");
-  if (!Object.keys(body).length) { msg.className = ""; msg.textContent = "Chưa có gì thay đổi."; return true; }
-  const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!Object.keys(body).length) {
+    msg.className = "";
+    msg.textContent = "Chưa có gì thay đổi.";
+    return true;
+  }
+  const r = await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
   const j = await r.json().catch(() => ({}));
   msg.className = r.ok ? "" : "err";
   msg.textContent = !r.ok ? (j.detail || "Lưu thất bại") : j.restart ? "Đã lưu. Khởi động lại Kuro để áp dụng Telegram." : "Đã lưu. Có hiệu lực từ câu hỏi kế tiếp.";
-  if (r.ok) { await openSettings(); loadModels().catch(() => {}); }
+  if (r.ok) {
+    await openSettings();
+    loadModels().catch(() => {});
+  }
   return r.ok;
 }
-$("sf").onsubmit = (e) => { e.preventDefault(); saveSettings(); };
+$("sf").onsubmit = (e) => {
+  e.preventDefault();
+  saveSettings();
+};
 
 $("s-test").onclick = async () => {
   const out = $("s-test-msg");
-  if (!$("s-KURO_PROVIDER").value) { out.className = "err"; out.textContent = "Chọn AI trước đã."; return; }
+  if (!$("s-KURO_PROVIDER").value) {
+    out.className = "err";
+    out.textContent = "Chọn AI trước đã.";
+    return;
+  }
   if (!(await saveSettings())) return;
-  out.className = ""; out.textContent = "Đang hỏi thử AI (tối đa 90 giây)...";
+  out.className = "";
+  out.textContent = "Đang hỏi thử AI (tối đa 90 giây)...";
   $("s-test").disabled = true;
   try {
     const j = await (await fetch("/api/test-ai", { method: "POST" })).json();
     out.className = j.ok ? "ok" : "err";
     out.textContent = j.ok ? `Kết nối được. AI trả lời: "${j.text}"` : `Chưa kết nối được: ${j.error || "không có trả lời"}`;
-  } finally { $("s-test").disabled = false; }
+  } finally {
+    $("s-test").disabled = false;
+  }
 };
+
 $("sf").addEventListener("click", (e) => {
   const k = e.target.dataset.clear;
   if (!k) return;
   const el = $("sf").elements[k];
-  el.value = ""; el.dataset.clear = "1"; el.placeholder = "Sẽ xóa khi bấm Lưu";
+  el.value = "";
+  el.dataset.clear = "1";
+  el.placeholder = "Sẽ xóa khi bấm Lưu";
 });
+
 $("gear").onclick = $("gear2").onclick = openSettings;
 $("s-close").onclick = () => $("settings").close();
-// Đổi model nhanh trên thanh trên cùng: danh sách lấy từ chính CLI của hãng (hiện có Antigravity).
+
+// Đổi model nhanh trên thanh điều khiển
 async function loadModels() {
   const r = await (await fetch("/api/models")).json();
   const sel = $("model-pick");
@@ -207,31 +627,45 @@ async function loadModels() {
   if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
   sel.value = r.current;
 }
+
 $("model-pick").onchange = async (e) => {
-  const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ KURO_MODEL: e.target.value }) });
+  const r = await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ KURO_MODEL: e.target.value })
+  });
   $("state").textContent = r.ok ? "Đã đổi model" : "Đổi model lỗi";
   setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
 };
-loadModels().catch(() => {});
 
-// Góc dưới thanh bên ghi AI đang dùng (chỉ tên hãng; tài khoản là tài khoản đăng nhập trên chính máy này).
+// Hiển thị tên Core AI ở góc chân
 function showCore(r) {
   const id = r.settings.KURO_PROVIDER.value;
   $("core").textContent = id ? r.providers[id].ten.split(" (")[0] : "Chưa chọn";
 }
-// Chưa chọn AI thì mở màn hình chọn AI ngay khi vào trang.
-fetch("/api/settings").then((r) => r.json()).then((r) => { showCore(r); if (!r.settings.KURO_PROVIDER.value) openSettings(); }).catch(() => {});
 
-// Báo bản mới: server tự hỏi GitHub 6 giờ một lần, trang hỏi server mỗi giờ.
+fetch("/api/settings").then((r) => r.json()).then((r) => {
+  window._providers = r.providers;
+  showCore(r);
+  if (!r.settings.KURO_PROVIDER.value) openSettings();
+}).catch(() => {});
+
+// Kiểm tra bản cập nhật mới
 async function checkUpdate() {
   const u = await (await fetch("/api/update")).json();
   const box = $("update");
   box.hidden = !u.behind;
   if (!u.behind) return;
   const esc = (t) => DOMPurify.sanitize(t, { ALLOWED_TAGS: [] });
-  box.innerHTML = `<b>Có bản mới ${esc(u.latest)}</b>Bạn đang dùng ${esc(u.current)}. Bấm đúp <code>cap-nhat.bat</code> trong thư mục Kuro, cập nhật xong Kuro tự mở lại.` +
+  box.innerHTML = `<b>Có bản mới ${esc(u.latest)}</b>Bạn đang dùng ${esc(u.current)}. Bấm đúp <code>cap-nhat.bat</code> để cập nhật.` +
     (u.notes.length ? `<ul>${u.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
 }
+
+// Khởi chạy
+connect();
+loadAgents().then(() => {
+  loadSessions(selectedAgent);
+});
+loadModels().catch(() => {});
 checkUpdate().catch(() => {});
 setInterval(() => checkUpdate().catch(() => {}), 3600e3);

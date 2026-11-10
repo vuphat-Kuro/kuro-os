@@ -3,71 +3,295 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kuro</title>
+<title>Kuro OS - Trợ lý Kỹ sư Hạ tầng</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='12' width='20' height='17' rx='6' fill='%2310283a' stroke='%2322d3ee' stroke-width='2'/%3E%3Cpath d='M6 14 C6 1 26 1 26 14 Z' fill='%23facc15'/%3E%3Crect x='3' y='12' width='26' height='3.5' rx='1.7' fill='%23eab308'/%3E%3Ccircle cx='16' cy='7.5' r='2' fill='%23ecfeff'/%3E%3Cellipse cx='12.5' cy='21' rx='2' ry='2.6' fill='%2367e8f9'/%3E%3Cellipse cx='19.5' cy='21' rx='2' ry='2.6' fill='%2367e8f9'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Chakra+Petch:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <style>
-  /* HUD kiểu Jarvis trên nền bản vẽ: xanh lam năng lượng (công nghệ) + vàng an toàn (công trường) */
+  /* HUD kiểu Jarvis trên nền bản vẽ kỹ thuật hạ tầng */
   :root {
-    --bg:#05090f; --panel:rgba(10,22,34,.72); --panel-solid:#0a1622; --text:#d7f3fb; --muted:#6f93a3;
-    --line:rgba(34,211,238,.18); --line-hi:rgba(34,211,238,.55); --cyan:#22d3ee; --cyan-soft:#67e8f9; --amber:#fbbf24;
+    --bg:#05090f; --panel:rgba(10,22,34,.82); --panel-solid:#0a1622; --card-bg:rgba(13,29,44,.65); --card-hover:rgba(34,211,238,.09);
+    --text:#d7f3fb; --muted:#7ea2b3; --line:rgba(34,211,238,.16); --line-hi:rgba(34,211,238,.45);
+    --cyan:#22d3ee; --cyan-soft:#67e8f9; --amber:#fbbf24; --amber-soft:#fde68a; --green:#34d399; --purple:#c084fc;
     --hazard:repeating-linear-gradient(-45deg, #facc15 0 9px, #111827 9px 18px);
     --hud:"Chakra Petch", "Segoe UI", sans-serif; --body:"Be Vietnam Pro", system-ui, "Segoe UI", sans-serif;
     color-scheme: dark;
   }
   * { box-sizing:border-box; }
   body {
-    margin:0; height:100vh; height:100dvh; display:flex; font:15px/1.6 var(--body); color:var(--text); background:var(--bg);
+    margin:0; height:100vh; height:100dvh; display:flex; font:14.5px/1.6 var(--body); color:var(--text); background:var(--bg);
     background-image:
-      radial-gradient(ellipse 80% 60% at 60% 0%, rgba(34,211,238,.10), transparent 70%),
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34,211,238,.08), transparent 70%),
       linear-gradient(var(--line) 1px, transparent 1px),
       linear-gradient(90deg, var(--line) 1px, transparent 1px);
     background-size: auto, 48px 48px, 48px 48px;
     background-position: 0 0, -1px -1px, -1px -1px;
+    overflow:hidden;
   }
-  body::after { /* vạch quét màn hình mờ */
-    content:""; position:fixed; inset:0; pointer-events:none; z-index:10;
-    background:repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  body::after {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:99;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 1px, transparent 1px 3px);
   }
+  body::before { content:""; position:fixed; top:0; left:0; right:0; height:3px; z-index:100; background:var(--hazard); opacity:.9; }
   ::selection { background:rgba(34,211,238,.35); }
-  ::-webkit-scrollbar { width:8px; } ::-webkit-scrollbar-thumb { background:var(--line-hi); border-radius:4px; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb { background:var(--line-hi); border-radius:3px; }
 
-  /* Thanh bên */
-  aside { width:272px; display:flex; flex-direction:column; background:var(--panel); border-right:1px solid var(--line); backdrop-filter:blur(8px); }
-  .brand { display:flex; align-items:center; gap:12px; padding:20px 18px 14px; }
-  .brand b { font:600 20px/1 var(--hud); letter-spacing:.42em; color:var(--cyan-soft); text-shadow:0 0 12px rgba(34,211,238,.6); }
-  .brand small { display:block; margin-top:6px; font:500 10px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
-  .label { padding:14px 18px 6px; font:500 11px/1 var(--hud); letter-spacing:.24em; color:var(--muted); text-transform:uppercase; }
-  #new {
-    margin:6px 16px 4px; padding:10px 12px; font:600 13px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase;
-    color:var(--cyan-soft); background:rgba(34,211,238,.06); border:1px solid var(--line-hi); cursor:pointer;
-    clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
-    transition:background .2s, box-shadow .2s;
+  /* CỘT 1: DANH SÁCH CỘNG SỰ (AGENTS SIDEBAR) */
+  #agents-sidebar {
+    width:310px; flex:none; display:flex; flex-direction:column; background:var(--panel); border-right:1px solid var(--line);
+    backdrop-filter:blur(10px); z-index:20; height:100%;
   }
-  #new:hover { background:rgba(34,211,238,.16); box-shadow:inset 0 0 18px rgba(34,211,238,.25); }
-  #new:active { transform:scale(.98); }
-  #sessions { overflow:auto; flex:1; padding:2px 8px 12px; }
-  #sessions div {
-    position:relative; padding:8px 12px 8px 20px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    color:var(--muted); font-size:14px; border-left:2px solid transparent; transition:color .15s, background .15s;
+  .brand { display:flex; align-items:center; gap:12px; padding:16px 18px 12px; }
+  .brand b { font:700 20px/1 var(--hud); letter-spacing:.38em; color:var(--cyan-soft); text-shadow:0 0 12px rgba(34,211,238,.5); }
+  .brand small { display:block; margin-top:5px; font:600 10px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
+
+  .sidebar-header-tabs { display:flex; padding:0 14px; gap:8px; border-bottom:1px solid var(--line); }
+  .tab-item {
+    padding:8px 14px; font:600 12px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase; color:var(--cyan-soft);
+    border-bottom:2px solid var(--cyan); background:transparent; border-top:none; border-left:none; border-right:none;
+    display:flex; align-items:center; gap:6px; cursor:pointer;
   }
-  #sessions div::before { content:""; position:absolute; left:9px; top:50%; width:4px; height:4px; margin-top:-2px; background:currentColor; opacity:.5; }
-  #sessions div:hover { color:var(--text); background:rgba(34,211,238,.05); }
-  #sessions div.on { color:var(--cyan-soft); background:rgba(34,211,238,.08); border-left-color:var(--cyan); }
-  .sys { padding:12px 18px 16px; border-top:1px solid var(--line); font:500 11px/1.9 var(--hud); letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
-  .sys span { float:right; color:var(--text); }
-  .dot { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber); vertical-align:1px; }
-  body.online .dot { background:#34d399; box-shadow:0 0 8px #34d399; }
+  .tab-badge {
+    padding:2px 6px; font-size:10px; border-radius:10px; background:rgba(34,211,238,.18); color:var(--cyan-soft);
+  }
 
-  /* Băng cảnh báo công trường chạy dọc mép trên màn hình */
-  body::before { content:""; position:fixed; top:0; left:0; right:0; height:4px; z-index:11; background:var(--hazard); opacity:.9; }
+  .search-wrap { padding:10px 14px; }
+  .search-box {
+    display:flex; align-items:center; background:rgba(0,0,0,.35); border:1px solid var(--line); padding:6px 10px; gap:8px;
+    transition:border-color .2s;
+  }
+  .search-box:focus-within { border-color:var(--cyan); box-shadow:0 0 8px rgba(34,211,238,.2); }
+  .search-box input {
+    background:transparent; border:none; outline:none; color:var(--text); font:13px/1.4 var(--body); width:100%;
+  }
+  .search-box input::placeholder { color:var(--muted); font-size:12.5px; }
 
-  /* Linh vật: chibi kỹ sư robot (SVG trong app.js). Biểu cảm theo class trên body. */
-  .mascot { --s:44px; width:var(--s); height:var(--s); flex:none; }
+  #agent-list { flex:1; overflow-y:auto; padding:6px 12px 14px; display:flex; flex-direction:column; gap:6px; }
+  .sec-title {
+    padding:10px 8px 4px; font:600 10.5px/1 var(--hud); letter-spacing:.22em; color:var(--muted); text-transform:uppercase;
+  }
+  .agent-card {
+    display:flex; align-items:flex-start; gap:12px; padding:10px 12px; background:var(--card-bg);
+    border:1px solid var(--line); cursor:pointer; transition:all .18s ease; text-align:left; width:100%;
+  }
+  .agent-card:hover { background:var(--card-hover); border-color:var(--line-hi); transform:translateX(2px); }
+  .agent-card.on {
+    background:rgba(34,211,238,.12); border-color:var(--cyan);
+    box-shadow:inset 2px 0 0 var(--cyan), 0 0 14px rgba(34,211,238,.18);
+  }
+  .agent-card.core-agent.on {
+    background:rgba(251,191,36,.12); border-color:var(--amber);
+    box-shadow:inset 2px 0 0 var(--amber), 0 0 14px rgba(251,191,36,.2);
+  }
+
+  .agent-avatar {
+    width:38px; height:38px; flex:none; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    background:rgba(16,40,58,.85); border:1px solid var(--line-hi); position:relative;
+  }
+  .agent-avatar svg { width:22px; height:22px; }
+  .agent-card.core-agent .agent-avatar { border-color:var(--amber); background:rgba(40,28,10,.85); }
+
+  .agent-info { flex:1; min-width:0; }
+  .agent-top-line { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:2px; }
+  .agent-name {
+    font:600 13px/1.3 var(--hud); letter-spacing:.04em; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .agent-card.on .agent-name { color:var(--cyan-soft); }
+  .agent-card.core-agent.on .agent-name { color:var(--amber-soft); }
+  .agent-badge-tag {
+    padding:2px 6px; font:600 9.5px/1 var(--hud); letter-spacing:.08em; text-transform:uppercase; border-radius:3px;
+    background:rgba(34,211,238,.12); color:var(--cyan-soft); border:1px solid rgba(34,211,238,.3); flex:none;
+  }
+  .agent-badge-tag.sys {
+    background:rgba(251,191,36,.14); color:var(--amber); border-color:rgba(251,191,36,.4);
+  }
+  .agent-desc {
+    margin:0; font-size:12px; line-height:1.4; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  .sidebar-bottom {
+    padding:10px 14px 14px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; background:var(--panel-solid);
+  }
+  .btn-create-agent {
+    width:100%; padding:9px 12px; font:600 12px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase;
+    color:var(--cyan-soft); background:rgba(34,211,238,.07); border:1px solid var(--line-hi); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px; transition:background .2s;
+  }
+  .btn-create-agent:hover { background:rgba(34,211,238,.16); box-shadow:0 0 12px rgba(34,211,238,.2); }
+  .sys-status-row {
+    display:flex; align-items:center; justify-content:space-between; font:500 11px/1.4 var(--hud); letter-spacing:.1em;
+    color:var(--muted); text-transform:uppercase;
+  }
+  .sys-status-row span.val { color:var(--text); }
+  .dot { display:inline-block; width:7px; height:7px; margin-right:5px; border-radius:50%; background:var(--amber); box-shadow:0 0 6px var(--amber); }
+  body.online .dot { background:#34d399; box-shadow:0 0 6px #34d399; }
+  #gear {
+    width:100%; padding:7px; font:600 11.5px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); background:transparent; border:1px solid var(--line); cursor:pointer; transition:all .2s;
+  }
+  #gear:hover { color:var(--cyan-soft); border-color:var(--line-hi); background:rgba(34,211,238,.05); }
+
+  /* CỘT 2: KHUNG CHAT LÀM VIỆC CHÍNH */
+  main { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; height:100%; }
+
+  header {
+    display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px; border-bottom:1px solid var(--line);
+    background:rgba(5,9,15,.65); backdrop-filter:blur(8px); z-index:15;
+  }
+  .header-agent-zone { display:flex; align-items:center; gap:12px; min-width:0; }
+  .header-avatar {
+    width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    background:rgba(16,40,58,.8); border:1px solid var(--line-hi); flex:none;
+  }
+  .header-avatar svg { width:20px; height:20px; }
+  .header-agent-texts { display:flex; flex-direction:column; min-width:0; }
+  .header-agent-title-row { display:flex; align-items:center; gap:8px; }
+  .header-agent-title { font:700 15px/1.2 var(--hud); letter-spacing:.05em; color:var(--cyan-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .header-agent-role { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:42vw; }
+
+  .header-controls { display:flex; align-items:center; gap:10px; flex:none; }
+  .btn-hdr {
+    padding:6px 12px; font:600 12px/1 var(--hud); letter-spacing:.1em; text-transform:uppercase;
+    color:var(--cyan-soft); background:rgba(34,211,238,.08); border:1px solid var(--line-hi); cursor:pointer;
+    display:flex; align-items:center; gap:6px; transition:all .15s;
+  }
+  .btn-hdr:hover { background:rgba(34,211,238,.18); box-shadow:0 0 10px rgba(34,211,238,.2); }
+  .btn-hdr.primary { background:var(--cyan); color:#031018; border-color:var(--cyan); font-weight:700; }
+  .btn-hdr.primary:hover { background:var(--cyan-soft); }
+
+  #model-pick {
+    padding:5px 8px; font:500 11.5px/1.2 var(--hud); letter-spacing:.04em; color:var(--cyan-soft); background:var(--panel-solid);
+    border:1px solid var(--line-hi); border-radius:0; cursor:pointer; max-width:180px;
+  }
+  #state { font:600 11px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase; color:var(--cyan-soft); }
+  body.busy #state { color:var(--amber); }
+
+  /* Hero Welcome view khi chưa có tin nhắn */
+  #hero {
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:28px 24px;
+    position:absolute; inset:56px 0 100px; text-align:center; overflow-y:auto;
+  }
+  main:has(#log:empty) #hero { display:flex; }
+  .hero-avatar-box {
+    width:72px; height:72px; border-radius:18px; display:flex; align-items:center; justify-content:center;
+    background:rgba(16,40,58,.9); border:2px solid var(--cyan); box-shadow:0 0 24px rgba(34,211,238,.3);
+  }
+  .hero-avatar-box svg { width:42px; height:42px; }
+  #hero h1 { margin:0; font:700 clamp(20px, 2.5vw, 26px)/1.2 var(--hud); letter-spacing:.22em; color:var(--cyan-soft); }
+  #hero p { margin:0; max-width:58ch; color:var(--muted); font-size:14px; }
+  .hero-prompts-label { font:600 11px/1 var(--hud); letter-spacing:.2em; color:var(--amber); text-transform:uppercase; margin-top:8px; }
+  .hero-prompts { display:flex; flex-direction:column; gap:8px; max-width:560px; width:100%; }
+  .prompt-btn {
+    padding:10px 14px; font:500 13px/1.4 var(--body); color:var(--text); background:rgba(10,22,34,.7);
+    border:1px solid var(--line); cursor:pointer; text-align:left; transition:all .18s; display:flex; align-items:center; gap:8px;
+  }
+  .prompt-btn::before { content:"▸"; color:var(--cyan); font-weight:bold; }
+  .prompt-btn:hover { background:rgba(34,211,238,.12); border-color:var(--cyan); transform:translateX(3px); }
+
+  /* Vùng cuộn tin nhắn */
+  #log { flex:1; overflow-y:auto; padding:24px max(20px, calc(50% - 420px)); scroll-behavior:smooth; }
+  .msg { margin:0 0 20px; animation:rise .3s cubic-bezier(.2,.8,.2,1); }
+  @keyframes rise { from { opacity:0; transform:translateY(6px); } }
+  .msg::before { display:block; margin-bottom:6px; font:600 11px/1 var(--hud); letter-spacing:.2em; }
+  .user {
+    margin-left:auto; max-width:85%; width:fit-content; padding:10px 16px; white-space:pre-wrap;
+    background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.32); border-right:3px solid var(--amber);
+  }
+  .user::before { content:"BẠN (KỸ SƯ)"; color:var(--amber); text-align:right; }
+  .bot { position:relative; padding:16px 20px; background:var(--panel); border:1px solid var(--line); backdrop-filter:blur(6px); }
+  .bot::before { content:attr(data-sender) " //"; color:var(--cyan); }
+  .bot::after {
+    content:""; position:absolute; inset:-1px; pointer-events:none;
+    background:
+      linear-gradient(var(--cyan),var(--cyan)) top left/12px 2px, linear-gradient(var(--cyan),var(--cyan)) top left/2px 12px,
+      linear-gradient(var(--cyan),var(--cyan)) bottom right/12px 2px, linear-gradient(var(--cyan),var(--cyan)) bottom right/2px 12px;
+    background-repeat:no-repeat;
+  }
+  .bot > :first-child { margin-top:0; } .bot > :last-child { margin-bottom:0; }
+  .bot strong { color:var(--cyan-soft); font-weight:600; }
+  .bot a { color:var(--cyan-soft); text-decoration:underline; }
+  .bot h1, .bot h2, .bot h3 { font-family:var(--hud); letter-spacing:.05em; color:var(--cyan-soft); }
+  .bot table { border-collapse:collapse; width:100%; margin:12px 0; overflow-x:auto; display:block; }
+  .bot td, .bot th { border:1px solid var(--line); padding:6px 12px; font-size:13.5px; }
+  .bot th { background:rgba(34,211,238,.1); font-family:var(--hud); color:var(--cyan-soft); }
+  .bot code { font:13px/1.5 Consolas, "Cascadia Mono", monospace; color:var(--cyan-soft); background:rgba(0,0,0,.35); padding:2px 5px; }
+  .bot pre { background:rgba(0,0,0,.5); border:1px solid var(--line); padding:12px; overflow:auto; }
+  .bot pre code { background:none; padding:0; }
+  .tool {
+    display:inline-block; margin:6px 6px 0 0; padding:2px 10px; font:500 11px/1.6 var(--hud); letter-spacing:.08em;
+    color:var(--cyan-soft); border:1px solid var(--line-hi); background:rgba(34,211,238,.06);
+  }
+  .tool::before { content:"▸ "; color:var(--amber); }
+  body.busy .bot:last-child::before { content:attr(data-sender) " // ĐANG XỬ LÝ..."; animation:blink 1s steps(2) infinite; }
+
+  /* Form nhập tin nhắn */
+  form { padding:10px max(20px, calc(50% - 420px)) 16px; background:rgba(5,9,15,.7); backdrop-filter:blur(6px); }
+  .input { position:relative; }
+  body.busy .input::after { content:""; position:absolute; left:0; right:0; top:-4px; height:3px; background:var(--hazard); animation:tape .8s linear infinite; }
+  .input::before { content:"›"; position:absolute; left:14px; top:12px; font:700 20px/1 var(--hud); color:var(--cyan); }
+  textarea {
+    display:block; width:100%; min-height:56px; max-height:35vh; resize:vertical; padding:13px 60px 13px 34px; font:inherit; color:var(--text);
+    background:var(--panel-solid); border:1px solid var(--line-hi); border-radius:0; transition:box-shadow .2s, border-color .2s;
+  }
+  textarea::placeholder { color:var(--muted); font-size:14px; }
+  textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 18px rgba(34,211,238,.2); }
+  .btn-send {
+    position:absolute; right:8px; bottom:10px; padding:7px 14px; font:700 12px/1 var(--hud); letter-spacing:.12em;
+    color:#031018; background:var(--cyan); border:none; cursor:pointer; text-transform:uppercase; transition:background .15s;
+  }
+  .btn-send:hover { background:var(--cyan-soft); }
+  .form-hint-row { display:flex; justify-content:space-between; margin-top:6px; font:500 11px/1 var(--hud); letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+
+  /* CỘT 3: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ (HISTORY SIDEBAR) */
+  #history-sidebar {
+    width:290px; flex:none; display:flex; flex-direction:column; background:var(--panel); border-left:1px solid var(--line);
+    backdrop-filter:blur(10px); z-index:20; height:100%; transition:margin-right .25s ease;
+  }
+  #history-sidebar.collapsed { margin-right:-290px; }
+  .history-header {
+    display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid var(--line);
+  }
+  .history-header b { font:700 13px/1 var(--hud); letter-spacing:.18em; color:var(--cyan-soft); text-transform:uppercase; }
+  .btn-icon { background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:4px 8px; }
+  .btn-icon:hover { color:var(--text); }
+
+  .history-actions { padding:10px 14px; display:flex; flex-direction:column; gap:8px; border-bottom:1px solid var(--line); }
+  .btn-new-chat {
+    width:100%; padding:9px 12px; font:700 12px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase;
+    color:var(--cyan-soft); background:rgba(34,211,238,.08); border:1px solid var(--line-hi); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px; transition:all .2s;
+  }
+  .btn-new-chat:hover { background:rgba(34,211,238,.18); box-shadow:0 0 10px rgba(34,211,238,.2); }
+
+  #sessions { flex:1; overflow-y:auto; padding:8px 10px 16px; display:flex; flex-direction:column; gap:4px; }
+  .session-group-title {
+    padding:10px 8px 4px; font:600 10.5px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase;
+  }
+  .session-item {
+    position:relative; padding:9px 28px 9px 12px; cursor:pointer; border-left:2px solid transparent;
+    background:rgba(10,22,34,.4); border:1px solid rgba(34,211,238,.08); transition:all .15s;
+  }
+  .session-item:hover { background:rgba(34,211,238,.06); border-color:var(--line); color:var(--text); }
+  .session-item.on {
+    background:rgba(34,211,238,.12); border-color:var(--line-hi); border-left:3px solid var(--cyan); color:var(--cyan-soft);
+  }
+  .session-title { font-size:13px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .session-time { font-size:10.5px; color:var(--muted); margin-top:2px; font-family:var(--hud); }
+  .btn-del-session {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%); opacity:0; background:transparent; border:none;
+    color:var(--muted); cursor:pointer; font-size:12px; padding:4px; transition:opacity .15s, color .15s;
+  }
+  .session-item:hover .btn-del-session { opacity:.7; }
+  .btn-del-session:hover { opacity:1; color:#f87171; }
+  .session-empty { padding:24px 12px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* Linh vật SVG mascot */
+  .mascot { --s:42px; width:var(--s); height:var(--s); flex:none; }
   .mascot svg { width:100%; height:100%; overflow:visible; display:block; }
   .m-ring { fill:none; stroke:var(--cyan); stroke-width:3; stroke-dasharray:150 40 60 40 120 40 60 93; stroke-linecap:round; animation:spin 16s linear infinite; }
   .m-ring2 { fill:none; stroke:var(--line-hi); stroke-width:1.5; stroke-dasharray:2 7; animation:spin 30s linear infinite reverse; }
@@ -85,7 +309,6 @@
   .m-lamp-ring { fill:#1f2937; stroke:#a16207; stroke-width:2; }
   .m-lamp { fill:#ecfeff; filter:drop-shadow(0 0 6px var(--cyan)) drop-shadow(0 0 2px #fff); transform-box:fill-box; transform-origin:center; animation:breathe 3s ease-in-out infinite; }
   .m-vest { fill:#f97316; } .m-reflect { fill:#e2e8f0; opacity:.85; } .m-collar { fill:#0f172a; }
-  /* Đang xử lý: liếc lên như đang tính, đèn mũ và vành quay nhanh, vành đổi vàng */
   body.busy .m-eyes { transform:translate(7px, -6px); }
   body.busy .m-ring { stroke:var(--amber); animation-duration:2s; }
   body.busy .m-lamp { animation-duration:.8s; }
@@ -98,153 +321,201 @@
   @keyframes blink { 0%, 95%, 100% { transform:scaleY(1); } 97% { transform:scaleY(.1); } }
   @keyframes tape { to { background-position:36px 0; } }
 
-  /* Vùng chính */
-  main { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; }
-  header { display:flex; align-items:center; gap:14px; padding:14px max(16px, calc(50% - 400px)); border-bottom:1px solid var(--line);
-    font:500 12px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
-  header .mascot { --s:30px; display:none; }
-  #state { color:var(--cyan-soft); }
-  body.busy #state { color:var(--amber); }
-  #model-pick { padding:4px 8px; font:500 12px/1.2 var(--hud); letter-spacing:.06em; color:var(--cyan-soft); background:var(--panel-solid);
-    border:1px solid var(--line-hi); border-radius:0; cursor:pointer; max-width:46vw; }
-  #model-pick:focus { outline:2px solid var(--cyan); outline-offset:1px; }
-  #clock { margin-left:auto; color:var(--text); font-variant-numeric:tabular-nums; }
-
-  #hero { display:none; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px; position:absolute; inset:56px 0 110px; text-align:center; pointer-events:none; }
-  main:has(#log:empty) #hero { display:flex; }
-  #hero .mascot { --s:min(230px, 52vw, 34vh); }
-  #hero .tags { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-  #hero .tags span { padding:3px 10px; font:500 11px/1.6 var(--hud); letter-spacing:.12em; text-transform:uppercase; color:var(--amber);
-    border:1px solid rgba(251,191,36,.4); background:rgba(251,191,36,.06); }
-  #hero h1 { margin:0; font:600 clamp(22px, 3vw, 30px)/1.2 var(--hud); letter-spacing:.32em; color:var(--cyan-soft); text-shadow:0 0 18px rgba(34,211,238,.5); }
-  #hero p { margin:0; max-width:46ch; color:var(--muted); }
-
-  #log { flex:1; overflow:auto; padding:28px max(16px, calc(50% - 400px)); scroll-behavior:smooth; }
-  .msg { margin:0 0 22px; animation:rise .35s cubic-bezier(.2,.8,.2,1); }
-  @keyframes rise { from { opacity:0; transform:translateY(6px); } }
-  .msg::before { display:block; margin-bottom:6px; font:600 11px/1 var(--hud); letter-spacing:.24em; }
-  .user { margin-left:auto; max-width:85%; width:fit-content; padding:10px 16px; white-space:pre-wrap;
-    background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.28); border-right:2px solid var(--amber); }
-  .user::before { content:"BẠN"; color:var(--amber); text-align:right; }
-  .bot { position:relative; padding:14px 18px; background:var(--panel); border:1px solid var(--line); backdrop-filter:blur(6px); }
-  .bot::before { content:"KURO //"; color:var(--cyan); }
-  .bot::after { /* góc khung HUD */
-    content:""; position:absolute; inset:-1px; pointer-events:none;
-    background:
-      linear-gradient(var(--cyan),var(--cyan)) top left/14px 2px, linear-gradient(var(--cyan),var(--cyan)) top left/2px 14px,
-      linear-gradient(var(--cyan),var(--cyan)) bottom right/14px 2px, linear-gradient(var(--cyan),var(--cyan)) bottom right/2px 14px;
-    background-repeat:no-repeat;
+  /* Hộp thoại Cài đặt & Tạo agent */
+  dialog {
+    width:min(580px, calc(100vw - 32px)); max-height:calc(100dvh - 48px); padding:0; color:var(--text); background:var(--panel-solid);
+    border:1px solid var(--line-hi); box-shadow:0 24px 80px rgba(0,0,0,.7); z-index:100;
   }
-  .bot > :first-child { margin-top:0; } .bot > :last-child { margin-bottom:0; }
-  .bot strong { color:var(--cyan-soft); font-weight:600; }
-  .bot a { color:var(--cyan-soft); }
-  .bot h1, .bot h2, .bot h3 { font-family:var(--hud); letter-spacing:.06em; color:var(--cyan-soft); }
-  .bot table { border-collapse:collapse; display:block; overflow-x:auto; }
-  .bot td, .bot th { border:1px solid var(--line); padding:5px 10px; } .bot th { background:rgba(34,211,238,.08); font-family:var(--hud); }
-  .bot code { font:13px/1.5 Consolas, "Cascadia Mono", monospace; color:var(--cyan-soft); }
-  .bot pre { background:rgba(0,0,0,.35); border:1px solid var(--line); padding:12px; overflow:auto; }
-  .tool { display:inline-block; margin:6px 6px 0 0; padding:2px 10px; font:500 11px/1.6 var(--hud); letter-spacing:.08em; color:var(--cyan-soft);
-    border:1px solid var(--line-hi); background:rgba(34,211,238,.06); }
-  .tool::before { content:"▸ "; color:var(--amber); }
-  body.busy .bot:last-child::before { content:"KURO // ĐANG XỬ LÝ"; animation:blink 1s steps(2) infinite; }
-  @keyframes blink { 50% { opacity:.4; } }
-
-  form { padding:12px max(16px, calc(50% - 400px)) 22px; }
-  .input { position:relative; }
-  /* Đang xử lý: băng cảnh báo chạy trên ô nhập, như biển "đang thi công" */
-  body.busy .input::after { content:""; position:absolute; left:0; right:0; top:-6px; height:4px; background:var(--hazard); animation:tape .8s linear infinite; }
-  .input::before { content:"›"; position:absolute; left:14px; top:11px; font:600 20px/1 var(--hud); color:var(--cyan); }
-  textarea {
-    display:block; width:100%; min-height:58px; max-height:40vh; resize:vertical; padding:13px 16px 13px 34px; font:inherit; color:var(--text);
-    background:var(--panel-solid); border:1px solid var(--line-hi); border-radius:0; transition:box-shadow .2s, border-color .2s;
+  dialog::backdrop { background:rgba(2,6,10,.78); backdrop-filter:blur(4px); }
+  .dialog-form { padding:22px 24px 20px; }
+  .dialog-form h2 { margin:0 0 4px; font:700 18px/1.2 var(--hud); letter-spacing:.22em; color:var(--cyan-soft); }
+  .dialog-form .sub { margin:0 0 10px; color:var(--muted); font-size:13px; }
+  .dialog-form fieldset { margin:16px 0 0; padding:0; border:0; }
+  .dialog-form legend { margin-bottom:8px; font:700 11.5px/1 var(--hud); letter-spacing:.22em; color:var(--amber); text-transform:uppercase; }
+  .dialog-form label { display:block; margin:10px 0 4px; font:600 11.5px/1.3 var(--hud); letter-spacing:.1em; color:var(--text); text-transform:uppercase; }
+  .dialog-form .row { display:flex; gap:8px; }
+  .dialog-form input, .dialog-form select, .dialog-form textarea {
+    flex:1; min-width:0; width:100%; padding:8px 11px; font:13.5px/1.4 var(--body); color:var(--text);
+    background:rgba(0,0,0,.35); border:1px solid var(--line-hi); border-radius:0;
   }
-  textarea::placeholder { color:var(--muted); }
-  textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 24px rgba(34,211,238,.25); }
-  .hint { margin-top:8px; font:500 11px/1 var(--hud); letter-spacing:.14em; color:var(--muted); text-transform:uppercase; }
-
-
-  /* Hộp thoại cài đặt */
-  #gear { display:block; width:100%; margin-top:10px; padding:8px; font:600 12px/1 var(--hud); letter-spacing:.16em; text-transform:uppercase;
-    color:var(--cyan-soft); background:transparent; border:1px solid var(--line); cursor:pointer; }
-  #gear:hover { border-color:var(--line-hi); background:rgba(34,211,238,.06); }
-  dialog { width:min(560px, calc(100vw - 32px)); max-height:calc(100dvh - 48px); padding:0; color:var(--text); background:var(--panel-solid);
-    border:1px solid var(--line-hi); box-shadow:0 24px 80px rgba(0,0,0,.6); }
-  dialog::backdrop { background:rgba(2,6,10,.72); backdrop-filter:blur(3px); }
-  dialog[open] { animation:rise .25s cubic-bezier(.2,.8,.2,1); }
-  #sf { padding:22px 24px 20px; }
-  #sf h2 { margin:0 0 4px; font:600 18px/1.2 var(--hud); letter-spacing:.24em; color:var(--cyan-soft); }
-  #sf .sub { margin:0 0 6px; color:var(--muted); font-size:13px; }
-  #sf fieldset { margin:18px 0 0; padding:0; border:0; }
-  #sf legend { margin-bottom:10px; font:600 11px/1 var(--hud); letter-spacing:.24em; color:var(--amber); text-transform:uppercase; }
-  #sf label { display:block; margin:12px 0 5px; font:500 12px/1.3 var(--hud); letter-spacing:.1em; color:var(--text); text-transform:uppercase; }
-  #sf .row { display:flex; gap:8px; }
-  #sf input, #sf select { flex:1; min-width:0; width:100%; padding:9px 11px; font:14px/1.4 var(--body); color:var(--text);
-    background:rgba(0,0,0,.3); border:1px solid var(--line-hi); border-radius:0; }
-  #sf input:focus, #sf select:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan); }
-  #sf input::placeholder { color:var(--muted); }
-  #sf small { display:block; margin-top:5px; color:var(--muted); font-size:12.5px; line-height:1.5; }
-  #sf .btn { padding:9px 14px; font:600 12px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase; cursor:pointer;
-    color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi); }
-  #sf .btn:hover { background:rgba(34,211,238,.1); }
-  #sf .btn.main { color:#031018; background:var(--cyan); border-color:var(--cyan); }
-  #sf .btn.main:hover { background:var(--cyan-soft); }
-  #sf .foot { display:flex; align-items:center; gap:10px; margin-top:22px; }
-  #sf .test { margin-top:14px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .dialog-form input:focus, .dialog-form select:focus, .dialog-form textarea:focus {
+    outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan);
+  }
+  .dialog-form small { display:block; margin-top:4px; color:var(--muted); font-size:12px; line-height:1.45; }
+  .dialog-form .btn {
+    padding:8px 14px; font:600 12px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase; cursor:pointer;
+    color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi);
+  }
+  .dialog-form .btn:hover { background:rgba(34,211,238,.1); }
+  .dialog-form .btn.main { color:#031018; background:var(--cyan); border-color:var(--cyan); font-weight:700; }
+  .dialog-form .btn.main:hover { background:var(--cyan-soft); }
+  .dialog-form .foot { display:flex; align-items:center; gap:10px; margin-top:20px; }
+  .dialog-form .test { margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
   #s-test-msg { font-size:13px; } #s-test-msg.ok { color:#34d399; } #s-test-msg.err { color:var(--amber); }
   #s-msg { flex:1; font-size:13px; color:var(--cyan-soft); } #s-msg.err { color:var(--amber); }
-  .chip { display:inline-block; margin-right:6px; padding:2px 8px; font:500 11px/1.6 var(--hud); letter-spacing:.08em; border:1px solid var(--line-hi); }
-  .chip.ok { color:#34d399; border-color:rgba(52,211,153,.5); } .chip.no { color:var(--amber); border-color:rgba(245,158,11,.5); }
 
-  #update { padding:10px max(16px, calc(50% - 400px)); font-size:13.5px; color:var(--text); background:rgba(245,158,11,.08);
-    border-bottom:1px solid rgba(245,158,11,.35); }
-  #update b { font:600 12px/1 var(--hud); letter-spacing:.16em; color:var(--amber); text-transform:uppercase; margin-right:8px; }
-  #update ul { margin:6px 0 4px; padding-left:20px; color:var(--muted); }
-  #update code { color:var(--amber); }
-  :focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
-  #gear2 { display:none; padding:4px 8px; font-size:16px; line-height:1; color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi); cursor:pointer; }
-  @media (max-width:760px) { aside { display:none; } header .mascot, #gear2 { display:block; } .user { max-width:100%; } }
-  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+  #update {
+    padding:10px 18px; font-size:13px; color:var(--text); background:rgba(245,158,11,.08); border-bottom:1px solid rgba(245,158,11,.35);
+  }
+  #update b { font:700 11.5px/1 var(--hud); letter-spacing:.16em; color:var(--amber); text-transform:uppercase; margin-right:8px; }
+
+  /* Mobile & responsive */
+  #btn-menu-agents, #gear2 { display:none; }
+  @media (max-width:1100px) {
+    #history-sidebar { position:absolute; right:0; top:0; bottom:0; box-shadow:-8px 0 24px rgba(0,0,0,.6); }
+  }
+  @media (max-width:768px) {
+    #agents-sidebar { position:absolute; left:0; top:0; bottom:0; box-shadow:8px 0 24px rgba(0,0,0,.6); }
+    #agents-sidebar.collapsed { transform:translateX(-100%); }
+    #btn-menu-agents, #gear2 { display:inline-flex; }
+  }
 </style>
 </head>
 <body>
-<aside>
+
+<!-- CỘT 1: DANH SÁCH CỘNG SỰ -->
+<aside id="agents-sidebar">
   <div class="brand">
     <div class="mascot" aria-hidden="true"></div>
     <div><b>KURO</b><small>Trợ lý kỹ sư hạ tầng</small></div>
   </div>
-  <button id="new" type="button">+ Phiên mới</button>
-  <div class="label">Nhật ký phiên</div>
-  <div id="sessions"></div>
-  <div class="sys">
-    <div><span class="dot"></span>Kết nối <span id="net">Đang nối</span></div>
-    <div>AI <span id="core">-</span></div>
-    <button id="gear" type="button">⚙ Cài đặt</button>
+
+  <div class="sidebar-header-tabs">
+    <button class="tab-item" type="button">
+      <span>Cộng sự</span>
+      <span class="tab-badge" id="agent-count">7</span>
+    </button>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <span>🔍</span>
+      <input id="agent-search" type="search" placeholder="Tất cả cộng sự..." aria-label="Tìm kiếm cộng sự">
+    </div>
+  </div>
+
+  <div id="agent-list">
+    <!-- Render động các Agent từ /api/agents -->
+  </div>
+
+  <div class="sidebar-bottom">
+    <button id="btn-create-agent" type="button" class="btn-create-agent">
+      <span>+</span> Tạo cộng sự mới
+    </button>
+    <div class="sys-status-row">
+      <div><span class="dot"></span>Kết nối <span class="val" id="net">Đang nối</span></div>
+      <div>AI <span class="val" id="core">-</span></div>
+    </div>
+    <button id="gear" type="button">⚙ Cài đặt hệ thống</button>
   </div>
 </aside>
+
+<!-- CỘT 2: KHUNG CHAT LÀM VIỆC VỚI AGENT ĐANG CHỌN -->
 <main>
   <header>
-    <div class="mascot" aria-hidden="true"></div>
-    <span id="state">Sẵn sàng</span>
-    <select id="model-pick" aria-label="Đổi model" hidden></select>
-    <span id="clock"></span>
-    <button id="gear2" type="button" aria-label="Cài đặt">⚙</button>
+    <div class="header-agent-zone">
+      <button id="btn-menu-agents" class="btn-hdr" type="button" title="Mở danh sách cộng sự">☰</button>
+      <div class="header-avatar" id="header-avatar"></div>
+      <div class="header-agent-texts">
+        <div class="header-agent-title-row">
+          <span class="header-agent-title" id="header-agent-name">Kuro Core</span>
+          <span class="agent-badge-tag sys" id="header-agent-badge">Hệ thống</span>
+        </div>
+        <div class="header-agent-role" id="header-agent-role">Trợ lý hệ thống điều phối tổng thể</div>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <button id="new" class="btn-hdr primary" type="button">+ Phiên mới</button>
+      <select id="model-pick" aria-label="Đổi model" hidden></select>
+      <button id="btn-toggle-history" class="btn-hdr" type="button" title="Ẩn/hiện lịch sử hội thoại">
+        📋 <span>Lịch sử</span>
+      </button>
+      <span id="state">Sẵn sàng</span>
+      <button id="gear2" class="btn-hdr" type="button" aria-label="Cài đặt">⚙</button>
+    </div>
   </header>
+
   <div id="update" role="status" hidden></div>
+
+  <!-- Hero Welcome tương ứng với Agent đang chọn -->
   <div id="hero" aria-hidden="true">
-    <div class="mascot"></div>
-    <h1>KURO TRỰC TUYẾN</h1>
-    <p>Kỹ sư AI của công trường: biện pháp thi công, bóc khối lượng, QC, tiến độ, BIM. Mọi phép tính chạy bằng script có lưu lại.</p>
-    <div class="tags"><span>Cầu</span><span>Đường</span><span>Cống</span><span>Cảng</span><span>Dân dụng</span></div>
+    <div class="hero-avatar-box" id="hero-avatar"></div>
+    <h1 id="hero-title">KURO CORE</h1>
+    <p id="hero-desc">Trợ lý kỹ sư hạ tầng: biện pháp thi công, bóc khối lượng, QC, tiến độ, BIM. Mọi phép tính chạy bằng script có lưu lại.</p>
+    <div class="hero-prompts-label">Gợi ý tác vụ nhanh</div>
+    <div class="hero-prompts" id="hero-prompts">
+      <!-- Các prompt nhanh theo từng Agent -->
+    </div>
   </div>
+
   <div id="log" aria-live="polite"></div>
+
   <form id="f">
-    <div class="input"><textarea id="q" placeholder="Hỏi Kuro..." aria-label="Câu hỏi"></textarea></div>
-    <div class="hint">Enter gửi · Shift+Enter xuống dòng</div>
+    <div class="input">
+      <textarea id="q" placeholder="Hỏi Kuro..." aria-label="Câu hỏi" rows="1"></textarea>
+      <button class="btn-send" type="submit" id="btn-send" title="Gửi (Enter)">Gửi ▸</button>
+    </div>
+    <div class="form-hint-row">
+      <span>Enter để gửi · Shift+Enter xuống dòng</span>
+      <span id="typing-indicator" style="display:none; color:var(--amber);">AI đang soạn phản hồi...</span>
+    </div>
   </form>
 </main>
+
+<!-- CỘT 3: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ -->
+<aside id="history-sidebar">
+  <div class="history-header">
+    <b>Lịch sử hội thoại</b>
+    <button class="btn-icon" id="btn-close-history" title="Đóng lịch sử">✕</button>
+  </div>
+
+  <div class="history-actions">
+    <button id="btn-new-conv" class="btn-new-chat" type="button">+ Phiên mới với cộng sự này</button>
+    <div class="search-box">
+      <span>🔍</span>
+      <input id="session-search" type="search" placeholder="Tìm trong hội thoại của cộng sự này..." aria-label="Tìm kiếm phiên">
+    </div>
+  </div>
+
+  <div id="sessions">
+    <!-- Render phiên theo nhóm HÔM NAY / 7 NGÀY QUA / CŨ HƠN -->
+  </div>
+</aside>
+
+<!-- DIALOG TẠO CỘNG SỰ MỚI -->
+<dialog id="create-agent-dialog" aria-labelledby="ca-title">
+  <form id="caf" class="dialog-form">
+    <h2 id="ca-title">TẠO CỘNG SỰ MỚI</h2>
+    <p class="sub">Tạo một AI Agent chuyên trách mới cho hệ thống kỹ sư hạ tầng của bạn.</p>
+
+    <label for="ca-name">Tên cộng sự</label>
+    <input id="ca-name" name="name" placeholder="Ví dụ: Kỹ sư Trắc địa & Quan trắc" required spellcheck="false">
+
+    <label for="ca-slug">Mã định danh (Slug không dấu)</label>
+    <input id="ca-slug" name="slug" placeholder="Ví dụ: ky-su-trac-dia" required spellcheck="false">
+
+    <label for="ca-group">Nhóm nghiệp vụ</label>
+    <input id="ca-group" name="group" placeholder="Ví dụ: Hiện trường / Pháp lý / Thiết kế" value="Chuyên môn">
+
+    <label for="ca-role">Chức trách / Vai trò tóm tắt</label>
+    <input id="ca-role" name="role" placeholder="Ví dụ: Lập lưới khống chế, xử lý số liệu quan trắc lún và chuyển vị" required spellcheck="false">
+
+    <label for="ca-prompt">Hướng dẫn nghiệp vụ chi tiết (System Prompt)</label>
+    <textarea id="ca-prompt" name="prompt" rows="5" placeholder="Quy trình thực hiện, tiêu chuẩn áp dụng, yêu cầu kiểm toán và định dạng báo cáo..."></textarea>
+
+    <div class="foot">
+      <span id="ca-msg" role="status"></span>
+      <button class="btn" type="button" id="ca-close">Đóng</button>
+      <button class="btn main" type="submit">Lưu cộng sự</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG CÀI ĐẶT -->
 <dialog id="settings" aria-labelledby="s-title">
-  <form id="sf">
-    <h2 id="s-title">CÀI ĐẶT</h2>
+  <form id="sf" class="dialog-form">
+    <h2 id="s-title">CÀI ĐẶT HỆ THỐNG</h2>
     <p class="sub" id="s-status"></p>
 
     <fieldset>
@@ -254,8 +525,10 @@
       <small id="s-hint"></small>
       <div id="s-keyrow">
         <label for="s-KURO_AI_KEY">API key</label>
-        <div class="row"><input id="s-KURO_AI_KEY" name="KURO_AI_KEY" type="password" autocomplete="off" data-secret="1" spellcheck="false">
-          <button class="btn" type="button" data-clear="KURO_AI_KEY">Xóa</button></div>
+        <div class="row">
+          <input id="s-KURO_AI_KEY" name="KURO_AI_KEY" type="password" autocomplete="off" data-secret="1" spellcheck="false">
+          <button class="btn" type="button" data-clear="KURO_AI_KEY">Xóa</button>
+        </div>
         <small>Đổi sang AI khác thì nhập key của AI đó.</small>
       </div>
       <div id="s-urlrow">
@@ -266,14 +539,19 @@
       <label for="s-KURO_MODEL">Model</label>
       <input id="s-KURO_MODEL" name="KURO_MODEL" spellcheck="false">
       <small>Để trống = model mặc định. Với Claude có thể ghi: sonnet, opus, haiku.</small>
-      <div class="test"><button class="btn" type="button" id="s-test">Lưu và kiểm tra kết nối</button> <span id="s-test-msg" role="status"></span></div>
+      <div class="test">
+        <button class="btn" type="button" id="s-test">Lưu và kiểm tra kết nối</button>
+        <span id="s-test-msg" role="status"></span>
+      </div>
     </fieldset>
 
     <fieldset>
       <legend>Telegram</legend>
       <label for="s-TELEGRAM_BOT_TOKEN">Bot token</label>
-      <div class="row"><input id="s-TELEGRAM_BOT_TOKEN" name="TELEGRAM_BOT_TOKEN" type="password" autocomplete="off" data-secret="1" spellcheck="false">
-        <button class="btn" type="button" data-clear="TELEGRAM_BOT_TOKEN">Xóa</button></div>
+      <div class="row">
+        <input id="s-TELEGRAM_BOT_TOKEN" name="TELEGRAM_BOT_TOKEN" type="password" autocomplete="off" data-secret="1" spellcheck="false">
+        <button class="btn" type="button" data-clear="TELEGRAM_BOT_TOKEN">Xóa</button>
+      </div>
       <small>Lấy ở @BotFather. Đổi token cần khởi động lại Kuro.</small>
       <label for="s-TELEGRAM_OWNER_IDS">ID chủ (cách nhau bằng dấu phẩy)</label>
       <input id="s-TELEGRAM_OWNER_IDS" name="TELEGRAM_OWNER_IDS" inputmode="numeric" spellcheck="false">
@@ -294,6 +572,7 @@
     </div>
   </form>
 </dialog>
-<script src="app.js?v=11"></script>
+
+<script src="app.js?v=12"></script>
 </body>
 </html>

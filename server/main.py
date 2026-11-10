@@ -109,9 +109,60 @@ def get_update():
     return update.STATUS
 
 
+@app.get("/api/agents")
+def get_agents():
+    return engine.list_agents_info()
+
+
+@app.post("/api/agents")
+def create_agent(body: dict):
+    name = (body.get("name") or "").strip()
+    slug = (body.get("slug") or "").strip().lower()
+    if not slug:
+        import re
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    if not slug:
+        raise HTTPException(400, "Tên hoặc mã agent không hợp lệ")
+    role = (body.get("role") or "").strip()
+    group = (body.get("group") or "Chuyên môn").strip()
+    prompt = (body.get("prompt") or "").strip() or f"Bạn là {name}, chuyên trách {role}."
+    skills = body.get("skills") or []
+    from datetime import datetime
+    content = f"""---
+type: agent
+name: {name}
+slug: {slug}
+role: {role}
+group: {group}
+skills: {skills}
+model: ""
+updated: {datetime.now():%Y-%m-%d}
+---
+{prompt}
+"""
+    for d in (config.ROOT / "agents", config.BRAIN / "agents"):
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{slug}.md").write_text(content, encoding="utf-8")
+    return {"ok": True, "slug": slug, "name": name}
+
+
 @app.get("/api/sessions")
-def list_sessions():
-    return store.sessions()
+def list_sessions(agent: str | None = None):
+    return store.sessions(agent=agent)
+
+
+@app.post("/api/sessions")
+def create_session(body: dict):
+    agent = body.get("agent") or "kuro-core"
+    title = body.get("title") or "Phiên mới"
+    sid = store.ensure(None, title=title, agent=agent)
+    return {"id": sid, "agent": agent, "title": title}
+
+
+@app.delete("/api/sessions/{sid}")
+def delete_session(sid: str):
+    store.delete_session(sid)
+    return {"ok": True}
 
 
 @app.get("/api/sessions/{sid}")
@@ -128,13 +179,14 @@ async def ws(sock: WebSocket):
     await sock.accept()
     try:
         while True:
-            req = await sock.receive_json()                  # {"session": id hoặc null, "text": "..."}
+            req = await sock.receive_json()                  # {"session": id hoặc null, "text": "...", "agent": slug}
             text = (req.get("text") or "").strip()
             if not text:
                 continue
-            sid = store.ensure(req.get("session"), title=text)
-            await sock.send_json({"type": "session", "id": sid})
-            await engine.chat(sid, text, emit=sock.send_json)
+            agent = req.get("agent") or "kuro-core"
+            sid = store.ensure(req.get("session"), title=text, agent=agent)
+            await sock.send_json({"type": "session", "id": sid, "agent": agent})
+            await engine.chat(sid, text, agent=agent, emit=sock.send_json)
     except WebSocketDisconnect:
         pass
 
