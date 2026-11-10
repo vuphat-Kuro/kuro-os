@@ -273,6 +273,11 @@ async function loadSessions(agentSlug) {
     const res = await fetch(`/api/sessions?agent=${encodeURIComponent(agentSlug)}`);
     currentSessions = await res.json();
     renderSessionList();
+    if (!session && currentSessions.length > 0) {
+      await openSession(currentSessions[0].id);
+    } else {
+      await loadSessionContext(session);
+    }
   } catch (e) {
     console.error("Lỗi tải phiên:", e);
   }
@@ -427,31 +432,10 @@ function formatTokens(num) {
 
 async function loadSessionContext(sid) {
   const esc = (t) => DOMPurify.sanitize(String(t || ""), { ALLOWED_TAGS: [] });
-  if (!sid) {
-    // Phiên mới chưa có tin nhắn
-    $("ctx-env-proj").textContent = "Kuro OS";
-    $("ctx-env-path").textContent = "Brain Default";
-    $("ctx-env-branch").textContent = "main";
-    $("ctx-env-model").textContent = $("model-pick").value || "Mặc định";
-    $("ctx-used-percent").textContent = "Đã dùng 0%";
-    $("ctx-used-ratio").textContent = "0 / 200k";
-    $("sidebar-context-badge").textContent = "0%";
-    $("header-context-text").textContent = "📊 0%";
-    $("btn-context-header").className = "btn-hdr btn-context-pill";
-    $("ctx-stacked-bar").innerHTML = `<div class="ctx-bar-seg" style="width:100%; background:#1e293b;" title="Free space: 100%"></div>`;
-    $("ctx-breakdown-list").innerHTML = `
-      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#38bdf8;"></span><span class="ctx-break-name">Messages</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">0</span><span class="ctx-break-pct">0%</span></div></div>
-      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#fb923c;"></span><span class="ctx-break-name">Memory files</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">0</span><span class="ctx-break-pct">0%</span></div></div>
-      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#34d399;"></span><span class="ctx-break-name">System tools</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">3.2k</span><span class="ctx-break-pct">1.6%</span></div></div>
-      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#1e293b;"></span><span class="ctx-break-name">Free space</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">196.8k</span><span class="ctx-break-pct">98.4%</span></div></div>
-    `;
-    $("ctx-until-compact").textContent = "Phiên mới chưa có tin nhắn";
-    $("ctx-artifacts-list").innerHTML = `<div class="session-empty" style="padding:10px;">Chưa có tệp kết quả nào sinh ra trong phiên này.</div>`;
-    return;
-  }
+  const url = sid ? `/api/sessions/${encodeURIComponent(sid)}/context` : `/api/context`;
 
   try {
-    const res = await fetch(`/api/sessions/${sid}/context`);
+    const res = await fetch(url);
     if (!res.ok) return;
     const data = await res.json();
     currentContextData = data;
@@ -468,7 +452,7 @@ async function loadSessionContext(sid) {
     const usage = data.usage || {};
     const pct = usage.percent || 0;
     const totalTok = usage.total_tokens || 0;
-    const winSize = usage.window_size || 200000;
+    const winSize = usage.window_size || 1000000;
     const formattedTok = formatTokens(totalTok);
     const formattedWin = formatTokens(winSize);
 
@@ -531,7 +515,9 @@ async function loadSessionContext(sid) {
 
     // 6. Cảnh báo nén phiên
     const untilCompact = usage.tokens_until_compact || 0;
-    if (untilCompact > 0) {
+    if (!sid) {
+      $("ctx-until-compact").textContent = "Phiên mới chưa có tin nhắn";
+    } else if (untilCompact > 0) {
       $("ctx-until-compact").textContent = `Còn ${formatTokens(untilCompact)} đến khi tự động nén`;
     } else {
       $("ctx-until-compact").innerHTML = `<b style="color:#f87171;">⚠️ Ngữ cảnh đã đầy, nên nén ngay</b>`;
@@ -585,6 +571,10 @@ async function compactCurrentSession() {
     const res = await fetch(`/api/sessions/${session}/compact`, { method: "POST" });
     const data = await res.json();
     if (res.ok) {
+      if (data.compacted === false) {
+        alert(data.msg || "Phiên chưa có đủ tin nhắn để nén.");
+        return;
+      }
       await openSession(session);
       await loadSessionContext(session);
       alert("✅ Đã nén phiên thành công! Ngữ cảnh đã được giải phóng gọn gàng.");
@@ -899,7 +889,7 @@ $("f").onsubmit = async (e) => {
         const ctxHtml = `
 ### 📊 THÔNG SỐ NGỮ CẢNH PHIÊN (CONTEXT INSPECTOR)
 - **Cộng sự phụ trách:** **${DOMPurify.sanitize(currentAgent().name)}**
-- **Cửa sổ Context:** \`${formatTokens(ctx.usage?.window_size || 200000)} tokens\`
+- **Cửa sổ Context:** \`${formatTokens(ctx.usage?.window_size || 1000000)} tokens\`
 - **Tổng Token đã dùng:** \`${formatTokens(ctx.usage?.total_tokens || 0)} (${ctx.usage?.percent || 0}%)\`
 - **Messages:** \`${formatTokens(ctx.breakdown?.messages?.tokens || 0)} (${ctx.breakdown?.messages?.percent || 0}%)\`
 - **Memory files:** \`${formatTokens(ctx.breakdown?.memory_files?.tokens || 0)} (${ctx.breakdown?.memory_files?.percent || 0}%)\`

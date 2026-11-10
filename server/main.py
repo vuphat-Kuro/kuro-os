@@ -225,6 +225,95 @@ def list_skills():
     return out
 
 
+def get_model_context_window(provider: str | None = None, model: str | None = None) -> int:
+    """Xác định dung lượng Context Window theo Provider và Model AI đang dùng."""
+    prov = (provider or config.PROVIDER or "antigravity").lower()
+    mod = (model or config.MODEL or "").lower()
+
+    if prov in ("antigravity", "gemini") or "gemini" in mod or "flash" in mod or "pro" in mod:
+        return 1_000_000
+    if "claude" in prov or "anthropic" in prov or any(k in mod for k in ("claude", "sonnet", "opus", "haiku")):
+        return 200_000
+    if any(k in prov for k in ("chatgpt", "codex", "openai")) or any(k in mod for k in ("gpt", "o1", "o3")):
+        return 128_000
+    if "deepseek" in prov or "deepseek" in mod:
+        return 128_000
+    if "ollama" in prov:
+        return 32_000
+    return 1_000_000 if prov == "antigravity" else 200_000
+
+
+@app.get("/api/context")
+def default_context():
+    """Thông số ngữ cảnh mặc định của hệ thống khi bắt đầu phiên mới."""
+    window_size = get_model_context_window()
+    mem_files_paths = [
+        config.BRAIN / "memory" / "MEMORY.md",
+        config.ROOT / "AGENTS.md",
+        config.ROOT / "CLAUDE.md",
+    ]
+    mem_chars = sum(len(p.read_text(encoding="utf-8", errors="ignore")) for p in mem_files_paths if p.is_file())
+    mem_tokens = int(mem_chars / 3.5)
+    meta, body = engine.agent_persona("kuro-core")
+    prompt_tokens = int((len(body) + len(meta.get("role", "")) + 600) / 3.5)
+    skill_tokens = 4500
+    system_tools_tokens = 3200
+    mcp_tools_tokens = 2400
+    autocompact_threshold = int(window_size * 0.8)
+    autocompact_buffer = int(window_size * 0.05)
+    baseline_tokens = mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens
+    free_space = max(0, window_size - baseline_tokens - autocompact_buffer)
+    percent_used = round((baseline_tokens / window_size) * 100, 1)
+
+    branch = "main"
+    try:
+        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, timeout=2)
+        if r.returncode == 0 and r.stdout.strip():
+            branch = r.stdout.strip()
+    except Exception:
+        pass
+
+    return {
+        "id": None,
+        "title": "Phiên mới",
+        "agent": "kuro-core",
+        "agent_name": "Kuro Core",
+        "environment": {
+            "host": "Máy tính này (Local Windows)",
+            "brain_path": str(config.BRAIN),
+            "git_branch": branch,
+            "provider": config.PROVIDER or "antigravity",
+            "model": config.MODEL or "Mặc định",
+            "context_window": window_size,
+        },
+        "usage": {
+            "total_tokens": baseline_tokens,
+            "window_size": window_size,
+            "percent": percent_used,
+            "autocompact_threshold": autocompact_threshold,
+            "tokens_until_compact": autocompact_threshold - baseline_tokens,
+        },
+        "breakdown": {
+            "messages": {"tokens": 0, "percent": 0.0, "color": "#38bdf8", "name": "Messages"},
+            "memory_files": {"tokens": mem_tokens, "percent": round((mem_tokens / window_size) * 100, 1), "color": "#fb923c", "name": "Memory files"},
+            "system_tools": {"tokens": system_tools_tokens, "percent": round((system_tools_tokens / window_size) * 100, 1), "color": "#34d399", "name": "System tools"},
+            "mcp_tools": {"tokens": mcp_tools_tokens, "percent": round((mcp_tools_tokens / window_size) * 100, 1), "color": "#c084fc", "name": "MCP tools"},
+            "system_prompt": {"tokens": prompt_tokens, "percent": round((prompt_tokens / window_size) * 100, 1), "color": "#94a3b8", "name": "System prompt"},
+            "skills": {"tokens": skill_tokens, "percent": round((skill_tokens / window_size) * 100, 1), "color": "#facc15", "name": "Skills"},
+            "autocompact_buffer": {"tokens": autocompact_buffer, "percent": round((autocompact_buffer / window_size) * 100, 1), "color": "#475569", "name": "Autocompact buffer"},
+            "free_space": {"tokens": free_space, "percent": round((free_space / window_size) * 100, 1), "color": "#0f172a", "name": "Free space"},
+        },
+        "counts": {
+            "messages_count": 0,
+            "memory_files_count": len([p for p in mem_files_paths if p.is_file()]),
+            "skills_count": 21,
+            "mcp_tools_count": 12,
+            "custom_agents_count": len(engine.list_agents_info()),
+        },
+        "artifacts": []
+    }
+
+
 @app.get("/api/sessions/{sid}/context")
 def session_context(sid: str):
     sess = store.get(sid)
@@ -237,14 +326,7 @@ def session_context(sid: str):
     msg_tokens = int(msg_chars / 3.6) + (len(msgs) * 6)
 
     # 2. Model context window
-    model_name = (config.MODEL or "").lower()
-    provider_name = (config.PROVIDER or "").lower()
-    if "gemini" in model_name or "gemini" in provider_name:
-        window_size = 1_000_000
-    elif "gpt-4" in model_name or "o1" in model_name or "o3" in model_name:
-        window_size = 128_000
-    else:
-        window_size = 200_000  # Claude default
+    window_size = get_model_context_window(config.PROVIDER, config.MODEL)
 
     # 3. Memory files
     mem_files_paths = [
@@ -365,8 +447,8 @@ async def compact_session(sid: str):
     if not sess:
         raise HTTPException(404, "Không tìm thấy phiên")
     msgs = store.messages(sid)
-    if len(msgs) <= 2:
-        return {"ok": True, "compacted": False, "msg": "Phiên còn quá ngắn (dưới 3 tin nhắn), chưa cần compact."}
+    if len(msgs) < 2:
+        return {"ok": True, "compacted": False, "msg": "Phiên chưa có đủ tin nhắn để nén (cần ít nhất 2 tin nhắn)."}
     
     conversation_text = "\n\n".join(f"{'Người dùng' if m['role']=='user' else 'AI'}: {m['text']}" for m in msgs)
     summary_prompt = (
@@ -377,20 +459,31 @@ async def compact_session(sid: str):
     )
     
     summary_text = ""
-    async for ev in engine.run_turn(summary_prompt, None, agent=sess.get("agent", "kuro-core")):
-        if ev.get("type") == "text":
-            summary_text += ev.get("text", "")
-        elif ev.get("type") == "final" and not summary_text:
-            summary_text = ev.get("text", "")
+    try:
+        async for ev in engine.run_turn(summary_prompt, None, agent=sess.get("agent", "kuro-core")):
+            if ev.get("type") == "text":
+                summary_text += ev.get("text", "")
+            elif ev.get("type") == "final" and not summary_text:
+                summary_text = ev.get("text", "")
+    except Exception as e:
+        print(f"[compact] engine run error: {e}")
             
     if not summary_text:
-        summary_text = f"### [BẢN TÓM TẮT NGỮ CẢNH THU GỌN]\n- Phiên thảo luận gồm {len(msgs)} tin nhắn đã được cô đọng.\n- Đã sẵn sàng tiếp tục mạch công việc."
+        # Fallback tạo bản tóm tắt từ các tin nhắn hiện có
+        key_points = []
+        for m in msgs:
+            t = m.get("text", "").strip()
+            if t and not t.startswith("*("):
+                first_line = t.split("\n")[0][:140]
+                role_label = "Kỹ sư" if m.get("role") == "user" else "Kuro"
+                key_points.append(f"- **{role_label}:** {first_line}")
+        summary_text = "### [BẢN TÓM TẮT NGỮ CẢNH HỘI THOẠI ĐÃ ĐƯỢC THU GỌN]\n" + ("\n".join(key_points[-8:]) if key_points else "- Đã thu gọn toàn bộ ngữ cảnh trao đổi trước đó.")
         
     store.replace_messages(sid, [
         {"role": "user", "text": "*(Hệ thống: Toàn bộ ngữ cảnh trước đó đã được thu gọn bằng lệnh /compact)*"},
         {"role": "assistant", "text": summary_text}
     ])
-    return {"ok": True, "compacted": True, "summary": summary_text}
+    return {"ok": True, "compacted": True, "summary": summary_text, "session_id": sid}
 
 
 @app.get("/api/fs/tree")
