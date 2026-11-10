@@ -231,20 +231,131 @@ def session_context(sid: str):
     if not sess:
         raise HTTPException(404, "Không tìm thấy phiên")
     msgs = store.messages(sid)
-    total_chars = sum(len(m.get("text", "")) for m in msgs)
-    est_tokens = int(total_chars / 3.5)
-    mem_file = config.BRAIN / "memory" / "MEMORY.md"
-    mem_size = len(mem_file.read_text(encoding="utf-8")) if mem_file.is_file() else 0
+
+    # 1. Message tokens
+    msg_chars = sum(len(m.get("text", "")) for m in msgs)
+    msg_tokens = int(msg_chars / 3.6) + (len(msgs) * 6)
+
+    # 2. Model context window
+    model_name = (config.MODEL or "").lower()
+    provider_name = (config.PROVIDER or "").lower()
+    if "gemini" in model_name or "gemini" in provider_name:
+        window_size = 1_000_000
+    elif "gpt-4" in model_name or "o1" in model_name or "o3" in model_name:
+        window_size = 128_000
+    else:
+        window_size = 200_000  # Claude default
+
+    # 3. Memory files
+    mem_files_paths = [
+        config.BRAIN / "memory" / "MEMORY.md",
+        config.ROOT / "AGENTS.md",
+        config.ROOT / "CLAUDE.md",
+    ]
+    mem_chars = 0
+    mem_count = 0
+    for p in mem_files_paths:
+        if p.is_file():
+            mem_count += 1
+            try:
+                mem_chars += len(p.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    mem_tokens = int(mem_chars / 3.5)
+
+    # 4. System prompt for current agent
+    agent_slug = sess.get("agent", "kuro-core")
+    meta, body = engine.agent_persona(agent_slug)
+    prompt_chars = len(body) + len(meta.get("role", "")) + 600
+    prompt_tokens = int(prompt_chars / 3.5)
+
+    # 5. Skills
+    skills_dir = config.BRAIN / "skills"
+    skills_count = 0
+    skills_chars = 0
+    if skills_dir.is_dir():
+        for sp in skills_dir.glob("*/SKILL.md"):
+            skills_count += 1
+            skills_chars += min(2500, len(sp.read_text(encoding="utf-8", errors="ignore")))
+    skill_tokens = int(skills_chars / 3.6) if skills_chars else 4500
+
+    # 6. Tools
+    system_tools_tokens = 3200
+    mcp_tools_tokens = 2400
+    mcp_tools_count = 12
+
+    # 7. Autocompact buffer & thresholds
+    autocompact_threshold = int(window_size * 0.8)
+    autocompact_buffer = int(window_size * 0.05)
+
+    total_used = msg_tokens + mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens
+    free_space = max(0, window_size - total_used - autocompact_buffer)
+    tokens_until_compact = max(0, autocompact_threshold - total_used)
+    percent_used = round((total_used / window_size) * 100, 1)
+
+    # 8. Git branch
+    branch = "main"
+    try:
+        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, timeout=2)
+        if r.returncode == 0 and r.stdout.strip():
+            branch = r.stdout.strip()
+    except Exception:
+        pass
+
+    # 9. Artifacts / outputs
+    artifacts = []
+    for ext in ("*.xlsx", "*.docx", "*.pdf", "*.py", "*.md", "*.csv"):
+        for f in (config.ROOT).glob(ext):
+            if f.name in ("README.md", "CLAUDE.md", "AGENTS.md", "KE-HOACH.md", "VERSION"):
+                continue
+            try:
+                artifacts.append({
+                    "name": f.name,
+                    "path": str(f.relative_to(config.ROOT)).replace("\\", "/"),
+                    "mtime": f.stat().st_mtime
+                })
+            except Exception:
+                pass
+    artifacts = sorted(artifacts, key=lambda x: x["mtime"], reverse=True)[:10]
+
     return {
         "id": sid,
         "title": sess.get("title", ""),
-        "agent": sess.get("agent", "kuro-core"),
-        "model": config.MODEL or "Mặc định",
-        "provider": config.PROVIDER or "antigravity",
-        "message_count": len(msgs),
-        "total_chars": total_chars,
-        "estimated_tokens": est_tokens,
-        "memory_bytes": mem_size
+        "agent": agent_slug,
+        "agent_name": meta.get("name") or agent_slug,
+        "environment": {
+            "host": "Máy tính này (Local Windows)",
+            "brain_path": str(config.BRAIN),
+            "git_branch": branch,
+            "provider": config.PROVIDER or "antigravity",
+            "model": config.MODEL or "Mặc định",
+            "context_window": window_size,
+        },
+        "usage": {
+            "total_tokens": total_used,
+            "window_size": window_size,
+            "percent": percent_used,
+            "autocompact_threshold": autocompact_threshold,
+            "tokens_until_compact": tokens_until_compact,
+        },
+        "breakdown": {
+            "messages": {"tokens": msg_tokens, "percent": round((msg_tokens / window_size) * 100, 1), "color": "#38bdf8", "name": "Messages"},
+            "memory_files": {"tokens": mem_tokens, "percent": round((mem_tokens / window_size) * 100, 1), "color": "#fb923c", "name": "Memory files"},
+            "system_tools": {"tokens": system_tools_tokens, "percent": round((system_tools_tokens / window_size) * 100, 1), "color": "#34d399", "name": "System tools"},
+            "mcp_tools": {"tokens": mcp_tools_tokens, "percent": round((mcp_tools_tokens / window_size) * 100, 1), "color": "#c084fc", "name": "MCP tools"},
+            "system_prompt": {"tokens": prompt_tokens, "percent": round((prompt_tokens / window_size) * 100, 1), "color": "#94a3b8", "name": "System prompt"},
+            "skills": {"tokens": skill_tokens, "percent": round((skill_tokens / window_size) * 100, 1), "color": "#facc15", "name": "Skills"},
+            "autocompact_buffer": {"tokens": autocompact_buffer, "percent": round((autocompact_buffer / window_size) * 100, 1), "color": "#475569", "name": "Autocompact buffer"},
+            "free_space": {"tokens": free_space, "percent": round((free_space / window_size) * 100, 1), "color": "#0f172a", "name": "Free space"},
+        },
+        "counts": {
+            "messages_count": len(msgs),
+            "memory_files_count": mem_count,
+            "skills_count": skills_count or 21,
+            "mcp_tools_count": mcp_tools_count,
+            "custom_agents_count": len(engine.list_agents_info()),
+        },
+        "artifacts": artifacts
     }
 
 

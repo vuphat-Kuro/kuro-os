@@ -362,18 +362,27 @@
     background:rgba(251,191,36,.1); color:var(--amber); border-color:rgba(251,191,36,.3);
   }
 
-  /* CỘT 3: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ (HISTORY SIDEBAR) */
+  /* CỘT 3: INSPECTOR PANEL (LỊCH SỬ & NGỮ CẢNH THEO PHONG CÁCH CLAUDE CODE) */
   #history-sidebar {
-    width:290px; flex:none; display:flex; flex-direction:column; background:var(--panel); border-left:1px solid var(--line);
+    width:320px; flex:none; display:flex; flex-direction:column; background:var(--panel); border-left:1px solid var(--line);
     backdrop-filter:blur(10px); z-index:20; height:100%; transition:margin-right .25s ease;
   }
-  #history-sidebar.collapsed { margin-right:-290px; }
-  .history-header {
-    display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid var(--line);
+  #history-sidebar.collapsed { margin-right:-320px; }
+  
+  .inspector-tabs {
+    display:flex; align-items:center; padding:6px 10px 0; border-bottom:1px solid var(--line); background:rgba(0,0,0,.25);
   }
-  .history-header b { font:700 13px/1 var(--hud); letter-spacing:.18em; color:var(--cyan-soft); text-transform:uppercase; }
-  .btn-icon { background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:4px 8px; }
-  .btn-icon:hover { color:var(--text); }
+  .inspector-tab-item {
+    padding:8px 12px; font:600 11.5px/1 var(--hud); letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+    border-bottom:2px solid transparent; background:transparent; border-top:none; border-left:none; border-right:none;
+    display:flex; align-items:center; gap:6px; cursor:pointer; transition:all .18s;
+  }
+  .inspector-tab-item:hover { color:var(--cyan-soft); }
+  .inspector-tab-item.active { color:var(--cyan-soft); border-bottom-color:var(--cyan); }
+  .inspector-badge {
+    font-size:10px; padding:1px 5px; border-radius:3px; background:rgba(34,211,238,.12); color:var(--cyan-soft);
+  }
+  .inspector-view { flex:1; overflow-y:auto; display:flex; flex-direction:column; }
 
   .history-actions { padding:10px 14px; display:flex; flex-direction:column; gap:8px; border-bottom:1px solid var(--line); }
   .btn-new-chat {
@@ -404,6 +413,78 @@
   .session-item:hover .btn-del-session { opacity:.7; }
   .btn-del-session:hover { opacity:1; color:#f87171; }
   .session-empty { padding:24px 12px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* CSS CHO TAB THỐNG KÊ NGỮ CẢNH (CONTEXT INSPECTOR) */
+  .ctx-section {
+    padding:12px 14px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px;
+  }
+  .ctx-section-header { display:flex; align-items:center; justify-content:space-between; }
+  .ctx-section-title { font:700 11px/1 var(--hud); letter-spacing:.16em; color:var(--muted); text-transform:uppercase; }
+  .ctx-usage-summary { display:flex; flex-direction:column; align-items:flex-end; }
+  #ctx-used-percent { font:700 13px/1.2 var(--hud); color:var(--cyan-soft); }
+  #ctx-used-ratio { font:500 10.5px/1 var(--hud); color:var(--muted); }
+
+  .ctx-env-card {
+    background:rgba(13,29,44,.5); border:1px solid var(--line); padding:8px 10px; display:flex; flex-direction:column; gap:7px;
+  }
+  .ctx-env-row { display:flex; align-items:center; gap:8px; font-size:12px; }
+  .ctx-env-icon { font-size:13px; flex:none; opacity:.85; }
+  .ctx-env-info { display:flex; flex-direction:column; flex:1; min-width:0; }
+  .ctx-env-label { font-weight:600; color:var(--text); font-size:11.5px; }
+  .ctx-env-val { color:var(--muted); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badge-tag { font:700 9px/1 var(--hud); padding:2px 5px; background:rgba(34,211,238,.12); color:var(--cyan-soft); border-radius:2px; }
+
+  /* Stacked Progress Bar */
+  .ctx-stacked-bar {
+    display:flex; height:9px; width:100%; border-radius:2px; overflow:hidden; background:#0b1320;
+    border:1px solid var(--line); margin:6px 0 10px;
+  }
+  .ctx-bar-seg { height:100%; transition:width .3s ease; }
+
+  /* Breakdown List */
+  .ctx-breakdown-list { display:flex; flex-direction:column; gap:3px; margin-bottom:10px; }
+  .ctx-break-row { display:flex; align-items:center; justify-content:space-between; padding:3px 2px; }
+  .ctx-break-left { display:flex; align-items:center; gap:8px; min-width:0; }
+  .ctx-color-dot { width:8px; height:8px; border-radius:2px; flex:none; }
+  .ctx-break-name { color:var(--text); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ctx-break-right { display:flex; align-items:center; gap:8px; font-family:var(--hud); font-size:11px; flex:none; }
+  .ctx-break-tokens { color:var(--muted); min-width:44px; text-align:right; }
+  .ctx-break-pct { color:var(--cyan-soft); min-width:38px; text-align:right; font-weight:600; }
+
+  /* Counts Box */
+  .ctx-counts-box {
+    background:rgba(0,0,0,.25); border:1px solid var(--line); padding:6px 10px; display:flex; flex-direction:column; gap:4px; margin-bottom:10px;
+  }
+  .ctx-count-item { display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); }
+  .ctx-count-item b { color:var(--text); font-family:var(--hud); }
+
+  /* Compact Box */
+  .ctx-compact-box {
+    background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.3); padding:9px 10px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .ctx-compact-info { font-size:11.5px; color:var(--amber-soft); }
+  .btn-compact-now {
+    padding:5px 12px; font:700 11px/1 var(--hud); letter-spacing:.08em; text-transform:uppercase;
+    color:#031018; background:var(--amber); border:none; cursor:pointer; transition:all .15s; flex:none;
+  }
+  .btn-compact-now:hover { background:var(--amber-soft); box-shadow:0 0 10px rgba(245,158,11,.4); }
+
+  /* Artifacts Output List */
+  .ctx-artifacts-list { display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto; }
+  .ctx-artifact-item {
+    display:flex; align-items:center; justify-content:space-between; padding:6px 8px;
+    background:rgba(10,22,34,.5); border:1px solid var(--line); font-size:11.5px; cursor:pointer; transition:all .15s;
+  }
+  .ctx-artifact-item:hover { background:rgba(34,211,238,.08); border-color:var(--cyan); }
+  .ctx-art-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; }
+  .ctx-art-ext { color:var(--muted); font-size:10px; font-family:var(--hud); }
+
+  /* Header Context Pill */
+  .btn-context-pill { display:flex; align-items:center; gap:6px; font-family:var(--hud); }
+  .ctx-dot { width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
+  .btn-context-pill.warn .ctx-dot { background:var(--amber); box-shadow:0 0 8px var(--amber); }
+  .btn-context-pill.danger .ctx-dot { background:#f87171; box-shadow:0 0 8px #f87171; animation:blink 1s infinite; }
 
   /* Linh vật SVG mascot */
   .mascot { --s:42px; width:var(--s); height:var(--s); flex:none; }
@@ -713,7 +794,10 @@
       <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Bật/tắt cây thư mục">
         📁 <span>Tệp tin</span>
       </button>
-      <button id="btn-toggle-history" class="btn-hdr" type="button" title="Ẩn/hiện lịch sử hội thoại">
+      <button id="btn-context-header" class="btn-hdr btn-context-pill" type="button" title="Xem phân tích ngữ cảnh (Context Inspector)">
+        <span class="ctx-dot"></span><span id="header-context-text">📊 0%</span>
+      </button>
+      <button id="btn-toggle-history" class="btn-hdr" type="button" title="Ẩn/hiện lịch sử & ngữ cảnh">
         📋 <span>Lịch sử</span>
       </button>
       <span id="state">Sẵn sàng</span>
@@ -769,23 +853,128 @@
   </form>
 </main>
 
-<!-- CỘT 3: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ -->
+<!-- CỘT 3: INSPECTOR PANEL (LỊCH SỬ & NGỮ CẢNH THEO PHONG CÁCH CLAUDE CODE) -->
 <aside id="history-sidebar">
-  <div class="history-header">
-    <b>Lịch sử hội thoại</b>
-    <button class="btn-icon" id="btn-close-history" title="Đóng lịch sử">✕</button>
+  <div class="inspector-tabs">
+    <button class="inspector-tab-item active" id="tab-btn-history" type="button">
+      <span>📋 Lịch sử</span>
+    </button>
+    <button class="inspector-tab-item" id="tab-btn-context" type="button">
+      <span>📊 Ngữ cảnh</span>
+      <span class="inspector-badge" id="sidebar-context-badge">0%</span>
+    </button>
+    <button class="btn-icon" id="btn-close-history" title="Thu gọn bảng điều khiển" style="margin-left:auto;">✕</button>
   </div>
 
-  <div class="history-actions">
-    <button id="btn-new-conv" class="btn-new-chat" type="button">+ Phiên mới với cộng sự này</button>
-    <div class="search-box">
-      <span>🔍</span>
-      <input id="session-search" type="search" placeholder="Tìm trong hội thoại của cộng sự này..." aria-label="Tìm kiếm phiên">
+  <!-- VIEW 1: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ -->
+  <div id="view-history" class="inspector-view">
+    <div class="history-actions">
+      <button id="btn-new-conv" class="btn-new-chat" type="button">+ Phiên mới với cộng sự này</button>
+      <div class="search-box">
+        <span>🔍</span>
+        <input id="session-search" type="search" placeholder="Tìm trong hội thoại của cộng sự này..." aria-label="Tìm kiếm phiên">
+      </div>
+    </div>
+
+    <div id="sessions">
+      <!-- Render phiên theo nhóm HÔM NAY / 7 NGÀY QUA / CŨ HƠN -->
     </div>
   </div>
 
-  <div id="sessions">
-    <!-- Render phiên theo nhóm HÔM NAY / 7 NGÀY QUA / CŨ HƠN -->
+  <!-- VIEW 2: THỐNG KÊ NGỮ CẢNH (CONTEXT INSPECTOR) -->
+  <div id="view-context" class="inspector-view" style="display:none;">
+    <!-- 1. Môi trường -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">MÔI TRƯỜNG</div>
+      <div class="ctx-env-card">
+        <div class="ctx-env-row">
+          <span class="ctx-env-icon">🖥️</span>
+          <div class="ctx-env-info">
+            <span class="ctx-env-label">Máy tính này</span>
+            <small class="ctx-env-val">Cục bộ (Localhost)</small>
+          </div>
+          <span class="badge-tag">LƯU</span>
+        </div>
+        <div class="ctx-env-row">
+          <span class="ctx-env-icon">📁</span>
+          <div class="ctx-env-info">
+            <span class="ctx-env-label" id="ctx-env-proj">Kuro OS</span>
+            <small class="ctx-env-val" id="ctx-env-path" title="Đường dẫn Brain">Brain Default</small>
+          </div>
+        </div>
+        <div class="ctx-env-row">
+          <span class="ctx-env-icon">🌿</span>
+          <div class="ctx-env-info">
+            <span class="ctx-env-label">Nhánh Git</span>
+            <small class="ctx-env-val" id="ctx-env-branch">main</small>
+          </div>
+        </div>
+        <div class="ctx-env-row">
+          <span class="ctx-env-icon">🤖</span>
+          <div class="ctx-env-info">
+            <span class="ctx-env-label">Model AI</span>
+            <small class="ctx-env-val" id="ctx-env-model">Gemini / Claude</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Ngữ cảnh (Context Breakdown) -->
+    <div class="ctx-section">
+      <div class="ctx-section-header">
+        <span class="ctx-section-title">NGỮ CẢNH</span>
+        <div class="ctx-usage-summary">
+          <b id="ctx-used-percent">Đã dùng 0%</b>
+          <span id="ctx-used-ratio">0k / 200k</span>
+        </div>
+      </div>
+
+      <!-- Thanh phân đoạn màu (Stacked Progress Bar) -->
+      <div class="ctx-stacked-bar" id="ctx-stacked-bar">
+        <!-- Các segment màu được render bằng JS -->
+      </div>
+
+      <!-- Bảng danh mục chi tiết thành phần token -->
+      <div class="ctx-breakdown-list" id="ctx-breakdown-list">
+        <!-- Render động các thành phần: Messages, Memory, System tools, MCP tools, Prompt, Skills, Buffer, Free -->
+      </div>
+
+      <!-- Danh sách đếm mở rộng (Collapsible items) -->
+      <div class="ctx-counts-box">
+        <div class="ctx-count-item">
+          <span>▸ Công cụ MCP</span>
+          <b id="ctx-count-mcp">12</b>
+        </div>
+        <div class="ctx-count-item">
+          <span>▸ Tệp bộ nhớ (Memory files)</span>
+          <b id="ctx-count-mem">3</b>
+        </div>
+        <div class="ctx-count-item">
+          <span>▸ Năng lực chuyên môn (Skills)</span>
+          <b id="ctx-count-skills">21</b>
+        </div>
+        <div class="ctx-count-item">
+          <span>▸ Tác nhân tùy chỉnh (Agents)</span>
+          <b id="ctx-count-agents">7</b>
+        </div>
+      </div>
+
+      <!-- Khung nén phiên -->
+      <div class="ctx-compact-box">
+        <div class="ctx-compact-info">
+          <span id="ctx-until-compact">Còn ...k đến khi tự động nén</span>
+        </div>
+        <button id="btn-trigger-compact" class="btn-compact-now" type="button" title="Thu gọn và tóm tắt ngữ cảnh hội thoại">⚡ Nén phiên</button>
+      </div>
+    </div>
+
+    <!-- 3. Kết quả đầu ra (Outputs / Artifacts) -->
+    <div class="ctx-section" style="border-bottom:none;">
+      <div class="ctx-section-title">KẾT QUẢ ĐẦU RA (TỆP DỰ ÁN)</div>
+      <div class="ctx-artifacts-list" id="ctx-artifacts-list">
+        <!-- Render danh sách file bảng tính, script, báo cáo sinh ra -->
+      </div>
+    </div>
   </div>
 </aside>
 

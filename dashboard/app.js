@@ -361,6 +361,7 @@ async function openSession(id) {
   session = id;
   $("log").replaceChildren();
   renderSessionList();
+  loadSessionContext(id);
 
   try {
     const res = await fetch(`/api/sessions/${id}`);
@@ -383,19 +384,231 @@ function newSession() {
   session = null;
   $("log").replaceChildren();
   renderSessionList();
+  loadSessionContext(null);
   $("q").focus();
 }
 
 $("new").onclick = newSession;
 $("btn-new-conv").onclick = newSession;
 
-// Đóng mở cột Lịch sử
+// Đóng mở cột Lịch sử & Ngữ cảnh
 $("btn-toggle-history").onclick = () => {
   $("history-sidebar").classList.toggle("collapsed");
+  if (!$("history-sidebar").classList.contains("collapsed") && currentInspectorTab === "context") {
+    loadSessionContext(session);
+  }
 };
 $("btn-close-history").onclick = () => {
   $("history-sidebar").classList.add("collapsed");
 };
+
+// ===================== THỐNG KÊ NGỮ CẢNH (CONTEXT INSPECTOR) =====================
+let currentInspectorTab = "history";
+let currentContextData = null;
+
+function switchInspectorTab(tab) {
+  currentInspectorTab = tab;
+  const isContext = tab === "context";
+  $("tab-btn-history").classList.toggle("active", !isContext);
+  $("tab-btn-context").classList.toggle("active", isContext);
+  $("view-history").style.display = isContext ? "none" : "flex";
+  $("view-context").style.display = isContext ? "flex" : "none";
+
+  if (isContext) {
+    loadSessionContext(session);
+  }
+}
+
+function formatTokens(num) {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+  if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+  return String(num || 0);
+}
+
+async function loadSessionContext(sid) {
+  const esc = (t) => DOMPurify.sanitize(String(t || ""), { ALLOWED_TAGS: [] });
+  if (!sid) {
+    // Phiên mới chưa có tin nhắn
+    $("ctx-env-proj").textContent = "Kuro OS";
+    $("ctx-env-path").textContent = "Brain Default";
+    $("ctx-env-branch").textContent = "main";
+    $("ctx-env-model").textContent = $("model-pick").value || "Mặc định";
+    $("ctx-used-percent").textContent = "Đã dùng 0%";
+    $("ctx-used-ratio").textContent = "0 / 200k";
+    $("sidebar-context-badge").textContent = "0%";
+    $("header-context-text").textContent = "📊 0%";
+    $("btn-context-header").className = "btn-hdr btn-context-pill";
+    $("ctx-stacked-bar").innerHTML = `<div class="ctx-bar-seg" style="width:100%; background:#1e293b;" title="Free space: 100%"></div>`;
+    $("ctx-breakdown-list").innerHTML = `
+      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#38bdf8;"></span><span class="ctx-break-name">Messages</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">0</span><span class="ctx-break-pct">0%</span></div></div>
+      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#fb923c;"></span><span class="ctx-break-name">Memory files</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">0</span><span class="ctx-break-pct">0%</span></div></div>
+      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#34d399;"></span><span class="ctx-break-name">System tools</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">3.2k</span><span class="ctx-break-pct">1.6%</span></div></div>
+      <div class="ctx-break-row"><div class="ctx-break-left"><span class="ctx-color-dot" style="background:#1e293b;"></span><span class="ctx-break-name">Free space</span></div><div class="ctx-break-right"><span class="ctx-break-tokens">196.8k</span><span class="ctx-break-pct">98.4%</span></div></div>
+    `;
+    $("ctx-until-compact").textContent = "Phiên mới chưa có tin nhắn";
+    $("ctx-artifacts-list").innerHTML = `<div class="session-empty" style="padding:10px;">Chưa có tệp kết quả nào sinh ra trong phiên này.</div>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/sessions/${sid}/context`);
+    if (!res.ok) return;
+    const data = await res.json();
+    currentContextData = data;
+
+    // 1. Cập nhật môi trường
+    const env = data.environment || {};
+    $("ctx-env-proj").textContent = "Kuro OS (" + (data.agent_name || "Kuro") + ")";
+    $("ctx-env-path").textContent = env.brain_path ? env.brain_path.split("\\").pop() : "Brain Default";
+    $("ctx-env-path").title = env.brain_path || "";
+    $("ctx-env-branch").textContent = env.git_branch || "main";
+    $("ctx-env-model").textContent = env.model || $("model-pick").value || "Mặc định";
+
+    // 2. Cập nhật tỷ lệ sử dụng & Header Pill
+    const usage = data.usage || {};
+    const pct = usage.percent || 0;
+    const totalTok = usage.total_tokens || 0;
+    const winSize = usage.window_size || 200000;
+    const formattedTok = formatTokens(totalTok);
+    const formattedWin = formatTokens(winSize);
+
+    $("ctx-used-percent").textContent = `Đã dùng ${pct}%`;
+    $("ctx-used-ratio").textContent = `${formattedTok} / ${formattedWin}`;
+    $("sidebar-context-badge").textContent = `${pct}%`;
+    $("header-context-text").textContent = `📊 ${pct}% · ${formattedTok}`;
+
+    const pillBtn = $("btn-context-header");
+    pillBtn.className = "btn-hdr btn-context-pill" + (pct >= 80 ? " danger" : pct >= 60 ? " warn" : "");
+
+    // 3. Render Stacked Progress Bar
+    const breakdown = data.breakdown || {};
+    const bar = $("ctx-stacked-bar");
+    bar.innerHTML = "";
+
+    const barSegments = [
+      "messages", "memory_files", "system_tools", "mcp_tools",
+      "system_prompt", "skills", "autocompact_buffer", "free_space"
+    ];
+
+    barSegments.forEach(key => {
+      const seg = breakdown[key];
+      if (!seg || seg.percent <= 0) return;
+      const el = document.createElement("div");
+      el.className = "ctx-bar-seg";
+      el.style.width = Math.max(1, seg.percent) + "%";
+      el.style.backgroundColor = seg.color || "#475569";
+      el.title = `${seg.name}: ${formatTokens(seg.tokens)} (${seg.percent}%)`;
+      bar.appendChild(el);
+    });
+
+    // 4. Render Breakdown List
+    const list = $("ctx-breakdown-list");
+    list.innerHTML = "";
+    barSegments.forEach(key => {
+      const seg = breakdown[key];
+      if (!seg) return;
+      const row = document.createElement("div");
+      row.className = "ctx-break-row";
+      row.innerHTML = `
+        <div class="ctx-break-left">
+          <span class="ctx-color-dot" style="background:${esc(seg.color)};"></span>
+          <span class="ctx-break-name">${esc(seg.name)}</span>
+        </div>
+        <div class="ctx-break-right">
+          <span class="ctx-break-tokens">${formatTokens(seg.tokens)}</span>
+          <span class="ctx-break-pct">${seg.percent}%</span>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+
+    // 5. Cập nhật các bộ đếm
+    const counts = data.counts || {};
+    $("ctx-count-mcp").textContent = counts.mcp_tools_count || 0;
+    $("ctx-count-mem").textContent = counts.memory_files_count || 0;
+    $("ctx-count-skills").textContent = counts.skills_count || 0;
+    $("ctx-count-agents").textContent = counts.custom_agents_count || 0;
+
+    // 6. Cảnh báo nén phiên
+    const untilCompact = usage.tokens_until_compact || 0;
+    if (untilCompact > 0) {
+      $("ctx-until-compact").textContent = `Còn ${formatTokens(untilCompact)} đến khi tự động nén`;
+    } else {
+      $("ctx-until-compact").innerHTML = `<b style="color:#f87171;">⚠️ Ngữ cảnh đã đầy, nên nén ngay</b>`;
+    }
+
+    // 7. Render danh sách Artifacts
+    const artList = $("ctx-artifacts-list");
+    artList.innerHTML = "";
+    const artifacts = data.artifacts || [];
+    if (!artifacts.length) {
+      artList.innerHTML = `<div class="session-empty" style="padding:10px;">Chưa có tệp kết quả nào sinh ra.</div>`;
+    } else {
+      artifacts.forEach(art => {
+        const item = document.createElement("div");
+        item.className = "ctx-artifact-item";
+        item.title = `Xem tệp: ${art.path}`;
+        const ext = art.name.split(".").pop().toUpperCase();
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span>📄</span>
+            <span class="ctx-art-name">${esc(art.name)}</span>
+          </div>
+          <span class="ctx-art-ext">${esc(ext)}</span>
+        `;
+        item.onclick = () => previewFile(art.path, art.name);
+        artList.appendChild(item);
+      });
+    }
+  } catch (e) {
+    console.error("Lỗi tải context session:", e);
+  }
+}
+
+async function compactCurrentSession() {
+  if (!session) {
+    alert("Chưa có phiên hội thoại nào để nén.");
+    return;
+  }
+  if (!confirm("Bạn có muốn nén và thu gọn toàn bộ ngữ cảnh phiên này không? Các quyết định kỹ thuật và số liệu quan trọng sẽ được lưu giữ đầy đủ.")) {
+    return;
+  }
+
+  const btn = $("btn-trigger-compact");
+  const origText = btn ? btn.textContent : "⚡ Nén phiên";
+  if (btn) {
+    btn.textContent = "⏳ Đang nén...";
+    btn.disabled = true;
+  }
+
+  try {
+    const res = await fetch(`/api/sessions/${session}/compact`, { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      await openSession(session);
+      await loadSessionContext(session);
+      alert("✅ Đã nén phiên thành công! Ngữ cảnh đã được giải phóng gọn gàng.");
+    } else {
+      alert("Không thể nén: " + (data.detail || data.msg || "Lỗi không xác định"));
+    }
+  } catch (e) {
+    alert("Lỗi khi gọi nén phiên: " + e.message);
+  } finally {
+    if (btn) {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  }
+}
+
+// Gán sự kiện cho Inspector Panel
+$("tab-btn-history") && ($("tab-btn-history").onclick = () => switchInspectorTab("history"));
+$("tab-btn-context") && ($("tab-btn-context").onclick = () => switchInspectorTab("context"));
+$("btn-context-header") && ($("btn-context-header").onclick = () => {
+  $("history-sidebar").classList.remove("collapsed");
+  switchInspectorTab("context");
+});
+$("btn-trigger-compact") && ($("btn-trigger-compact").onclick = compactCurrentSession);
 
 // Đóng mở danh sách Agent trên điện thoại/màn hình nhỏ
 $("btn-menu-agents").onclick = () => {
@@ -430,6 +643,7 @@ function connect() {
       bot = null;
       setBusy(false);
       loadSessions(selectedAgent);
+      loadSessionContext(session);
       if (!document.body.classList.contains("err")) mood("happy");
     }
     $("log").scrollTop = $("log").scrollHeight;
@@ -672,6 +886,9 @@ $("f").onsubmit = async (e) => {
     if (cmd === "context") {
       $("q").value = "";
       addMessage("user", "").textContent = text;
+      $("history-sidebar").classList.remove("collapsed");
+      switchInspectorTab("context");
+      loadSessionContext(session);
       if (!session) {
         addMessage("bot", md("*(Phiên mới chưa có tin nhắn nào được lưu)*"));
         return;
@@ -680,14 +897,17 @@ $("f").onsubmit = async (e) => {
         const res = await fetch(`/api/sessions/${session}/context`);
         const ctx = await res.json();
         const ctxHtml = `
-### 📊 THÔNG SỐ NGỮ CẢNH PHIÊN (CONTEXT)
-- **Mã phiên:** \`${ctx.id}\`
+### 📊 THÔNG SỐ NGỮ CẢNH PHIÊN (CONTEXT INSPECTOR)
 - **Cộng sự phụ trách:** **${DOMPurify.sanitize(currentAgent().name)}**
-- **Bộ não AI:** \`${ctx.provider}\` (Model: \`${ctx.model}\`)
-- **Số tin nhắn:** ${ctx.message_count} tin
-- **Tổng dung lượng ký tự:** ${ctx.total_chars.toLocaleString()} ký tự
-- **Ước tính Token:** ~${ctx.estimated_tokens.toLocaleString()} tokens
-- **Ký ức dài hạn (Brain Memory):** ${ctx.memory_bytes} bytes
+- **Cửa sổ Context:** \`${formatTokens(ctx.usage?.window_size || 200000)} tokens\`
+- **Tổng Token đã dùng:** \`${formatTokens(ctx.usage?.total_tokens || 0)} (${ctx.usage?.percent || 0}%)\`
+- **Messages:** \`${formatTokens(ctx.breakdown?.messages?.tokens || 0)} (${ctx.breakdown?.messages?.percent || 0}%)\`
+- **Memory files:** \`${formatTokens(ctx.breakdown?.memory_files?.tokens || 0)} (${ctx.breakdown?.memory_files?.percent || 0}%)\`
+- **System & MCP tools:** \`${formatTokens((ctx.breakdown?.system_tools?.tokens || 0) + (ctx.breakdown?.mcp_tools?.tokens || 0))}\`
+- **Skills ngành:** \`${formatTokens(ctx.breakdown?.skills?.tokens || 0)}\`
+- **Không gian còn lại (Free space):** \`${formatTokens(ctx.breakdown?.free_space?.tokens || 0)}\`
+
+*(Chi tiết phân rã màu đã được mở tại Tab **Ngữ cảnh** ở cột bên phải)*
         `;
         addMessage("bot", md(ctxHtml));
       } catch (err) {
@@ -698,28 +918,7 @@ $("f").onsubmit = async (e) => {
 
     if (cmd === "compact") {
       $("q").value = "";
-      addMessage("user", "").textContent = text;
-      if (!session) {
-        addMessage("bot", md("*(Phiên mới chưa có đủ tin nhắn để thu gọn)*"));
-        return;
-      }
-      setBusy(true);
-      const loadingMsg = addMessage("bot", "*(Đang thu gọn và cô đọng ngữ cảnh hội thoại, vui lòng đợi...)*");
-      try {
-        const res = await fetch(`/api/sessions/${session}/compact`, { method: "POST" });
-        const j = await res.json();
-        setBusy(false);
-        if (j.compacted) {
-          loadingMsg.remove();
-          await openSession(session);
-          addMessage("bot", md("✅ **Đã thu gọn ngữ cảnh thành công!** Phiên chat đã được tóm tắt tinh gọn để giải phóng bộ nhớ."));
-        } else {
-          loadingMsg.innerHTML = md(j.msg || "Chưa thể compact phiên này.");
-        }
-      } catch (err) {
-        setBusy(false);
-        loadingMsg.innerHTML = md("Lỗi khi thu gọn ngữ cảnh: " + err);
-      }
+      compactCurrentSession();
       return;
     }
 
