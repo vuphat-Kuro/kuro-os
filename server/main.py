@@ -105,8 +105,39 @@ async def test_ai():
 
 
 @app.get("/api/update")
-def get_update():
-    return update.STATUS
+@app.get("/api/version")
+async def get_version(check: bool = False):
+    if check:
+        await asyncio.to_thread(update.check, True)
+    return update.get_status()
+
+
+@app.post("/api/version", dependencies=[Depends(local_only)])
+def set_version(body: dict):
+    ver = (body.get("version") or "").strip()
+    if not ver:
+        raise HTTPException(400, "Số phiên bản không được để trống")
+    try:
+        updated = update.set_version(ver)
+        return {"ok": True, "version": updated}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/update", dependencies=[Depends(local_only)])
+async def run_update():
+    res = update.start_update()
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("error", "Không thể khởi động cập nhật"))
+    return res
+
+
+@app.get("/api/update/status")
+def get_update_status():
+    return {
+        "state": update.read_state(),
+        "log_tail": update.read_log_tail(),
+    }
 
 
 @app.get("/api/agents")

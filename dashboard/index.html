@@ -469,10 +469,137 @@
   #s-test-msg { font-size:13px; } #s-test-msg.ok { color:#34d399; } #s-test-msg.err { color:var(--amber); }
   #s-msg { flex:1; font-size:13px; color:var(--cyan-soft); } #s-msg.err { color:var(--amber); }
 
+  /* Banner thông báo bản cập nhật */
   #update {
-    padding:10px 18px; font-size:13px; color:var(--text); background:rgba(245,158,11,.08); border-bottom:1px solid rgba(245,158,11,.35);
+    padding:10px 18px; font-size:13.5px; color:var(--text); background:rgba(245,158,11,.1);
+    border-bottom:1px solid rgba(245,158,11,.45); display:flex; align-items:center; justify-content:space-between;
+    gap:12px; z-index:10; backdrop-filter:blur(8px); animation:rise .3s;
   }
-  #update b { font:700 11.5px/1 var(--hud); letter-spacing:.16em; color:var(--amber); text-transform:uppercase; margin-right:8px; }
+  #update.hidden, #update[hidden] { display:none !important; }
+  .update-banner-content { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+  .update-banner-content b { font:700 12px/1 var(--hud); letter-spacing:.14em; color:var(--amber); text-transform:uppercase; white-space:nowrap; }
+  .update-banner-actions { display:flex; align-items:center; gap:8px; flex:none; }
+  .btn-banner-action {
+    padding:4px 10px; font:600 11.5px/1 var(--hud); letter-spacing:.08em; text-transform:uppercase;
+    color:#031018; background:var(--amber); border:none; cursor:pointer; transition:all .15s;
+  }
+  .btn-banner-action:hover { background:var(--amber-soft); }
+  .btn-banner-close { background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:2px 6px; }
+  .btn-banner-close:hover { color:var(--text); }
+
+  /* Badge phiên bản */
+  .version-tag {
+    display:inline-flex; align-items:center; gap:4px; padding:2px 7px; font:700 10.5px/1 var(--hud);
+    letter-spacing:.06em; color:var(--cyan-soft); background:rgba(34,211,238,.1); border:1px solid var(--line-hi);
+    border-radius:3px; cursor:pointer; transition:all .18s; vertical-align:middle;
+  }
+  .version-tag:hover { background:rgba(34,211,238,.22); border-color:var(--cyan); box-shadow:0 0 10px rgba(34,211,238,.3); }
+  .btn-version-tag { display:flex; align-items:center; gap:6px; font-family:var(--hud); }
+  .ver-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); display:inline-block; }
+  .has-update .ver-dot { background:var(--amber); box-shadow:0 0 8px var(--amber); animation:blink 1.2s infinite; }
+  .version-tag.has-update, .btn-version-tag.has-update {
+    color:#fef08a; background:rgba(245,158,11,.16); border-color:var(--amber); animation:ver-pulse 1.8s infinite;
+  }
+  @keyframes ver-pulse { 0%, 100% { box-shadow:0 0 4px rgba(245,158,11,.3); } 50% { box-shadow:0 0 14px rgba(245,158,11,.7); } }
+
+  /* Dialog quản lý phiên bản & cập nhật */
+  #version-dialog {
+    padding:0; border:1px solid var(--line-hi); background:var(--panel-solid); color:var(--text);
+    box-shadow:0 24px 72px rgba(0,0,0,.85); max-width:680px; width:92vw;
+  }
+  #version-dialog::backdrop { background:rgba(3,8,14,.75); backdrop-filter:blur(6px); }
+  .version-dialog-wrap { padding:24px 28px; display:flex; flex-direction:column; gap:20px; }
+  .dialog-header-row { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:14px; }
+  .dialog-header-row h2 { margin:0; font:700 17px/1 var(--hud); letter-spacing:.2em; color:var(--cyan-soft); }
+
+  .version-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .version-card {
+    padding:16px; background:rgba(13,29,44,.5); border:1px solid var(--line); border-radius:4px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .version-card.current { border-left:3px solid var(--cyan); }
+  .version-card.latest { border-left:3px solid var(--amber); }
+  .vc-label { font:700 11px/1 var(--hud); letter-spacing:.16em; color:var(--muted); text-transform:uppercase; }
+  .vc-val { font:700 24px/1.2 var(--hud); letter-spacing:.05em; color:var(--cyan-soft); }
+  .version-card.latest .vc-val { color:var(--amber); }
+  .vc-sub { font-size:12px; color:var(--muted); }
+  .badge-ok { color:var(--green); font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+  .badge-new { color:var(--amber); font-weight:700; display:inline-flex; align-items:center; gap:4px; }
+
+  /* Khung thông báo có bản mới */
+  .update-alert-box {
+    background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.4); padding:16px;
+    border-radius:4px; display:flex; flex-direction:column; gap:12px;
+  }
+  .uab-header { display:flex; align-items:flex-start; gap:12px; }
+  .uab-icon { font-size:24px; line-height:1; }
+  .uab-header b { font:700 14px/1.3 var(--hud); color:var(--amber-soft); display:block; letter-spacing:.05em; }
+  .uab-header p { margin:4px 0 0; font-size:13px; color:var(--text); }
+  .uab-notes { max-height:120px; overflow-y:auto; background:rgba(0,0,0,.3); padding:8px 12px; border:1px solid var(--line); font-size:12.5px; }
+  .uab-notes ul { margin:0; padding-left:18px; }
+  .uab-notes li { margin:3px 0; color:var(--cyan-soft); }
+  .uab-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+  .btn-update-now {
+    padding:10px 20px; font:700 13px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase;
+    color:#031018; background:var(--cyan); border:1px solid var(--cyan-soft); cursor:pointer;
+    box-shadow:0 0 16px rgba(34,211,238,.35); transition:all .18s;
+  }
+  .btn-update-now:hover { background:var(--cyan-soft); box-shadow:0 0 24px rgba(34,211,238,.6); }
+
+  /* Khung tiến trình cập nhật */
+  .update-progress-box {
+    background:rgba(0,0,0,.45); border:1px solid var(--cyan); padding:18px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .progress-title-row { display:flex; align-items:center; gap:10px; font:700 13.5px/1 var(--hud); color:var(--cyan-soft); letter-spacing:.08em; }
+  .spinner-neon {
+    width:16px; height:16px; border:2px solid rgba(34,211,238,.2); border-top-color:var(--cyan);
+    border-radius:50%; animation:spin .8s linear infinite; display:inline-block;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .stepper-row { display:flex; align-items:center; justify-content:space-between; margin:4px 0; }
+  .step-item { display:flex; flex-direction:column; align-items:center; gap:4px; font:600 11px/1 var(--hud); color:var(--muted); text-transform:uppercase; }
+  .step-circle {
+    width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,22,34,.9); border:1px solid var(--line-hi); color:var(--muted); font-size:11px; font-weight:700;
+  }
+  .step-item.active .step-circle { border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 10px rgba(34,211,238,.4); background:rgba(34,211,238,.15); }
+  .step-item.active { color:var(--cyan-soft); }
+  .step-item.done .step-circle { border-color:var(--green); color:var(--green); background:rgba(52,211,153,.15); }
+  .step-item.done { color:var(--green); }
+  .step-line { flex:1; height:2px; background:var(--line); margin:0 8px; margin-bottom:14px; }
+  .step-line.done { background:var(--green); }
+
+  .terminal-log-wrap {
+    max-height:160px; overflow-y:auto; background:#04070c; border:1px solid rgba(34,211,238,.2);
+    padding:10px; font:12px/1.4 Consolas, "Cascadia Mono", monospace; color:#a5f3fc;
+  }
+  .terminal-log-wrap pre { margin:0; white-space:pre-wrap; word-break:break-all; }
+
+  /* Khu vực đặt số phiên bản */
+  .version-setting-section {
+    background:rgba(10,22,34,.6); border:1px solid var(--line); padding:14px 16px; border-radius:4px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .section-title { display:flex; justify-content:space-between; align-items:center; font:700 12px/1 var(--hud); letter-spacing:.12em; color:var(--cyan-soft); }
+  .version-input-row { display:flex; align-items:center; gap:8px; }
+  .version-input-row .prefix { font:700 14px/1 var(--hud); color:var(--muted); }
+  .version-input-row input {
+    flex:1; padding:7px 10px; font:700 13px/1 var(--hud); color:var(--cyan-soft);
+    background:var(--panel-solid); border:1px solid var(--line-hi); border-radius:0;
+  }
+  .version-input-row input:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 8px rgba(34,211,238,.3); }
+  .btn-save-ver {
+    padding:7px 14px; font:700 12px/1 var(--hud); letter-spacing:.1em; text-transform:uppercase;
+    color:#031018; background:var(--amber); border:none; cursor:pointer; transition:all .15s;
+  }
+  .btn-save-ver:hover { background:var(--amber-soft); }
+  .save-status-msg { font-size:12px; min-height:16px; }
+  .save-status-msg.ok { color:var(--green); }
+  .save-status-msg.err { color:var(--amber); }
+
+  .dialog-footer-actions { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line); padding-top:14px; }
 
   /* Mobile & responsive */
   #btn-menu-agents, #gear2 { display:none; }
@@ -492,7 +619,13 @@
 <aside id="agents-sidebar">
   <div class="brand">
     <div class="mascot" aria-hidden="true"></div>
-    <div><b>KURO</b><small>Trợ lý kỹ sư hạ tầng</small></div>
+    <div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <b>KURO</b>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.4.0</span>
+      </div>
+      <small>Trợ lý kỹ sư hạ tầng</small>
+    </div>
   </div>
 
   <div class="sidebar-header-tabs">
@@ -574,6 +707,9 @@
     <div class="header-controls">
       <button id="new" class="btn-hdr primary" type="button">+ Phiên mới</button>
       <select id="model-pick" aria-label="Đổi model" hidden></select>
+      <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Kiểm tra phiên bản & cập nhật">
+        <span class="ver-dot"></span><span id="header-version-text">v1.4.0</span>
+      </button>
       <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Bật/tắt cây thư mục">
         📁 <span>Tệp tin</span>
       </button>
@@ -585,7 +721,19 @@
     </div>
   </header>
 
-  <div id="update" role="status" hidden></div>
+  <div id="update" role="status" class="hidden">
+    <div class="update-banner-content">
+      <span style="font-size:18px;">🚀</span>
+      <div>
+        <b id="update-banner-title">Có phiên bản mới</b>
+        <span id="update-banner-text">Đã có Kuro bản mới trên GitHub.</span>
+      </div>
+    </div>
+    <div class="update-banner-actions">
+      <button type="button" class="btn-banner-action" id="btn-open-update-modal">Chi tiết & Cập nhật</button>
+      <button type="button" class="btn-banner-close" id="btn-dismiss-update" title="Đóng thông báo">✕</button>
+    </div>
+  </div>
 
   <!-- Hero Welcome tương ứng với Agent đang chọn -->
   <div id="hero" aria-hidden="true">
@@ -753,6 +901,103 @@
   </div>
 </dialog>
 
-<script src="app.js?v=16"></script>
+<!-- DIALOG QUẢN LÝ PHIÊN BẢN & CẬP NHẬT KURO -->
+<dialog id="version-dialog" aria-labelledby="vd-title">
+  <div class="version-dialog-wrap">
+    <div class="dialog-header-row">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:20px;">🚀</span>
+        <h2 id="vd-title">PHIÊN BẢN & CẬP NHẬT KURO</h2>
+      </div>
+      <button type="button" class="btn-icon" id="btn-close-version-dialog" title="Đóng">✕</button>
+    </div>
+
+    <div class="version-grid">
+      <div class="version-card current">
+        <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
+        <div class="vc-val" id="vd-current-ver">v1.4.0</div>
+        <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
+      </div>
+      <div class="version-card latest" id="vd-latest-card">
+        <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
+        <div class="vc-val" id="vd-latest-ver">v1.4.0</div>
+        <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
+      </div>
+    </div>
+
+    <!-- KHUNG THÔNG BÁO CÓ BẢN MỚI -->
+    <div id="vd-update-alert-box" class="update-alert-box" style="display:none;">
+      <div class="uab-header">
+        <span class="uab-icon">🎉</span>
+        <div>
+          <b id="uab-title">Đã có phiên bản mới sẵn sàng cập nhật!</b>
+          <p id="uab-desc">Bạn có thể cập nhật trực tiếp tại đây để tải tính năng mới nhất.</p>
+        </div>
+      </div>
+      <div class="uab-notes" id="uab-notes-list"></div>
+      <div class="uab-actions">
+        <button type="button" id="btn-start-update" class="btn-update-now">🚀 Cập nhật ngay lên bản mới</button>
+      </div>
+    </div>
+
+    <!-- KHUNG TIẾN TRÌNH CẬP NHẬT TỰ ĐỘNG -->
+    <div id="vd-progress-box" class="update-progress-box" style="display:none;">
+      <div class="progress-title-row">
+        <span class="spinner-neon"></span>
+        <span id="vd-progress-text">Đang chuẩn bị cập nhật...</span>
+      </div>
+      <div class="stepper-row">
+        <div class="step-item active" id="step-pull">
+          <div class="step-circle">1</div>
+          <span>Tải mã nguồn</span>
+        </div>
+        <div class="step-line" id="line-1"></div>
+        <div class="step-item" id="step-install">
+          <div class="step-circle">2</div>
+          <span>Cài thư viện</span>
+        </div>
+        <div class="step-line" id="line-2"></div>
+        <div class="step-item" id="step-restart">
+          <div class="step-circle">3</div>
+          <span>Khởi động lại</span>
+        </div>
+        <div class="step-line" id="line-3"></div>
+        <div class="step-item" id="step-done">
+          <div class="step-circle">4</div>
+          <span>Hoàn tất</span>
+        </div>
+      </div>
+      <div class="terminal-log-wrap">
+        <pre id="vd-update-log">Đang khởi tạo tiến trình cập nhật...</pre>
+      </div>
+      <div id="vd-reload-notice" style="display:none; color:var(--green); font-weight:600; text-align:center; margin-top:8px;">
+        ✅ Cập nhật thành công! Trang sẽ tự động tải lại sau giây lát...
+      </div>
+    </div>
+
+    <!-- KHU VỰC ĐẶT SỐ PHIÊN BẢN (CHO KỸ SƯ / ADMIN) -->
+    <div class="version-setting-section">
+      <div class="section-title">
+        <span>⚙️ ĐẶT SỐ PHIÊN BẢN (QUẢN TRỊ)</span>
+        <small style="color:var(--muted); font-size:11px;">Ghi số phiên bản vào hệ thống khi đóng gói phát hành</small>
+      </div>
+      <div class="version-input-row">
+        <span class="prefix">v</span>
+        <input type="text" id="vd-input-ver" placeholder="1.4.0" pattern="^\d+(\.\d+)*$" required>
+        <button type="button" class="btn-tool-sm" id="btn-bump-patch" title="Tăng bản vá (+0.0.1)">+0.0.1</button>
+        <button type="button" class="btn-tool-sm" id="btn-bump-minor" title="Tăng chức năng (+0.1.0)">+0.1.0</button>
+        <button type="button" class="btn-save-ver" id="btn-save-version">💾 Lưu số phiên bản</button>
+      </div>
+      <div id="vd-save-status" class="save-status-msg"></div>
+    </div>
+
+    <div class="dialog-footer-actions">
+      <button type="button" class="btn-hdr" id="btn-check-update-manual">🔄 Kiểm tra bản mới trên GitHub</button>
+      <button type="button" class="btn-hdr" id="btn-close-version-dialog2">Đóng</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="app.js?v=17"></script>
 </body>
 </html>

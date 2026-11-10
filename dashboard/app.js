@@ -453,6 +453,8 @@ const SYSTEM_SLASH_COMMANDS = [
   { cmd: "/skill", name: "/skill <tên_skill>", desc: "Chỉ định áp dụng một skill kỹ thuật chuyên môn", needArg: true },
   { cmd: "/plan", name: "/plan <nội dung>", desc: "Chế độ lập kế hoạch chi tiết từng bước trước khi thực thi", needArg: true },
   { cmd: "/goal", name: "/goal <mục tiêu>", desc: "Chế độ tập trung theo đuổi mục tiêu kỹ thuật đến cùng", needArg: true },
+  { cmd: "/version", name: "/version", desc: "Xem và đặt số phiên bản Kuro OS hiện tại", needArg: false },
+  { cmd: "/update", name: "/update", desc: "Kiểm tra phiên bản mới từ GitHub và cập nhật trực tiếp", needArg: false },
   { cmd: "/model", name: "/model", desc: "Xem hoặc đổi nhanh model AI đang sử dụng", needArg: false },
   { cmd: "/clear", name: "/clear (hoặc /new)", desc: "Bắt đầu một phiên hội thoại mới sạch sẽ", needArg: false },
   { cmd: "/help", name: "/help", desc: "Xem hướng dẫn danh sách toàn bộ các lệnh gạch chéo", needArg: false }
@@ -644,6 +646,12 @@ $("f").onsubmit = async (e) => {
 | **\`/<slug_skill>\`** | Kích hoạt trực tiếp 21 skill ngành (ví dụ: \`/bien-phap-thi-cong\`, \`/tinh-toan-ky-thuat\`, \`/kiem-toan-ket-cau-phu-tro\`, \`/qs-khoi-luong-du-toan\`, \`/tien-do-san-luong\`...) |
       `;
       addMessage("bot", md(helpHtml));
+      return;
+    }
+
+    if (cmd === "version" || cmd === "update") {
+      $("q").value = "";
+      openVersionDialog();
       return;
     }
 
@@ -940,16 +948,293 @@ fetch("/api/settings").then((r) => r.json()).then((r) => {
   if (!r.settings.KURO_PROVIDER.value) openSettings();
 }).catch(() => {});
 
-// Kiểm tra bản cập nhật mới
-async function checkUpdate() {
-  const u = await (await fetch("/api/update")).json();
-  const box = $("update");
-  box.hidden = !u.behind;
-  if (!u.behind) return;
-  const esc = (t) => DOMPurify.sanitize(t, { ALLOWED_TAGS: [] });
-  box.innerHTML = `<b>Có bản mới ${esc(u.latest)}</b>Bạn đang dùng ${esc(u.current)}. Bấm đúp <code>cap-nhat.bat</code> để cập nhật.` +
-    (u.notes.length ? `<ul>${u.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
+// ===================== QUẢN LÝ PHIÊN BẢN & CẬP NHẬT (THEO KIẾN TRÚC JAVIS OS) =====================
+let versionData = {
+  current: "1.4.0",
+  latest: "1.4.0",
+  behind: 0,
+  update_available: false,
+  notes: []
+};
+let updatePollingTimer = null;
+
+async function checkUpdate(force = false) {
+  try {
+    const res = await fetch(`/api/version?check=${force ? "1" : "0"}`);
+    if (!res.ok) return;
+    const u = await res.json();
+    versionData = u;
+
+    // Cập nhật các nhãn số phiên bản
+    const curText = "v" + (u.current || "1.4.0");
+    const sideBadge = $("sidebar-version-badge");
+    const hdrBtn = $("btn-version-header");
+    const hdrText = $("header-version-text");
+
+    if (sideBadge) {
+      sideBadge.textContent = curText;
+      sideBadge.classList.toggle("has-update", !!u.update_available);
+      sideBadge.title = u.update_available
+        ? `Đã có Kuro bản mới v${u.latest}! Bấm để cập nhật`
+        : `Phiên bản Kuro: ${curText} (Mới nhất)`;
+    }
+    if (hdrText) hdrText.textContent = curText;
+    if (hdrBtn) {
+      hdrBtn.classList.toggle("has-update", !!u.update_available);
+      hdrBtn.title = u.update_available
+        ? `Đã có Kuro bản mới v${u.latest}! Bấm để cập nhật`
+        : `Phiên bản Kuro: ${curText} (Mới nhất)`;
+    }
+
+    // Hiển thị hoặc ẩn banner thông báo bản mới
+    const box = $("update");
+    if (box) {
+      if (u.update_available) {
+        $("update-banner-title").textContent = `ĐÃ CÓ PHIÊN BẢN MỚI v${u.latest}`;
+        $("update-banner-text").textContent = `Bạn đang dùng ${curText}. Nhánh GitHub đã có các cập nhật mới.`;
+        box.classList.remove("hidden");
+        box.hidden = false;
+      } else {
+        box.classList.add("hidden");
+        box.hidden = true;
+      }
+    }
+    return u;
+  } catch (e) {
+    console.error("Lỗi kiểm tra phiên bản:", e);
+  }
 }
+
+function openVersionDialog() {
+  const u = versionData || { current: "1.4.0", latest: "1.4.0", update_available: false, notes: [] };
+  const esc = (t) => DOMPurify.sanitize(t, { ALLOWED_TAGS: [] });
+
+  $("vd-current-ver").textContent = "v" + (u.current || "1.4.0");
+  $("vd-latest-ver").textContent = "v" + (u.latest || u.current || "1.4.0");
+  $("vd-input-ver").value = u.current || "1.4.0";
+  $("vd-save-status").textContent = "";
+  $("vd-save-status").className = "save-status-msg";
+
+  const alertBox = $("vd-update-alert-box");
+  const progBox = $("vd-progress-box");
+  progBox.style.display = "none";
+
+  if (u.update_available) {
+    $("vd-latest-status").innerHTML = `<span class="badge-new">🎉 Có bản mới v${esc(u.latest)}</span>`;
+    alertBox.style.display = "flex";
+    const notesContainer = $("uab-notes-list");
+    if (u.notes && u.notes.length) {
+      notesContainer.innerHTML = `<b>Nội dung cập nhật mới:</b><ul>${u.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`;
+    } else {
+      notesContainer.innerHTML = `<i>Phiên bản v${esc(u.latest)} đã được phát hành trên GitHub.</i>`;
+    }
+  } else {
+    $("vd-latest-status").innerHTML = `<span class="badge-ok">✓ Đang dùng bản mới nhất</span>`;
+    alertBox.style.display = "none";
+  }
+
+  $("version-dialog").showModal();
+}
+
+function bumpVersion(type) {
+  const input = $("vd-input-ver");
+  const val = (input.value || "1.4.0").trim().replace(/^v/i, "");
+  const parts = val.split(".").map((x) => parseInt(x, 10) || 0);
+  while (parts.length < 3) parts.push(0);
+
+  if (type === "patch") {
+    parts[2] += 1;
+  } else if (type === "minor") {
+    parts[1] += 1;
+    parts[2] = 0;
+  }
+  input.value = parts.join(".");
+}
+
+async function saveVersionNumber() {
+  const input = $("vd-input-ver");
+  const statusMsg = $("vd-save-status");
+  const val = (input.value || "").trim().replace(/^v/i, "");
+
+  if (!/^\d+(\.\d+)*$/.test(val)) {
+    statusMsg.textContent = "Số phiên bản không hợp lệ (ví dụ đúng: 1.4.1)";
+    statusMsg.className = "save-status-msg err";
+    return;
+  }
+
+  statusMsg.textContent = "Đang lưu số phiên bản...";
+  statusMsg.className = "save-status-msg";
+
+  try {
+    const res = await fetch("/api/version", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: val }),
+    });
+    const d = await res.json();
+    if (res.ok) {
+      statusMsg.textContent = `Đã lưu thành công số phiên bản v${d.version}!`;
+      statusMsg.className = "save-status-msg ok";
+      await checkUpdate(false);
+      $("vd-current-ver").textContent = "v" + d.version;
+    } else {
+      statusMsg.textContent = d.detail || "Lỗi khi lưu phiên bản";
+      statusMsg.className = "save-status-msg err";
+    }
+  } catch (e) {
+    statusMsg.textContent = "Lỗi kết nối máy chủ: " + e.message;
+    statusMsg.className = "save-status-msg err";
+  }
+}
+
+async function runSelfUpdate() {
+  if (!confirm("Bắt đầu cập nhật Kuro lên phiên bản mới? Hệ thống sẽ kéo mã nguồn và tự động khởi động lại dịch vụ.")) return;
+
+  const alertBox = $("vd-update-alert-box");
+  const progBox = $("vd-progress-box");
+  alertBox.style.display = "none";
+  progBox.style.display = "flex";
+
+  $("vd-progress-text").textContent = "Đang bắt đầu cập nhật...";
+  setUpdateStepper("pull");
+
+  try {
+    const res = await fetch("/api/update", { method: "POST" });
+    const d = await res.json();
+    if (!res.ok) {
+      alert("Không thể khởi động cập nhật: " + (d.detail || d.error));
+      progBox.style.display = "none";
+      alertBox.style.display = "flex";
+      return;
+    }
+
+    // Bắt đầu vòng lặp theo dõi tiến trình (poll status)
+    if (updatePollingTimer) clearInterval(updatePollingTimer);
+    updatePollingTimer = setInterval(pollUpdateProgress, 1200);
+  } catch (e) {
+    alert("Lỗi khi gọi lệnh cập nhật: " + e.message);
+    progBox.style.display = "none";
+    alertBox.style.display = "flex";
+  }
+}
+
+function setUpdateStepper(phase) {
+  const steps = ["step-pull", "step-install", "step-restart", "step-done"];
+  const lines = ["line-1", "line-2", "line-3"];
+  const phaseOrder = {
+    preparing: 0,
+    pulling: 0,
+    installing: 1,
+    restarting: 2,
+    success: 3,
+  };
+
+  const currentIdx = phaseOrder[phase] !== undefined ? phaseOrder[phase] : 0;
+
+  steps.forEach((sId, idx) => {
+    const el = $(sId);
+    if (!el) return;
+    el.classList.toggle("done", idx < currentIdx || (phase === "success" && idx === 3));
+    el.classList.toggle("active", idx === currentIdx && phase !== "success");
+  });
+
+  lines.forEach((lId, idx) => {
+    const el = $(lId);
+    if (!el) return;
+    el.classList.toggle("done", idx < currentIdx);
+  });
+}
+
+async function pollUpdateProgress() {
+  try {
+    const res = await fetch("/api/update/status");
+    if (!res.ok) {
+      // Server đang khởi động lại, kiểm tra health
+      checkServerHealthAfterUpdate();
+      return;
+    }
+    const d = await res.json();
+    const st = d.state || {};
+
+    if (d.log_tail) {
+      $("vd-update-log").textContent = d.log_tail;
+      const wrap = $("vd-update-log").parentElement;
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    if (st.phase === "pulling") {
+      $("vd-progress-text").textContent = "Đang tải mã nguồn mới từ GitHub...";
+      setUpdateStepper("pull");
+    } else if (st.phase === "installing") {
+      $("vd-progress-text").textContent = "Đang cập nhật các gói thư viện Python...";
+      setUpdateStepper("install");
+    } else if (st.phase === "restarting") {
+      $("vd-progress-text").textContent = "Đang khởi động lại máy chủ Kuro...";
+      setUpdateStepper("restart");
+      checkServerHealthAfterUpdate();
+    } else if (st.result === "success") {
+      $("vd-progress-text").textContent = "Hoàn tất cập nhật!";
+      setUpdateStepper("success");
+      finishUpdateAndReload();
+    } else if (st.result === "error") {
+      if (updatePollingTimer) clearInterval(updatePollingTimer);
+      $("vd-progress-text").textContent = "❌ Cập nhật thất bại: " + (st.error || "Xem chi tiết nhật ký bên dưới.");
+      alert("Cập nhật không thành công: " + (st.error || "Chi tiết trong update.log"));
+    }
+  } catch (e) {
+    // Nếu fetch lỗi do server đang tắt để restart, chuyển sang kiểm tra health
+    checkServerHealthAfterUpdate();
+  }
+}
+
+let healthChecking = false;
+function checkServerHealthAfterUpdate() {
+  if (healthChecking) return;
+  healthChecking = true;
+
+  const hTimer = setInterval(async () => {
+    try {
+      const r = await fetch("/health", { cache: "no-store" });
+      if (r.ok) {
+        clearInterval(hTimer);
+        if (updatePollingTimer) clearInterval(updatePollingTimer);
+        setUpdateStepper("success");
+        finishUpdateAndReload();
+      }
+    } catch (_) {
+      // Đang chờ server lên
+    }
+  }, 1500);
+}
+
+function finishUpdateAndReload() {
+  $("vd-progress-text").textContent = "🎉 Cập nhật thành công!";
+  $("vd-reload-notice").style.display = "block";
+  setTimeout(() => {
+    window.location.reload();
+  }, 2000);
+}
+
+// Gán sự kiện cho các nút điều khiển phiên bản & cập nhật
+$("sidebar-version-badge") && ($("sidebar-version-badge").onclick = openVersionDialog);
+$("btn-version-header") && ($("btn-version-header").onclick = openVersionDialog);
+$("btn-open-update-modal") && ($("btn-open-update-modal").onclick = openVersionDialog);
+$("btn-dismiss-update") && ($("btn-dismiss-update").onclick = () => {
+  $("update").classList.add("hidden");
+  $("update").hidden = true;
+});
+$("btn-close-version-dialog") && ($("btn-close-version-dialog").onclick = () => $("version-dialog").close());
+$("btn-close-version-dialog2") && ($("btn-close-version-dialog2").onclick = () => $("version-dialog").close());
+$("btn-check-update-manual") && ($("btn-check-update-manual").onclick = async () => {
+  $("btn-check-update-manual").textContent = "🔄 Đang kiểm tra...";
+  await checkUpdate(true);
+  openVersionDialog();
+  $("btn-check-update-manual").textContent = "🔄 Kiểm tra bản mới trên GitHub";
+});
+$("btn-save-version") && ($("btn-save-version").onclick = saveVersionNumber);
+$("btn-bump-patch") && ($("btn-bump-patch").onclick = () => bumpVersion("patch"));
+$("btn-bump-minor") && ($("btn-bump-minor").onclick = () => bumpVersion("minor"));
+$("btn-start-update") && ($("btn-start-update").onclick = runSelfUpdate);
 
 // ===================== CÂY THƯ MỤC DỰ ÁN (PROJECT EXPLORER) =====================
 let fsExpanded = new Set();
