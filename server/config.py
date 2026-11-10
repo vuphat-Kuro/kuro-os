@@ -19,7 +19,7 @@ def _path(key: str, default: str) -> Path:
 
 STATE = _path("KURO_STATE_DIR", "state")
 BRAIN = _path("KURO_BRAINS_DIR", "brains") / os.getenv("KURO_BRAIN", "Brain Default")
-HOST = os.getenv("KURO_HOST", "127.0.0.1")
+HOST = os.getenv("KURO_HOST", "0.0.0.0")
 PORT = int(os.getenv("KURO_PORT", "7788"))
 MCP_FILE = STATE / "mcp.json"
 REMINDERS_FILE = STATE / "reminders.json"

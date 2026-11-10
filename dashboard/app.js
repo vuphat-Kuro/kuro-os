@@ -607,7 +607,8 @@ $("btn-menu-agents").onclick = () => {
 
 // Kết nối WebSocket
 function connect() {
-  ws = new WebSocket(`ws://${location.host}/ws`);
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.type === "session") {
@@ -659,6 +660,8 @@ const SYSTEM_SLASH_COMMANDS = [
   { cmd: "/goal", name: "/goal <mục tiêu>", desc: "Chế độ tập trung theo đuổi mục tiêu kỹ thuật đến cùng", needArg: true },
   { cmd: "/version", name: "/version", desc: "Xem và đặt số phiên bản Kuro OS hiện tại", needArg: false },
   { cmd: "/update", name: "/update", desc: "Kiểm tra phiên bản mới từ GitHub và cập nhật trực tiếp", needArg: false },
+  { cmd: "/remote", name: "/remote (hoặc /mobile)", desc: "Mã QR và địa chỉ kết nối đồng bộ điện thoại di động", needArg: false },
+  { cmd: "/mobile", name: "/mobile", desc: "Mã QR và địa chỉ kết nối đồng bộ điện thoại di động", needArg: false },
   { cmd: "/model", name: "/model", desc: "Xem hoặc đổi nhanh model AI đang sử dụng", needArg: false },
   { cmd: "/clear", name: "/clear (hoặc /new)", desc: "Bắt đầu một phiên hội thoại mới sạch sẽ", needArg: false },
   { cmd: "/help", name: "/help", desc: "Xem hướng dẫn danh sách toàn bộ các lệnh gạch chéo", needArg: false }
@@ -909,6 +912,12 @@ $("f").onsubmit = async (e) => {
     if (cmd === "compact") {
       $("q").value = "";
       compactCurrentSession();
+      return;
+    }
+
+    if (cmd === "remote" || cmd === "mobile") {
+      $("q").value = "";
+      showRemoteDialog();
       return;
     }
 
@@ -1674,6 +1683,104 @@ $("btn-fp-chat").onclick = () => {
   $("q").style.height = "auto";
   $("q").style.height = Math.min($("q").scrollHeight, 200) + "px";
 };
+
+// ===================== ĐỒNG BỘ ĐIỆN THOẠI & REMOTE CONTROL =====================
+let currentRemoteData = null;
+
+async function showRemoteDialog() {
+  const dlg = $("remote-dialog");
+  if (!dlg) return;
+
+  const qrImg = $("remote-qr-img");
+  const priUrl = $("remote-primary-url");
+  const pillsBox = $("remote-ip-pills");
+
+  if (priUrl) priUrl.textContent = "Đang kiểm tra địa chỉ mạng...";
+  if (pillsBox) pillsBox.innerHTML = "";
+
+  dlg.showModal();
+
+  try {
+    const res = await fetch("/api/network/remote");
+    if (!res.ok) throw new Error("Không lấy được thông tin mạng");
+    const data = await res.json();
+    currentRemoteData = data;
+
+    if (qrImg && data.qr_code) {
+      qrImg.src = data.qr_code;
+    }
+    if (priUrl) {
+      priUrl.textContent = data.primary_url || `http://${data.primary_ip}:${data.port}`;
+    }
+
+    if (pillsBox && Array.isArray(data.all_ips)) {
+      pillsBox.innerHTML = "";
+      data.all_ips.forEach((item) => {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "ip-pill";
+        pill.title = `Bấm để tạo mã QR cho ${item.ip} (${item.type})`;
+        pill.innerHTML = `<span>🌐</span> <b>${DOMPurify.sanitize(item.ip)}</b> <small style="color:var(--muted);">(${DOMPurify.sanitize(item.type)})</small>`;
+        pill.onclick = async () => {
+          if (priUrl) priUrl.textContent = item.url;
+          if (qrImg) qrImg.style.opacity = "0.5";
+          try {
+            const r2 = await fetch(`/api/network/remote?url=${encodeURIComponent(item.url)}`);
+            if (r2.ok) {
+              const d2 = await r2.json();
+              if (d2.qr_code && qrImg) qrImg.src = d2.qr_code;
+            }
+          } catch (e) {
+            console.error("Lỗi đổi QR:", e);
+          } finally {
+            if (qrImg) qrImg.style.opacity = "1";
+          }
+        };
+        pillsBox.appendChild(pill);
+      });
+    }
+  } catch (err) {
+    if (priUrl) priUrl.textContent = `http://${location.hostname}:${location.port || 7788}`;
+    console.error("Lỗi showRemoteDialog:", err);
+  }
+}
+
+function closeRemoteDialog() {
+  const dlg = $("remote-dialog");
+  if (dlg) dlg.close();
+}
+
+$("btn-remote-header") && ($("btn-remote-header").onclick = showRemoteDialog);
+$("ctx-env-remote-row") && ($("ctx-env-remote-row").onclick = showRemoteDialog);
+$("btn-close-remote-dialog") && ($("btn-close-remote-dialog").onclick = closeRemoteDialog);
+$("btn-close-remote-dialog2") && ($("btn-close-remote-dialog2").onclick = closeRemoteDialog);
+
+$("btn-copy-remote-url") && ($("btn-copy-remote-url").onclick = async () => {
+  const urlEl = $("remote-primary-url");
+  const url = urlEl ? urlEl.textContent.trim() : "";
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    const orig = $("btn-copy-remote-url").textContent;
+    $("btn-copy-remote-url").textContent = "✓ Đã sao chép!";
+    setTimeout(() => {
+      $("btn-copy-remote-url").textContent = orig;
+    }, 2000);
+  } catch (e) {
+    alert("Đã chọn địa chỉ: " + url);
+  }
+});
+
+// Đăng ký Service Worker cho PWA
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      console.log("[PWA] Service Worker registered:", reg.scope);
+    }).catch((err) => {
+      console.log("[PWA] Service Worker registration skipped:", err);
+    });
+  });
+}
 
 // Khởi chạy
 connect();

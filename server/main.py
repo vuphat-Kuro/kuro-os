@@ -1,5 +1,6 @@
 """Kuro OS - server. Chạy: .venv\\Scripts\\python server\\main.py"""
 import asyncio
+import ipaddress
 import os
 import re
 import shutil
@@ -43,10 +44,28 @@ def health():
 LOCAL = {"127.0.0.1", "localhost", "::1"}
 
 
+def is_trusted_host(hostname: str | None) -> bool:
+    if not hostname:
+        return False
+    if hostname in LOCAL:
+        return True
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback:
+            return True
+        if ip in ipaddress.ip_network("100.64.0.0/10"):
+            return True
+        return False
+    except ValueError:
+        return hostname.endswith(".local") or hostname.endswith(".ts.net")
+
+
 def is_local(headers) -> bool:
-    """Chỉ nhận yêu cầu từ chính trang Kuro: chặn trang web lạ gọi vào qua trình duyệt (CSRF, DNS rebinding)."""
+    """Chấp nhận localhost và các thiết bị trong mạng riêng (Wi-Fi, LAN, Tailscale); chặn website lạ (CSRF, DNS rebinding)."""
     origin = headers.get("origin")
-    return urlparse("//" + (headers.get("host") or "")).hostname in LOCAL and         (not origin or urlparse(origin).hostname in LOCAL)
+    host_name = urlparse("//" + (headers.get("host") or "")).hostname
+    origin_name = urlparse(origin).hostname if origin else None
+    return is_trusted_host(host_name) and (not origin or is_trusted_host(origin_name))
 
 
 def local_only(req: Request) -> None:
@@ -223,6 +242,84 @@ def list_skills():
                 "desc": (meta.get("description") or "").replace("\n", " ").strip()[:180]
             })
     return out
+
+
+def get_network_info(target_url: str | None = None):
+    """Lấy danh sách IP mạng LAN / Wi-Fi và sinh mã QR để kết nối từ điện thoại di động."""
+    import socket
+    import io
+    import base64
+    import qrcode
+
+    port = config.PORT
+    hostname = socket.gethostname()
+    primary_ip = "127.0.0.1"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        primary_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    all_ips = []
+    try:
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127."):
+                ip_type = "Wi-Fi / LAN"
+                if ip.startswith("100."):
+                    ip_type = "Tailscale VPN"
+                elif ip.startswith("192.168.209.") or ip.startswith("192.168.41."):
+                    ip_type = "Mạng ảo (Virtual LAN)"
+                all_ips.append({
+                    "ip": ip,
+                    "type": ip_type,
+                    "url": f"http://{ip}:{port}",
+                    "is_primary": (ip == primary_ip)
+                })
+    except Exception:
+        pass
+
+    if not any(x["ip"] == primary_ip for x in all_ips):
+        all_ips.insert(0, {
+            "ip": primary_ip,
+            "type": "Wi-Fi / LAN",
+            "url": f"http://{primary_ip}:{port}",
+            "is_primary": True
+        })
+
+    all_ips.sort(key=lambda x: not x["is_primary"])
+    url_to_encode = target_url or f"http://{primary_ip}:{port}"
+
+    qr_b64 = ""
+    try:
+        qr = qrcode.QRCode(box_size=7, border=2)
+        qr.add_data(url_to_encode)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        qr_b64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception as e:
+        print("[network_info] QR generation error:", e)
+
+    return {
+        "ok": True,
+        "hostname": hostname,
+        "primary_ip": primary_ip,
+        "port": port,
+        "primary_url": f"http://{primary_ip}:{port}",
+        "url": url_to_encode,
+        "all_ips": all_ips,
+        "qr_code": qr_b64,
+        "listening_all": (config.HOST in ("0.0.0.0", "::"))
+    }
+
+
+@app.get("/api/network/remote")
+def api_network_remote(url: str | None = None):
+    """Lấy thông tin mạng LAN & sinh mã QR kết nối tức thì qua điện thoại di động."""
+    return get_network_info(url)
 
 
 def get_model_context_window(provider: str | None = None, model: str | None = None) -> int:
