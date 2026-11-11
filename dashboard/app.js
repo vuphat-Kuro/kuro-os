@@ -2374,6 +2374,32 @@ async function browseDirectory(path, name) {
 }
 
 async function browseNativeWorkspace(triggerBtn = null) {
+  // 1. Ưu tiên cao nhất: Nếu đang chạy trên ứng dụng Desktop Windows (Native App qua pywebview)
+  if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.choose_folder === "function") {
+    const origTriggerHtml = triggerBtn ? triggerBtn.innerHTML : "";
+    const statusEl = $("state");
+    if (triggerBtn) triggerBtn.innerHTML = "⏳";
+    if (statusEl) statusEl.textContent = "Đang chọn thư mục...";
+    try {
+      const chosen = await window.pywebview.api.choose_folder(currentWorkspace.path || "");
+      if (chosen) {
+        await switchWorkspace(chosen);
+        if (statusEl) statusEl.textContent = `Đã chọn: ${currentWorkspace.name}`;
+        setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 3000);
+        try { $("workspace-dialog").close(); } catch (e) {}
+      } else {
+        if (statusEl) statusEl.textContent = "Đã hủy chọn thư mục";
+        setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 2000);
+      }
+      return;
+    } catch (err) {
+      console.warn("[DesktopApp] Lỗi chọn thư mục native:", err);
+    } finally {
+      if (triggerBtn) triggerBtn.innerHTML = origTriggerHtml;
+    }
+  }
+
+  // 2. Nếu đang chạy trên điện thoại: mở ngay bộ duyệt trực quan
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   if (isMobile) {
     openWorkspaceDialog();
