@@ -9,9 +9,11 @@
 <meta name="apple-mobile-web-app-title" content="Kuro OS">
 <title>Kuro OS - Trợ lý Kỹ sư Hạ tầng</title>
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" href="/favicon.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='12' width='20' height='17' rx='6' fill='%2310283a' stroke='%2322d3ee' stroke-width='2'/%3E%3Cpath d='M6 14 C6 1 26 1 26 14 Z' fill='%23facc15'/%3E%3Crect x='3' y='12' width='26' height='3.5' rx='1.7' fill='%23eab308'/%3E%3Ccircle cx='16' cy='7.5' r='2' fill='%23ecfeff'/%3E%3Cellipse cx='12.5' cy='21' rx='2' ry='2.6' fill='%2367e8f9'/%3E%3Cellipse cx='19.5' cy='21' rx='2' ry='2.6' fill='%2367e8f9'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="/kuro_os_256.png">
+<link rel="icon" type="image/x-icon" href="/kuro_os.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/kuro_os_32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/kuro_os_64.png">
+<link rel="icon" type="image/webp" href="/kuro_os_512.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
@@ -53,6 +55,15 @@
     backdrop-filter:blur(10px); z-index:20; height:100%;
   }
   .brand { display:flex; align-items:center; gap:12px; padding:16px 18px 12px; }
+  .brand-mascot-wrap {
+    width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: rgba(10,22,34,.7); border: 1.5px solid var(--cyan);
+    box-shadow: 0 0 14px rgba(34,211,238,.35); overflow: hidden; padding: 2px;
+  }
+  .brand-mascot-img {
+    width: 100%; height: 100%; object-fit: contain; display: block;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.6));
+  }
   .brand b { font:700 20px/1 var(--hud); letter-spacing:.38em; color:var(--cyan-soft); text-shadow:0 0 12px rgba(34,211,238,.5); }
   .brand small { display:block; margin-top:5px; font:600 10px/1 var(--hud); letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
 
@@ -1251,7 +1262,9 @@
 <!-- CỘT 1: DANH SÁCH CỘNG SỰ & CÂY THƯ MỤC -->
 <aside id="agents-sidebar">
   <div class="brand">
-    <div class="mascot" aria-hidden="true"></div>
+    <div class="brand-mascot-wrap">
+      <img src="/kuro_os_128.png" alt="Kuro OS" class="brand-mascot-img">
+    </div>
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
@@ -2115,6 +2128,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>

@@ -33,9 +33,11 @@ const MASCOT_SVG = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
   <circle class="m-lamp-ring" cy="-64" r="10"/><circle class="m-lamp" cy="-64" r="6"/>
 </svg>`;
 
+const MASCOT_IMG = `<img src="/kuro_os_128.png" alt="Kuro Core" style="width:100%; height:100%; object-fit:contain; border-radius:50%; display:block;" />`;
+
 // Icon chuyên môn theo từng Agent
 const AGENT_ICONS = {
-  "kuro-core": MASCOT_SVG,
+  "kuro-core": MASCOT_IMG,
   "ky-su-bien-phap": `<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M2 18h20"></path><path d="M4 18v-4a8 8 0 0 1 16 0v4"></path><path d="M12 4v2"></path><path d="M12 10h.01"></path>
   </svg>`,
