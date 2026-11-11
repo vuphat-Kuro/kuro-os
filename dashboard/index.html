@@ -446,22 +446,73 @@
   .header-agent-title { font:700 15px/1.2 var(--hud); letter-spacing:.05em; color:var(--cyan-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .header-agent-role { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:42vw; }
 
-  .header-controls { display:flex; align-items:center; gap:10px; flex:none; }
+  .header-controls { display:flex; align-items:center; gap:6px; flex:none; }
   .btn-hdr {
-    padding:6px 12px; font:600 12px/1 var(--hud); letter-spacing:.1em; text-transform:uppercase;
-    color:var(--cyan-soft); background:rgba(34,211,238,.08); border:1px solid var(--line-hi); cursor:pointer;
-    display:flex; align-items:center; gap:6px; transition:all .15s;
+    height: 32px; min-width: 32px; padding: 0 8px; border-radius: 4px;
+    font: 600 12px/1 var(--hud); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--cyan-soft); background: rgba(34,211,238,.07); border: 1px solid var(--line);
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    position: relative; white-space: nowrap; overflow: hidden;
+    transition: all .24s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .btn-hdr:hover { background:rgba(34,211,238,.18); box-shadow:0 0 10px rgba(34,211,238,.2); }
-  .btn-hdr.primary { background:var(--cyan); color:#031018; border-color:var(--cyan); font-weight:700; }
-  .btn-hdr.primary:hover { background:var(--cyan-soft); }
+  .btn-hdr .btn-icon {
+    font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  }
+  .btn-hdr .btn-text {
+    max-width: 0; opacity: 0; margin-left: 0;
+    white-space: nowrap; overflow: hidden; display: inline-block; vertical-align: middle;
+    transition: max-width .28s cubic-bezier(0.16, 1, 0.3, 1), opacity .2s ease, margin-left .2s ease;
+  }
+  .btn-hdr:hover {
+    background: rgba(34,211,238,.18); border-color: var(--cyan);
+    box-shadow: 0 0 12px rgba(34,211,238,.28); padding: 0 11px;
+  }
+  .btn-hdr:hover .btn-text {
+    max-width: 140px; opacity: 1; margin-left: 6px;
+  }
+  .btn-hdr.primary {
+    background: rgba(34,211,238,.2); border-color: var(--cyan); color: var(--cyan-soft);
+  }
+  .btn-hdr.primary:hover {
+    background: var(--cyan); color: #031018; box-shadow: 0 0 16px rgba(34,211,238,.45);
+  }
+
+  .state-indicator {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px;
+    font: 600 10.5px/1 var(--hud); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--cyan-soft); background: rgba(34,211,238,.05); border: 1px solid rgba(34,211,238,.15);
+    border-radius: 4px; cursor: default;
+  }
+  .state-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 6px var(--green); display: inline-block;
+  }
+  body.busy .state-dot {
+    background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: blink 1s infinite;
+  }
+  body.busy .state-indicator { color: var(--amber); }
 
   #model-pick {
     padding:5px 8px; font:500 11.5px/1.2 var(--hud); letter-spacing:.04em; color:var(--cyan-soft); background:var(--panel-solid);
     border:1px solid var(--line-hi); border-radius:0; cursor:pointer; max-width:180px;
   }
-  #state { font:600 11px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase; color:var(--cyan-soft); }
-  body.busy #state { color:var(--amber); }
+
+  .remote-mode-tabs { display:flex; gap:8px; margin-bottom:4px; }
+  .remote-tab-btn {
+    flex:1; padding:8px 12px; font:700 11.5px/1 var(--hud); letter-spacing:.06em;
+    background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:5px;
+    color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:all .18s ease;
+  }
+  .remote-tab-btn:hover { background:rgba(34,211,238,.1); color:var(--text); }
+  .remote-tab-btn.active {
+    background:rgba(34,211,238,.16); border-color:var(--cyan); color:var(--cyan-soft);
+    box-shadow:0 0 10px rgba(34,211,238,.2);
+  }
+  .rec-badge {
+    font-size:9.5px; padding:2px 5px; border-radius:3px; background:rgba(52,211,153,.2);
+    color:var(--green); border:1px solid rgba(52,211,153,.4); text-transform:uppercase;
+  }
 
   /* Hero Welcome view khi chưa có tin nhắn */
   #hero {
@@ -1062,28 +1113,43 @@
     </div>
 
     <div class="header-controls">
-      <button id="btn-workspace-header" class="btn-hdr btn-ws-tag" type="button" title="Thư mục làm việc hiện tại của dự án. Bấm để chuyển dự án.">
-        📁 <span id="header-ws-name">DuAn_KhoiTao</span>
+      <button id="btn-workspace-header" class="btn-hdr" type="button" title="Thư mục dự án đang làm việc (Bấm để đổi)">
+        <span class="btn-icon">💼</span>
+        <span class="btn-text" id="header-ws-name">DuAn_KhoiTao</span>
       </button>
-      <button id="new" class="btn-hdr primary" type="button">+ Phiên mới</button>
+      <button id="new" class="btn-hdr primary" type="button" title="Tạo phiên trao đổi mới">
+        <span class="btn-icon">➕</span>
+        <span class="btn-text">Phiên mới</span>
+      </button>
       <select id="model-pick" aria-label="Đổi model" hidden></select>
-      <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Kiểm tra phiên bản & cập nhật">
-        <span class="ver-dot"></span><span id="header-version-text">v1.5.0</span>
+      <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
+        <span class="btn-icon">🚀</span>
+        <span class="btn-text" id="header-version-text">v1.5.0</span>
       </button>
-      <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ màn hình & Kết nối điện thoại di động">
-        📱 <span>Đồng bộ ĐT</span>
+      <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
+        <span class="btn-icon">📱</span>
+        <span class="btn-text">Đồng bộ ĐT</span>
       </button>
-      <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Bật/tắt cây thư mục">
-        📁 <span>Tệp tin</span>
+      <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Cây tệp tin dự án (Explorer)">
+        <span class="btn-icon">📂</span>
+        <span class="btn-text">Tệp tin</span>
       </button>
-      <button id="btn-context-header" class="btn-hdr btn-context-pill" type="button" title="Xem phân tích ngữ cảnh (Context Inspector)">
-        <span class="ctx-dot"></span><span id="header-context-text">📊 0%</span>
+      <button id="btn-context-header" class="btn-hdr btn-context-pill" type="button" title="Dung lượng ngữ cảnh AI (Context)">
+        <span class="btn-icon">📊</span>
+        <span class="btn-text" id="header-context-text">0%</span>
       </button>
-      <button id="btn-toggle-history" class="btn-hdr" type="button" title="Ẩn/hiện lịch sử & ngữ cảnh">
-        📋 <span>Lịch sử</span>
+      <button id="btn-toggle-history" class="btn-hdr" type="button" title="Lịch sử hội thoại & Ngữ cảnh">
+        <span class="btn-icon">📜</span>
+        <span class="btn-text">Lịch sử</span>
       </button>
-      <span id="state">Sẵn sàng</span>
-      <button id="gear2" class="btn-hdr" type="button" aria-label="Cài đặt">⚙</button>
+      <span id="state" class="state-indicator" title="Trạng thái hệ thống: Sẵn sàng">
+        <span class="state-dot"></span>
+        <span class="state-text">Sẵn sàng</span>
+      </span>
+      <button id="gear2" class="btn-hdr" type="button" title="Cài đặt hệ thống (AI Model, Key, Telegram)">
+        <span class="btn-icon">⚙️</span>
+        <span class="btn-text">Cài đặt</span>
+      </button>
     </div>
   </header>
 
@@ -1589,15 +1655,43 @@
       <button type="button" class="btn-icon" id="btn-close-remote-dialog" title="Đóng">✕</button>
     </div>
 
+    <!-- CHỌN CHẾ ĐỘ KẾT NỐI -->
+    <div class="remote-mode-tabs">
+      <button type="button" class="remote-tab-btn active" id="tab-remote-tailscale">
+        <span>🔒 Tailscale VPN (4G / Từ xa)</span>
+        <span class="rec-badge">★ Khuyên dùng</span>
+      </button>
+      <button type="button" class="remote-tab-btn" id="tab-remote-wifi">
+        <span>📶 Wi-Fi / LAN nội bộ</span>
+      </button>
+    </div>
+
+    <!-- KHUNG THÔNG TIN TAILSCALE CHUYÊN BIỆT -->
+    <div id="tailscale-card-info" style="background:rgba(34,211,238,.07); border:1px solid rgba(34,211,238,.3); border-radius:6px; padding:10px 14px; display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); display:inline-block;"></span>
+          <b style="font:700 12px/1 var(--hud); color:var(--cyan-soft); letter-spacing:.06em;">TAILSCALE ĐANG KẾT NỐI SẴN SÀNG</b>
+        </div>
+        <span id="ts-account-badge" class="badge-tag" style="font-size:10.5px; background:rgba(34,211,238,.15);">...</span>
+      </div>
+      <div id="ts-peer-notice" style="font-size:12px; color:var(--text); line-height:1.4;">
+        Thiết bị đã kết nối trong mạng riêng: <b id="ts-peer-name" style="color:var(--amber);">...</b>
+      </div>
+      <div style="font-size:11.5px; color:var(--muted);">
+        💡 Điện thoại chỉ cần bật app Tailscale (dùng 4G/5G hoặc Wi-Fi bất kỳ) rồi quét mã QR bên dưới.
+      </div>
+    </div>
+
     <!-- KHUNG MÃ QR -->
     <div class="qr-frame">
-      <div style="margin-bottom:12px; font-weight:600; color:var(--cyan-soft); font-size:13.5px; display:flex; align-items:center; gap:6px;">
+      <div id="qr-instruction-title" style="margin-bottom:12px; font-weight:600; color:var(--cyan-soft); font-size:13.5px; display:flex; align-items:center; gap:6px;">
         <span>📷</span> Quét mã QR bằng Camera điện thoại để mở Kuro
       </div>
       <div id="remote-qr-container">
         <img id="remote-qr-img" class="qr-code-img" src="" alt="Mã QR kết nối">
       </div>
-      <div style="margin-top:10px; font-size:12px; color:var(--muted); text-align:center;">
+      <div id="qr-sub-notice" style="margin-top:10px; font-size:12px; color:var(--muted); text-align:center;">
         Đồng bộ tức thời với phiên làm việc hiện tại trên máy tính
       </div>
     </div>
@@ -1605,7 +1699,7 @@
     <!-- ĐỊA CHỈ TRUY CẬP TRỰC TIẾP -->
     <div style="background:rgba(13,29,44,0.6); border:1px solid var(--line); border-radius:6px; padding:12px 14px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-        <span style="font:700 11.5px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">ĐỊA CHỈ TRUY CẬP (WI-FI / LAN):</span>
+        <span id="remote-url-label" style="font:700 11.5px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">ĐỊA CHỈ TAILSCALE VPN (DÙNG CHO 4G):</span>
         <button type="button" id="btn-copy-remote-url" class="btn-tool-sm" style="font-size:11px; padding:3px 8px; cursor:pointer;">📋 Sao chép</button>
       </div>
       <div id="remote-primary-url" style="font-family:monospace; font-size:14.5px; color:var(--cyan); word-break:break-all; font-weight:700;">
@@ -1691,6 +1785,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

@@ -460,12 +460,84 @@ def list_skills():
     return out
 
 
+def get_tailscale_info() -> dict:
+    """Kiểm tra và lấy trạng thái Tailscale trên máy tính (IP, tài khoản, thiết bị đã ghép nối)."""
+    import json
+    import subprocess
+    import shutil
+    from pathlib import Path
+
+    ts_bin = shutil.which("tailscale")
+    if not ts_bin:
+        default_p = Path(r"C:\Program Files\Tailscale\tailscale.exe")
+        if default_p.is_file():
+            ts_bin = str(default_p)
+    if not ts_bin:
+        return {"installed": False, "running": False}
+
+    try:
+        res = subprocess.run([ts_bin, "status", "--json"], capture_output=True, text=True, timeout=5)
+        if res.returncode != 0 or not res.stdout.strip():
+            return {"installed": True, "running": False}
+        data = json.loads(res.stdout)
+        backend = data.get("BackendState", "")
+        running = (backend == "Running")
+
+        ips = data.get("TailscaleIPs", [])
+        ipv4 = next((ip for ip in ips if "." in ip and not ip.startswith("127.")), "")
+
+        user_info = {}
+        for u in (data.get("User") or {}).values():
+            user_info = {
+                "login": u.get("LoginName", ""),
+                "name": u.get("DisplayName", "")
+            }
+            break
+
+        peers = []
+        for p in (data.get("Peer") or {}).values():
+            peer_ips = p.get("TailscaleIPs", [])
+            p_ipv4 = next((ip for ip in peer_ips if "." in ip), "")
+            peers.append({
+                "name": p.get("HostName", ""),
+                "dns": p.get("DNSName", "").rstrip("."),
+                "os": p.get("OS", ""),
+                "ip": p_ipv4,
+                "online": p.get("Online", False)
+            })
+
+        return {
+            "installed": True,
+            "running": running,
+            "ip": ipv4,
+            "dns": (data.get("Self") or {}).get("DNSName", "").rstrip("."),
+            "user": user_info,
+            "peers": peers
+        }
+    except Exception as e:
+        print(f"[tailscale] Lỗi đọc trạng thái: {e}")
+        return {"installed": True, "running": False}
+
+
 def get_network_info(target_url: str | None = None):
-    """Lấy danh sách IP mạng LAN / Wi-Fi và sinh mã QR để kết nối từ điện thoại di động."""
+    """Lấy danh sách IP mạng LAN / Wi-Fi, tích hợp Tailscale và sinh mã QR kết nối từ điện thoại."""
     import socket
     import io
     import base64
     import qrcode
+
+    def make_qr(url_str: str) -> str:
+        try:
+            qr = qrcode.QRCode(box_size=7, border=2)
+            qr.add_data(url_str)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+        except Exception as e:
+            print("[network_info] QR generation error:", e)
+            return ""
 
     port = config.PORT
     hostname = socket.gethostname()
@@ -504,20 +576,24 @@ def get_network_info(target_url: str | None = None):
             "is_primary": True
         })
 
-    all_ips.sort(key=lambda x: not x["is_primary"])
-    url_to_encode = target_url or f"http://{primary_ip}:{port}"
+    # Lấy thông tin Tailscale chuyên biệt
+    ts = get_tailscale_info()
+    ts_ip = ts.get("ip") if ts.get("running") else ""
+    ts_url = f"http://{ts_ip}:{port}" if ts_ip else ""
+    ts_qr = make_qr(ts_url) if ts_url else ""
 
-    qr_b64 = ""
-    try:
-        qr = qrcode.QRCode(box_size=7, border=2)
-        qr.add_data(url_to_encode)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        qr_b64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
-    except Exception as e:
-        print("[network_info] QR generation error:", e)
+    # Đảm bảo IP Tailscale có trong all_ips
+    if ts_ip and not any(x["ip"] == ts_ip for x in all_ips):
+        all_ips.append({
+            "ip": ts_ip,
+            "type": "Tailscale VPN",
+            "url": ts_url,
+            "is_primary": False
+        })
+
+    all_ips.sort(key=lambda x: not x["is_primary"])
+    url_to_encode = target_url or (ts_url if ts_url else f"http://{primary_ip}:{port}")
+    qr_b64 = make_qr(url_to_encode)
 
     return {
         "ok": True,
@@ -528,7 +604,11 @@ def get_network_info(target_url: str | None = None):
         "url": url_to_encode,
         "all_ips": all_ips,
         "qr_code": qr_b64,
-        "listening_all": (config.HOST in ("0.0.0.0", "::"))
+        "listening_all": (config.HOST in ("0.0.0.0", "::")),
+        "tailscale": ts,
+        "tailscale_ip": ts_ip,
+        "tailscale_url": ts_url,
+        "tailscale_qr": ts_qr
     }
 
 

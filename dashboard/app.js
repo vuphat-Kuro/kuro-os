@@ -2397,6 +2397,7 @@ $("btn-fp-chat").onclick = () => {
 
 // ===================== ĐỒNG BỘ ĐIỆN THOẠI & REMOTE CONTROL =====================
 let currentRemoteData = null;
+let currentRemoteMode = "tailscale"; // "tailscale" hoặc "wifi"
 
 async function showRemoteDialog() {
   const dlg = $("remote-dialog");
@@ -2405,8 +2406,13 @@ async function showRemoteDialog() {
   const qrImg = $("remote-qr-img");
   const priUrl = $("remote-primary-url");
   const pillsBox = $("remote-ip-pills");
+  const urlLabel = $("remote-url-label");
+  const tsCard = $("tailscale-card-info");
+  const tsAccountBadge = $("ts-account-badge");
+  const tsPeerNotice = $("ts-peer-notice");
+  const tsPeerName = $("ts-peer-name");
 
-  if (priUrl) priUrl.textContent = "Đang kiểm tra địa chỉ mạng...";
+  if (priUrl) priUrl.textContent = "Đang kiểm tra địa chỉ mạng & Tailscale...";
   if (pillsBox) pillsBox.innerHTML = "";
 
   dlg.showModal();
@@ -2417,11 +2423,22 @@ async function showRemoteDialog() {
     const data = await res.json();
     currentRemoteData = data;
 
-    if (qrImg && data.qr_code) {
-      qrImg.src = data.qr_code;
-    }
-    if (priUrl) {
-      priUrl.textContent = data.primary_url || `http://${data.primary_ip}:${data.port}`;
+    const hasTs = data.tailscale && data.tailscale.running && data.tailscale_ip;
+
+    if (hasTs) {
+      if (tsCard) tsCard.style.display = "flex";
+      if (tsAccountBadge) tsAccountBadge.textContent = data.tailscale.user ? (data.tailscale.user.name || data.tailscale.user.login) : "Đã đăng nhập";
+      if (tsPeerNotice && data.tailscale.peers && data.tailscale.peers.length > 0) {
+        const peer = data.tailscale.peers[0];
+        if (tsPeerName) tsPeerName.textContent = `${peer.name} (${peer.os})`;
+        tsPeerNotice.style.display = "block";
+      } else if (tsPeerNotice) {
+        tsPeerNotice.style.display = "none";
+      }
+      setRemoteMode("tailscale");
+    } else {
+      if (tsCard) tsCard.style.display = "none";
+      setRemoteMode("wifi");
     }
 
     if (pillsBox && Array.isArray(data.all_ips)) {
@@ -2431,9 +2448,10 @@ async function showRemoteDialog() {
         pill.type = "button";
         pill.className = "ip-pill";
         pill.title = `Bấm để tạo mã QR cho ${item.ip} (${item.type})`;
-        pill.innerHTML = `<span>🌐</span> <b>${DOMPurify.sanitize(item.ip)}</b> <small style="color:var(--muted);">(${DOMPurify.sanitize(item.type)})</small>`;
+        pill.innerHTML = `<span>${item.type.includes("Tailscale") ? "🔒" : "🌐"}</span> <b>${DOMPurify.sanitize(item.ip)}</b> <small style="color:var(--muted);">(${DOMPurify.sanitize(item.type)})</small>`;
         pill.onclick = async () => {
           if (priUrl) priUrl.textContent = item.url;
+          if (urlLabel) urlLabel.textContent = `ĐỊA CHỈ TRUY CẬP (${item.type.toUpperCase()}):`;
           if (qrImg) qrImg.style.opacity = "0.5";
           try {
             const r2 = await fetch(`/api/network/remote?url=${encodeURIComponent(item.url)}`);
@@ -2456,6 +2474,31 @@ async function showRemoteDialog() {
   }
 }
 
+function setRemoteMode(mode) {
+  currentRemoteMode = mode;
+  const qrImg = $("remote-qr-img");
+  const priUrl = $("remote-primary-url");
+  const urlLabel = $("remote-url-label");
+  const tabTs = $("tab-remote-tailscale");
+  const tabWifi = $("tab-remote-wifi");
+  const data = currentRemoteData;
+  if (!data) return;
+
+  if (mode === "tailscale" && data.tailscale_ip) {
+    if (tabTs) tabTs.classList.add("active");
+    if (tabWifi) tabWifi.classList.remove("active");
+    if (priUrl) priUrl.textContent = data.tailscale_url;
+    if (urlLabel) urlLabel.textContent = "ĐỊA CHỈ TAILSCALE VPN (DÙNG CHO 4G/NGOÀI MẠNG):";
+    if (qrImg && data.tailscale_qr) qrImg.src = data.tailscale_qr;
+  } else {
+    if (tabTs) tabTs.classList.remove("active");
+    if (tabWifi) tabWifi.classList.add("active");
+    if (priUrl) priUrl.textContent = data.primary_url;
+    if (urlLabel) urlLabel.textContent = "ĐỊA CHỈ TRUY CẬP (WI-FI / LAN NỘI BỘ):";
+    if (qrImg && data.qr_code) qrImg.src = data.qr_code;
+  }
+}
+
 function closeRemoteDialog() {
   const dlg = $("remote-dialog");
   if (dlg) dlg.close();
@@ -2465,6 +2508,9 @@ $("btn-remote-header") && ($("btn-remote-header").onclick = showRemoteDialog);
 $("ctx-env-remote-row") && ($("ctx-env-remote-row").onclick = showRemoteDialog);
 $("btn-close-remote-dialog") && ($("btn-close-remote-dialog").onclick = closeRemoteDialog);
 $("btn-close-remote-dialog2") && ($("btn-close-remote-dialog2").onclick = closeRemoteDialog);
+
+if ($("tab-remote-tailscale")) $("tab-remote-tailscale").onclick = () => setRemoteMode("tailscale");
+if ($("tab-remote-wifi")) $("tab-remote-wifi").onclick = () => setRemoteMode("wifi");
 
 $("btn-copy-remote-url") && ($("btn-copy-remote-url").onclick = async () => {
   const urlEl = $("remote-primary-url");
