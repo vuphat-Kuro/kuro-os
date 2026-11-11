@@ -108,7 +108,7 @@ def main():
 
     # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
     api = DesktopApi()
-    icon_path = (ROOT / "kuro.ico").resolve()
+    icon_path = (ROOT / "kuro_logo.ico").resolve()
     icon_str = str(icon_path) if icon_path.is_file() else None
 
     window = webview.create_window(

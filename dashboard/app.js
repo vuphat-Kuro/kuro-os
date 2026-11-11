@@ -33,7 +33,7 @@ const MASCOT_SVG = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
   <circle class="m-lamp-ring" cy="-64" r="10"/><circle class="m-lamp" cy="-64" r="6"/>
 </svg>`;
 
-const MASCOT_IMG = `<img src="/kuro_os_128.png" alt="Kuro Core" style="width:100%; height:100%; object-fit:contain; border-radius:50%; display:block;" />`;
+const MASCOT_IMG = `<img src="/kuro_logo_256.png" alt="Kuro Core" style="width:100%; height:100%; object-fit:contain; border-radius:50%; display:block;" />`;
 
 // Icon chuyên môn theo từng Agent
 const AGENT_ICONS = {
