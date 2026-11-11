@@ -2373,7 +2373,7 @@ async function browseDirectory(path, name) {
   }
 }
 
-async function browseNativeWorkspace() {
+async function browseNativeWorkspace(triggerBtn = null) {
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   if (isMobile) {
     // Trên điện thoại, mở bộ duyệt trực quan & lịch sử thư mục
@@ -2381,14 +2381,19 @@ async function browseNativeWorkspace() {
     return;
   }
 
-  const btn = $("btn-ws-browse-native");
-  const origHtml = btn ? btn.innerHTML : "";
+  const btnNative = $("btn-ws-browse-native");
+  const origNativeHtml = btnNative ? btnNative.innerHTML : "";
+  const origTriggerHtml = triggerBtn ? triggerBtn.innerHTML : "";
   const statusEl = $("state");
   const origStatus = statusEl ? statusEl.textContent : "Sẵn sàng";
 
-  if (btn) {
-    btn.innerHTML = `<span>⏳</span> <span>ĐANG MỞ HỘP THOẠI WINDOWS...</span>`;
-    btn.disabled = true;
+  if (triggerBtn) {
+    triggerBtn.innerHTML = `⏳`;
+    triggerBtn.disabled = true;
+  }
+  if (btnNative) {
+    btnNative.innerHTML = `<span>⏳</span> <span>ĐANG MỞ HỘP THOẠI WINDOWS...</span>`;
+    btnNative.disabled = true;
   }
   if (statusEl) statusEl.textContent = "Đang mở hộp thoại Windows...";
 
@@ -2409,19 +2414,23 @@ async function browseNativeWorkspace() {
       setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 3000);
       try { $("workspace-dialog").close(); } catch (e) {}
     } else if (data.cancelled) {
-      if (statusEl) statusEl.textContent = "Đã hủy chọn";
+      if (statusEl) statusEl.textContent = "Đã hủy chọn thư mục";
       setTimeout(() => { if (!busy && statusEl) statusEl.textContent = origStatus; }, 2000);
     } else if (data.error) {
-      alert("Lỗi mở hộp thoại: " + data.error);
+      alert("Lỗi mở hộp thoại Windows: " + data.error);
     }
   } catch (e) {
     console.error("Lỗi duyệt native:", e);
-    // Fallback sang dialog duyệt web
+    // Fallback sang dialog duyệt web nếu lỗi kết nối
     openWorkspaceDialog();
   } finally {
-    if (btn) {
-      btn.innerHTML = origHtml;
-      btn.disabled = false;
+    if (triggerBtn) {
+      triggerBtn.innerHTML = origTriggerHtml;
+      triggerBtn.disabled = false;
+    }
+    if (btnNative) {
+      btnNative.innerHTML = origNativeHtml;
+      btnNative.disabled = false;
     }
   }
 }
@@ -2649,11 +2658,11 @@ $("btn-fs-hidden").onclick = () => {
   refreshFsTree();
 };
 
-if ($("btn-fs-workspace")) $("btn-fs-workspace").onclick = () => browseNativeWorkspace();
-if ($("ws-banner")) $("ws-banner").onclick = () => browseNativeWorkspace();
-if ($("btn-ws-banner-switch")) $("btn-ws-banner-switch").onclick = (e) => { e.stopPropagation(); browseNativeWorkspace(); };
+if ($("btn-fs-workspace")) $("btn-fs-workspace").onclick = function() { browseNativeWorkspace(this); };
+if ($("ws-banner")) $("ws-banner").onclick = function() { browseNativeWorkspace(this); };
+if ($("btn-ws-banner-switch")) $("btn-ws-banner-switch").onclick = function(e) { e.stopPropagation(); browseNativeWorkspace(this); };
 if ($("btn-fs-workspace-footer")) $("btn-fs-workspace-footer").onclick = () => openWorkspaceDialog();
-if ($("btn-workspace-header")) $("btn-workspace-header").onclick = () => browseNativeWorkspace();
+if ($("btn-workspace-header")) $("btn-workspace-header").onclick = function() { browseNativeWorkspace(this); };
 
 if ($("btn-close-ws-dialog")) $("btn-close-ws-dialog").onclick = () => $("workspace-dialog").close();
 if ($("btn-close-ws-dialog2")) $("btn-close-ws-dialog2").onclick = () => $("workspace-dialog").close();

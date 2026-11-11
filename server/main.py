@@ -1115,20 +1115,27 @@ async def browse_native_workspace():
     if sys.platform != "win32":
         raise HTTPException(400, "Tính năng chỉ hỗ trợ trên Windows")
     import subprocess
-    script_path = Path(__file__).parent / "pick_folder.py"
-    current = str(engine.active_workspace_dir().resolve())
+    ps_script = Path(__file__).parent / "pick_folder.ps1"
     try:
         loop = asyncio.get_event_loop()
         def _run():
+            cmd = [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-STA",
+                "-File", str(ps_script)
+            ]
             return subprocess.run(
-                [sys.executable, str(script_path), current],
+                cmd,
                 capture_output=True,
                 timeout=300
             )
         proc = await loop.run_in_executor(None, _run)
-        raw_out = proc.stdout.decode("utf-8", errors="ignore").strip()
-        if raw_out and Path(raw_out).is_dir():
-            p = Path(raw_out).resolve()
+        lines = [line.strip() for line in proc.stdout.decode("utf-8", errors="ignore").splitlines() if line.strip()]
+        selected = lines[-1] if lines else ""
+        if selected and Path(selected).is_dir():
+            p = Path(selected).resolve()
             cfg = engine.get_workspaces_config()
             recent = [r for r in (cfg.get("recent") or []) if Path(r.get("path", "")).resolve() != p]
             name = p.name or str(p)
