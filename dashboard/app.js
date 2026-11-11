@@ -610,6 +610,16 @@ async function selectAgent(slug) {
   // Mở phiên mới cho Agent này
   newSession();
 
+  // Đồng bộ trạng thái Agent sang thiết bị khác (PC / ĐT)
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "sync_active",
+      agent: slug,
+      session: session,
+      workspace: currentWorkspace.path
+    }));
+  }
+
   // Trên Mobile: tự động đóng ngăn kéo lại để tập trung vào khung chat
   if (window.innerWidth <= 768) {
     closeAllDrawers();
@@ -774,12 +784,22 @@ function createSessionItem(s) {
 
 $("session-search").oninput = renderSessionList;
 
-// Mở phiên hội thoại
+  // Mở phiên hội thoại
 async function openSession(id) {
   session = id;
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(id);
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "sync_active",
+      agent: selectedAgent,
+      session: id,
+      workspace: currentWorkspace.path
+    }));
+  }
+
   if (window.innerWidth <= 768) {
     closeAllDrawers();
   }
@@ -863,13 +883,16 @@ function closeAllDrawers() {
   if (backdrop) backdrop.classList.remove("active");
 }
 
-$("btn-toggle-history").onclick = () => {
+function toggleHistorySidebar() {
   if ($("history-sidebar").classList.contains("open")) {
     closeHistorySidebar();
   } else {
     openHistorySidebar();
   }
-};
+}
+$("btn-toggle-history").onclick = toggleHistorySidebar;
+if ($("btn-toggle-history-mobile")) $("btn-toggle-history-mobile").onclick = toggleHistorySidebar;
+if ($("gear-mobile")) $("gear-mobile").onclick = () => $("gear").click();
 $("btn-close-history").onclick = closeHistorySidebar;
 
 if ($("btn-close-agents-mobile")) {
@@ -1082,16 +1105,92 @@ $("btn-menu-agents").onclick = () => {
   }
 };
 
-// Kết nối WebSocket
+// Kết nối WebSocket & Đồng bộ đa thiết bị (Máy tính & Điện thoại)
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(`${proto}//${location.host}/ws`);
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
+  ws.onmessage = async (e) => {
+    let m;
+    try {
+      m = JSON.parse(e.data);
+    } catch (err) {
+      return;
+    }
+
+    // 1. Khởi tạo trạng thái ban đầu từ server
+    if (m.type === "init_state" && m.state) {
+      if (m.state.workspace && (!currentWorkspace.path || m.state.workspace.toLowerCase() !== (currentWorkspace.path || "").toLowerCase())) {
+        currentWorkspace.path = m.state.workspace;
+        currentWorkspace.name = m.state.workspace_name;
+        updateWorkspaceUI();
+        refreshFsTree();
+      }
+      if (!session && m.state.session) {
+        if (m.state.agent && m.state.agent !== selectedAgent) {
+          selectedAgent = m.state.agent;
+          renderAgentList();
+          updateActiveAgentUI();
+        }
+        await openSession(m.state.session);
+      }
+      return;
+    }
+
+    // 2. Nhận tín hiệu đồng bộ chuyển Agent / Session / Workspace từ thiết bị khác
+    if (m.type === "sync_active") {
+      let changed = false;
+      if (m.workspace && (!currentWorkspace.path || m.workspace.toLowerCase() !== (currentWorkspace.path || "").toLowerCase())) {
+        currentWorkspace.path = m.workspace;
+        currentWorkspace.name = m.workspace_name;
+        updateWorkspaceUI();
+        refreshFsTree();
+        changed = true;
+      }
+      if (m.agent && m.agent !== selectedAgent) {
+        selectedAgent = m.agent;
+        renderAgentList();
+        updateActiveAgentUI();
+        changed = true;
+      }
+      if (m.session && m.session !== session) {
+        await openSession(m.session);
+      } else if (changed) {
+        await loadSessions(selectedAgent);
+      }
+      return;
+    }
+
+    // 3. Cập nhật thông tin session id
     if (m.type === "session") {
       session = m.id;
       return;
     }
+
+    // 4. Nhận tin nhắn User gửi từ thiết bị khác (PC hoặc ĐT)
+    if (m.type === "user_message") {
+      if (m.workspace && currentWorkspace.path && m.workspace.toLowerCase() !== currentWorkspace.path.toLowerCase()) {
+        currentWorkspace.path = m.workspace;
+        updateWorkspaceUI();
+        refreshFsTree();
+      }
+      if (m.agent && m.agent !== selectedAgent) {
+        selectedAgent = m.agent;
+        renderAgentList();
+        updateActiveAgentUI();
+      }
+      if (session !== m.session) {
+        session = m.session;
+      }
+      // Kiểm tra nếu bong bóng user chưa có thì thêm vào
+      const lastMsg = $("log").querySelector(".msg:last-child");
+      if (!lastMsg || !lastMsg.classList.contains("user") || lastMsg.textContent.trim() !== (m.text || "").trim()) {
+        addMessage("user", "").textContent = m.text;
+      }
+      setBusy(true);
+      return;
+    }
+
+    // 5. Luồng sinh câu trả lời Streaming từ AI
     const a = currentAgent();
     if (!bot) {
       bot = addMessage("bot", "", a.name.toUpperCase());
@@ -1113,6 +1212,17 @@ function connect() {
       loadSessions(selectedAgent);
       loadSessionContext(session);
       if (!document.body.classList.contains("err")) mood("happy");
+    } else if (m.type === "session_saved") {
+      loadSessions(selectedAgent);
+    } else if (m.type === "workspace_changed") {
+      if (m.active && (!currentWorkspace.path || m.active.toLowerCase() !== currentWorkspace.path.toLowerCase())) {
+        currentWorkspace.path = m.active;
+        currentWorkspace.name = m.name;
+        recentWorkspaces = m.recent || [];
+        updateWorkspaceUI();
+        refreshFsTree();
+        loadSessions(selectedAgent);
+      }
     }
     $("log").scrollTop = $("log").scrollHeight;
   };
@@ -2134,16 +2244,17 @@ function renderRecentWorkspaces() {
     const isAct = currentWorkspace && currentWorkspace.path.toLowerCase() === ws.path.toLowerCase();
     const item = document.createElement("div");
     item.className = "ws-recent-item " + (isAct ? "active" : "");
+    const timeText = ws.last_opened ? `<span style="color:var(--cyan-soft); font-size:10.5px; margin-left:6px;">(${formatWsTime(ws.last_opened)})</span>` : "";
     item.innerHTML = `
       <div class="ws-recent-left">
         <span style="font-size:18px;">${isAct ? "💼" : "📂"}</span>
         <div class="ws-recent-meta">
-          <div class="ws-recent-name">${DOMPurify.sanitize(ws.name || ws.path)}</div>
+          <div class="ws-recent-name">${DOMPurify.sanitize(ws.name || ws.path)} ${timeText}</div>
           <div class="ws-recent-path">${DOMPurify.sanitize(ws.path)}</div>
         </div>
       </div>
       <div class="ws-recent-actions">
-        ${isAct ? '<span class="ws-active-badge">Đang mở</span>' : '<button class="btn-ws-switch" type="button">MỞ</button>'}
+        ${isAct ? '<span class="ws-active-badge">Đang mở</span>' : '<button class="btn-ws-switch" type="button">MỞ NGAY</button>'}
         <button class="btn-recent-del" type="button" title="Xóa khỏi danh sách gần đây">✕</button>
       </div>
     `;
@@ -2163,11 +2274,137 @@ function renderRecentWorkspaces() {
   });
 }
 
+function formatWsTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  if (diffSec < 60) return "Vừa mở";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+}
+
+let currentBrowsePath = "";
+let currentBrowseName = "";
+
+async function loadSystemDrives() {
+  const container = $("ws-drives-list");
+  if (!container) return;
+  try {
+    const res = await fetch("/api/fs/drives");
+    if (!res.ok) return;
+    const data = await res.json();
+    container.innerHTML = "";
+    if (!data.drives || !data.drives.length) {
+      container.innerHTML = `<span style="color:var(--muted); font-size:11.5px;">Không tìm thấy ổ đĩa.</span>`;
+      return;
+    }
+    data.drives.forEach((d) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn-ws-drive";
+      btn.innerHTML = `💾 <b>${d.letter}:\\</b>`;
+      btn.title = d.name;
+      btn.onclick = () => browseDirectory(d.path, d.name);
+      container.appendChild(btn);
+    });
+  } catch (e) {
+    console.error("Lỗi nạp danh sách ổ đĩa:", e);
+  }
+}
+
+async function browseDirectory(path, name) {
+  if (!path) return;
+  currentBrowsePath = path;
+  currentBrowseName = name || path;
+  const pathLabel = $("ws-current-browse-path");
+  const upBtn = $("btn-ws-browse-up");
+  const grid = $("ws-dirs-grid");
+  const pickBtn = $("btn-ws-pick-current");
+  const hint = $("ws-browse-hint");
+
+  if (pathLabel) pathLabel.textContent = path;
+  if (grid) grid.innerHTML = `<div style="grid-column:1/-1; color:var(--muted); font-size:11.5px; padding:8px;">Đang tải thư mục...</div>`;
+
+  try {
+    const res = await fetch(`/api/fs/directories?path=${encodeURIComponent(path)}`);
+    if (!res.ok) throw new Error("Không thể đọc thư mục này");
+    const data = await res.json();
+
+    if (upBtn) {
+      if (data.parent) {
+        upBtn.style.display = "inline-block";
+        upBtn.onclick = () => browseDirectory(data.parent);
+      } else {
+        upBtn.style.display = "none";
+      }
+    }
+
+    if (pickBtn) {
+      pickBtn.style.display = "inline-block";
+      pickBtn.textContent = `✓ CHỌN "${data.name}" LÀM WORKSPACE`;
+      pickBtn.onclick = () => switchWorkspace(currentBrowsePath, data.name);
+    }
+
+    if (hint) {
+      hint.textContent = `Thư mục đang chọn: ${path}`;
+    }
+
+    if ($("ws-input-path")) $("ws-input-path").value = path;
+
+    if (!grid) return;
+    grid.innerHTML = "";
+    if (!data.directories || !data.directories.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1; color:var(--muted); font-size:11.5px; padding:12px; text-align:center;">Thư mục này không có thư mục con. Bấm nút chọn bên dưới để sử dụng thư mục này.</div>`;
+      return;
+    }
+
+    data.directories.forEach((dir) => {
+      const card = document.createElement("div");
+      card.className = "ws-dir-card";
+      card.title = dir.path;
+      card.innerHTML = `<span>📁</span> <span style="overflow:hidden; text-overflow:ellipsis;">${DOMPurify.sanitize(dir.name)}</span>`;
+      card.onclick = () => browseDirectory(dir.path, dir.name);
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    if (grid) grid.innerHTML = `<div style="grid-column:1/-1; color:var(--hazard-hi); font-size:11.5px; padding:8px;">${DOMPurify.sanitize(err.message)}</div>`;
+  }
+}
+
+async function browseNativeWorkspace() {
+  const btn = $("btn-ws-browse-native");
+  const origHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.innerHTML = `<span>⏳</span> <span>ĐANG MỞ EXPLORER...</span>`;
+    btn.disabled = true;
+  }
+  try {
+    const res = await fetch("/api/workspaces/browse-native", { method: "POST" });
+    const data = await res.json();
+    if (data.ok && data.path) {
+      await switchWorkspace(data.path, data.name);
+    }
+  } catch (e) {
+    console.error("Lỗi duyệt native:", e);
+  } finally {
+    if (btn) {
+      btn.innerHTML = origHtml;
+      btn.disabled = false;
+    }
+  }
+}
+
 function openWorkspaceDialog() {
   const errEl = $("ws-open-error");
   if (errEl) errEl.style.display = "none";
   $("ws-input-path").value = currentWorkspace.path || "";
   renderRecentWorkspaces();
+  loadSystemDrives();
+  if (currentWorkspace.path) {
+    browseDirectory(currentWorkspace.path, currentWorkspace.name);
+  }
   $("workspace-dialog").showModal();
 }
 
@@ -2390,6 +2627,7 @@ if ($("btn-workspace-header")) $("btn-workspace-header").onclick = openWorkspace
 
 if ($("btn-close-ws-dialog")) $("btn-close-ws-dialog").onclick = () => $("workspace-dialog").close();
 if ($("btn-close-ws-dialog2")) $("btn-close-ws-dialog2").onclick = () => $("workspace-dialog").close();
+if ($("btn-ws-browse-native")) $("btn-ws-browse-native").onclick = browseNativeWorkspace;
 
 if ($("btn-ws-open-submit")) {
   $("btn-ws-open-submit").onclick = async () => {

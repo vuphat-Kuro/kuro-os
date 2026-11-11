@@ -183,9 +183,56 @@
   .btn-ws-tag:hover { background:rgba(34,211,238,.18); border-color:var(--cyan); }
 
   /* Workspace Dialog */
-  #workspace-dialog { width:min(640px, calc(100vw - 32px)); max-height:85vh; padding:0; border:1px solid var(--line-hi); background:var(--panel-solid); color:var(--text); box-shadow:0 12px 40px rgba(0,0,0,.85); }
-  .workspace-dialog-wrap { display:flex; flex-direction:column; padding:20px 24px; gap:16px; }
-  .ws-open-box { display:flex; flex-direction:column; gap:8px; background:rgba(0,0,0,.25); padding:12px; border:1px solid var(--line); border-radius:5px; }
+  #workspace-dialog { width:min(680px, calc(100vw - 24px)); max-height:88vh; padding:0; border:1px solid var(--line-hi); background:var(--panel-solid); color:var(--text); box-shadow:0 12px 40px rgba(0,0,0,.85); }
+  .workspace-dialog-wrap { display:flex; flex-direction:column; padding:18px 20px; gap:14px; max-height:86vh; overflow-y:auto; }
+  .ws-native-pick-banner {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 14px; background:rgba(34,211,238,.1); border:1px solid rgba(34,211,238,.35);
+    border-radius:6px;
+  }
+  .btn-browse-native {
+    padding:8px 16px; font:700 12px/1 var(--hud); letter-spacing:.08em;
+    background:var(--cyan); color:#031018; border:none; border-radius:4px;
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .18s;
+  }
+  .btn-browse-native:hover { background:var(--cyan-soft); box-shadow:0 0 12px rgba(34,211,238,.4); }
+  
+  .ws-browser-box {
+    display:flex; flex-direction:column; gap:8px;
+    background:rgba(0,0,0,.35); border:1px solid var(--line); border-radius:6px; padding:12px;
+  }
+  .ws-drives-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .btn-ws-drive {
+    padding:5px 10px; font:700 11.5px/1 var(--hud);
+    background:rgba(34,211,238,.08); border:1px solid var(--line);
+    color:var(--cyan-soft); border-radius:4px; cursor:pointer; transition:all .15s;
+  }
+  .btn-ws-drive:hover, .btn-ws-drive.active {
+    background:rgba(34,211,238,.22); border-color:var(--cyan); color:var(--text);
+  }
+  .ws-nav-breadcrumb {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:rgba(0,0,0,.45); padding:6px 10px; border:1px solid var(--line-hi); border-radius:4px;
+    font:11.5px/1.3 "Consolas", monospace; color:var(--amber); word-break:break-all;
+  }
+  .ws-dirs-list {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:6px;
+    max-height:170px; overflow-y:auto; padding:4px 2px;
+  }
+  .ws-dir-card {
+    display:flex; align-items:center; gap:7px; padding:6px 9px;
+    background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:4px;
+    cursor:pointer; font-size:12px; color:var(--text); transition:all .15s;
+    user-select:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .ws-dir-card:hover {
+    background:rgba(34,211,238,.12); border-color:var(--cyan); color:var(--cyan-soft);
+  }
+  .ws-browser-actions {
+    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px;
+  }
+
+  .ws-open-box { display:flex; flex-direction:column; gap:8px; background:rgba(0,0,0,.25); padding:10px 12px; border:1px solid var(--line); border-radius:5px; }
   .ws-input-row { display:flex; gap:8px; }
   .ws-input-row input {
     flex:1; background:rgba(5,12,20,.8); border:1px solid var(--line-hi); padding:8px 12px;
@@ -195,7 +242,7 @@
   .ws-quick-actions { display:flex; justify-content:flex-end; gap:10px; }
   .ws-recent-section { display:flex; flex-direction:column; gap:8px; }
   .ws-recent-title { font:700 11px/1 var(--hud); letter-spacing:.14em; color:var(--amber); text-transform:uppercase; }
-  .ws-recent-list { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; padding-right:4px; }
+  .ws-recent-list { display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; padding-right:4px; }
   .ws-recent-item {
     display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px;
     background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:4px; cursor:pointer;
@@ -435,6 +482,8 @@
     display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px; border-bottom:1px solid var(--line);
     background:rgba(5,9,15,.65); backdrop-filter:blur(8px); z-index:15;
   }
+  .header-top-bar { display:flex; align-items:center; gap:12px; min-width:0; }
+  .header-top-quick { display:none; }
   .header-agent-zone { display:flex; align-items:center; gap:12px; min-width:0; }
   .header-avatar {
     width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
@@ -1027,37 +1076,104 @@
     #btn-menu-agents { display: inline-flex !important; }
     #gear2 { display: inline-flex !important; }
 
-    /* Thanh tiêu đề siêu gọn trên Mobile */
+    /* Thanh tiêu đề 2 tầng: Tầng 1 thông tin & nút nhanh, Tầng 2 vuốt ngang vô tận */
     header {
-      padding: 6px 10px;
-      gap: 6px;
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 6px 10px 6px !important;
+      gap: 6px !important;
+      background: rgba(5,9,15,.95) !important;
+      border-bottom: 1px solid var(--line-hi) !important;
+    }
+    .header-top-bar {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      width: 100% !important;
+      min-width: 0 !important;
     }
     .header-agent-zone {
-      gap: 8px; min-width: 0; flex: 1;
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      min-width: 0 !important;
+      flex: 1 !important;
     }
     .header-avatar {
-      width: 28px; height: 28px;
+      width: 28px !important; height: 28px !important; flex: none !important;
     }
     .header-agent-title {
-      font-size: 13px;
+      font-size: 13.5px !important;
     }
     .header-agent-role {
       display: none !important;
     }
+    .header-top-quick {
+      display: flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      flex: none !important;
+    }
+    .btn-quick-top {
+      height: 30px !important;
+      width: 30px !important;
+      min-width: 30px !important;
+      padding: 0 !important;
+      border-radius: 4px !important;
+      display: inline-flex !important;
+    }
+
+    /* Thanh công cụ vuốt ngang trái phải (Horizontal Scroll Toolbar) */
     .header-controls {
-      gap: 4px;
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      -webkit-overflow-scrolling: touch !important;
+      width: 100% !important;
+      gap: 6px !important;
+      padding: 2px 2px 4px !important;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(34,211,238,.3) transparent;
+      margin: 0 !important;
     }
-    .btn-hdr {
-      height: 30px; min-width: 30px; padding: 0 6px !important;
+    .header-controls::-webkit-scrollbar {
+      height: 3px;
     }
-    .btn-hdr .btn-text {
-      display: none !important;
+    .header-controls::-webkit-scrollbar-thumb {
+      background: rgba(34,211,238,.35);
+      border-radius: 3px;
+    }
+    .header-controls .btn-hdr {
+      flex: 0 0 auto !important;
+      height: 30px !important;
+      padding: 0 9px !important;
+      border-radius: 4px !important;
+      background: rgba(34,211,238,.09) !important;
+      border: 1px solid var(--line-hi) !important;
+    }
+    .header-controls .btn-hdr .btn-text {
+      display: inline-block !important;
+      max-width: none !important;
+      opacity: 1 !important;
+      margin-left: 5px !important;
+      font-size: 11px !important;
+      letter-spacing: .04em;
+    }
+    #model-pick {
+      flex: 0 0 auto !important;
+      height: 30px !important;
+      max-width: 145px !important;
+      font-size: 11px !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
     }
     .state-indicator .state-text {
       display: none !important;
     }
     #btn-version-header, #btn-context-header {
-      display: none !important;
+      display: inline-flex !important;
     }
 
     /* Khung chat tràn viền tập trung trên Mobile */
@@ -1199,15 +1315,28 @@
 <!-- CỘT 2: KHUNG CHAT LÀM VIỆC VỚI AGENT ĐANG CHỌN -->
 <main>
   <header>
-    <div class="header-agent-zone">
-      <button id="btn-menu-agents" class="btn-hdr" type="button" title="Mở danh sách cộng sự">☰</button>
-      <div class="header-avatar" id="header-avatar"></div>
-      <div class="header-agent-texts">
-        <div class="header-agent-title-row">
-          <span class="header-agent-title" id="header-agent-name">Kuro Core</span>
-          <span class="agent-badge-tag sys" id="header-agent-badge">Hệ thống</span>
+    <div class="header-top-bar">
+      <div class="header-agent-zone">
+        <button id="btn-menu-agents" class="btn-hdr" type="button" title="Mở danh sách cộng sự">☰</button>
+        <div class="header-avatar" id="header-avatar"></div>
+        <div class="header-agent-texts">
+          <div class="header-agent-title-row">
+            <span class="header-agent-title" id="header-agent-name">Kuro Core</span>
+            <span class="agent-badge-tag sys" id="header-agent-badge">Hệ thống</span>
+          </div>
+          <div class="header-agent-role" id="header-agent-role">Trợ lý hệ thống điều phối tổng thể</div>
         </div>
-        <div class="header-agent-role" id="header-agent-role">Trợ lý hệ thống điều phối tổng thể</div>
+      </div>
+      <div class="header-top-quick">
+        <span id="state-mobile" class="state-indicator" title="Trạng thái hệ thống: Sẵn sàng">
+          <span class="state-dot"></span>
+        </span>
+        <button id="btn-toggle-history-mobile" class="btn-hdr btn-quick-top" type="button" title="Lịch sử hội thoại & Ngữ cảnh">
+          <span class="btn-icon">📜</span>
+        </button>
+        <button id="gear-mobile" class="btn-hdr btn-quick-top" type="button" title="Cài đặt hệ thống (AI Model, Key, Telegram)">
+          <span class="btn-icon">⚙️</span>
+        </button>
       </div>
     </div>
 
@@ -1849,41 +1978,86 @@
           <h2 id="wsd-title" style="margin:0; font:700 15px/1.2 var(--hud); letter-spacing:.08em; color:var(--cyan-soft);">THƯ MỤC DỰ ÁN LÀM VIỆC (WORKSPACE)</h2>
         </div>
         <p style="margin:6px 0 0; font-size:12px; color:var(--muted); line-height:1.4;">
-          Chọn thư mục dự án trên máy tính để bắt đầu làm việc. Khi chuyển dự án, cây tệp tin và lịch sử hội thoại của các Agent sẽ được cập nhật tương ứng theo dự án đó.
+          Chọn thư mục dự án trên máy tính để Kuro phân tích hồ sơ, bản vẽ và cô lập lịch sử trao đổi của từng dự án.
         </p>
       </div>
       <button class="btn-icon" type="button" id="btn-close-ws-dialog" title="Đóng" style="background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button>
     </div>
 
-    <!-- KHUNG NHẬP ĐƯỜNG DẪN THƯ MỤC -->
+    <!-- CÁCH 1: NATIVE WINDOWS FOLDER PICKER -->
+    <div class="ws-native-pick-banner">
+      <div>
+        <b style="color:var(--text); font-size:13px; display:block;">🖥️ Mở thư mục trực tiếp trên máy tính</b>
+        <span style="color:var(--muted); font-size:11.5px;">Bật cửa sổ duyệt thư mục của Windows (Explorer) để bấm chọn.</span>
+      </div>
+      <button id="btn-ws-browse-native" class="btn-browse-native" type="button">
+        <span>📁</span> <span>CHỌN THƯ MỤC TRÊN MÁY</span>
+      </button>
+    </div>
+
+    <!-- CÁCH 2: DUYỆT Ổ ĐĨA & THƯ MỤC TRỰC QUAN (HỖ TRỢ CẢ ĐIỆN THOẠI & PC) -->
+    <div class="ws-browser-box">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label style="font:700 11px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">
+          📂 DUYỆT Ổ ĐĨA & THƯ MỤC TRỰC QUAN:
+        </label>
+        <span style="font-size:11px; color:var(--muted);">Bấm chọn ổ đĩa & thư mục con</span>
+      </div>
+
+      <div class="ws-drives-row" id="ws-drives-list">
+        <!-- Render danh sách ổ đĩa C:, D:, G:... -->
+        <span style="color:var(--muted); font-size:11.5px;">Đang quét các ổ đĩa...</span>
+      </div>
+
+      <div class="ws-nav-breadcrumb" id="ws-breadcrumb-bar">
+        <span id="ws-current-browse-path">Chưa chọn ổ đĩa</span>
+        <button id="btn-ws-browse-up" class="btn-link" type="button" style="font-size:11.5px; display:none;">⬆ Lên 1 cấp</button>
+      </div>
+
+      <div class="ws-dirs-list" id="ws-dirs-grid">
+        <!-- Render thư mục con -->
+      </div>
+
+      <div class="ws-browser-actions">
+        <span id="ws-browse-hint" style="font-size:11.5px; color:var(--muted);">Bấm vào thư mục để mở, hoặc chọn thư mục đang đứng.</span>
+        <button id="btn-ws-pick-current" class="btn-primary" type="button" style="display:none; padding:7px 14px; font:700 11.5px/1 var(--hud); background:var(--cyan); color:#031018; border:none; cursor:pointer;">
+          ✓ CHỌN THƯ MỤC NÀY LÀM WORKSPACE
+        </button>
+      </div>
+    </div>
+
+    <!-- CÁCH 3: NHẬP ĐƯỜNG DẪN TRỰC TIẾP -->
     <div class="ws-open-box">
       <label style="font:700 11px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">
-        ĐƯỜNG DẪN THƯ MỤC DỰ ÁN (WORKSPACE FOLDER):
+        HOẶC NHẬP ĐƯỜNG DẪN THƯ MỤC THỦ CÔNG:
       </label>
       <div class="ws-input-row">
         <input id="ws-input-path" type="text" placeholder="Ví dụ: D:\DuAn_CauMyThuan hoặc C:\Projects\GoiThau1" autocomplete="off" />
-        <button id="btn-ws-open-submit" class="btn-primary" type="button" style="padding:8px 16px; font:700 11.5px/1 var(--hud); background:var(--cyan); color:#031018; border:none; cursor:pointer; text-transform:uppercase;">MỞ DỰ ÁN</button>
+        <button id="btn-ws-open-submit" class="btn-hdr" type="button" style="padding:8px 14px; font:700 11.5px/1 var(--hud); background:rgba(34,211,238,.15); color:var(--cyan-soft); cursor:pointer; text-transform:uppercase;">MỞ DỰ ÁN</button>
       </div>
-      <div class="ws-quick-actions" style="margin-top:4px;">
-        <button id="btn-ws-create-sample" class="btn-link" type="button" style="font-size:12px;">+ Tạo nhanh thư mục dự án mới</button>
+      <div class="ws-quick-actions" style="margin-top:2px;">
+        <button id="btn-ws-create-sample" class="btn-link" type="button" style="font-size:11.5px;">+ Tạo nhanh thư mục dự án mới trong C:\Kuro-os\Kuro\projects</button>
       </div>
       <div id="ws-open-error" style="display:none; color:var(--hazard-hi); font-size:12px; margin-top:4px;"></div>
     </div>
 
-    <!-- DANH SÁCH DỰ ÁN GẦN ĐÂY -->
+    <!-- DANH SÁCH DỰ ÁN ĐÃ LÀM VIỆC (RECENT WORKSPACES) -->
     <div class="ws-recent-section">
-      <div class="ws-recent-title">DỰ ÁN GẦN ĐÂY (RECENT WORKSPACES):</div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="ws-recent-title">LỊCH SỬ THƯ MỤC DỰ ÁN ĐÃ LÀM VIỆC (RECENT WORKSPACES):</div>
+        <span style="font-size:11px; color:var(--muted);">Bấm để chuyển nhanh</span>
+      </div>
       <div id="ws-recent-list" class="ws-recent-list">
         <!-- Render danh sách recent projects -->
       </div>
     </div>
 
-    <div style="display:flex; justify-content:flex-end; padding-top:8px; border-top:1px solid var(--line);">
+    <div style="display:flex; justify-content:flex-end; padding-top:6px; border-top:1px solid var(--line);">
       <button type="button" class="btn-hdr" id="btn-close-ws-dialog2">Đóng</button>
     </div>
   </div>
 </dialog>
 
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>

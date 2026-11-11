@@ -1,9 +1,11 @@
 """Kuro OS - server. Chạy: .venv\\Scripts\\python server\\main.py"""
 import asyncio
 import ipaddress
+import json
 import os
 import re
 import shutil
+import sys
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
@@ -71,6 +73,54 @@ def is_local(headers) -> bool:
     host_name = urlparse("//" + (headers.get("host") or "")).hostname
     origin_name = urlparse(origin).hostname if origin else None
     return is_trusted_host(host_name) and (not origin or is_trusted_host(origin_name))
+
+
+class ConnectionManager:
+    """Quản lý kết nối WebSocket và đồng bộ thời gian thực giữa máy tính & điện thoại."""
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, data: dict):
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(data)
+            except Exception:
+                pass
+
+
+manager = ConnectionManager()
+ACTIVE_STATE_FILE = config.STATE / "active_state.json"
+
+
+def get_active_state() -> dict:
+    if ACTIVE_STATE_FILE.is_file():
+        try:
+            return json.loads(ACTIVE_STATE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    ws = engine.active_workspace_dir()
+    return {
+        "workspace": str(ws),
+        "workspace_name": ws.name,
+        "agent": "kuro-core",
+        "session": None
+    }
+
+
+def save_active_state(st: dict):
+    try:
+        ACTIVE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        ACTIVE_STATE_FILE.write_text(json.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def local_only(req: Request) -> None:
@@ -929,6 +979,18 @@ def open_workspace(body: dict):
     cfg["active"] = str(p)
     cfg["recent"] = recent
     engine.save_workspaces_config(cfg)
+
+    cur_st = get_active_state()
+    cur_st["workspace"] = str(p)
+    cur_st["workspace_name"] = p.name
+    save_active_state(cur_st)
+    asyncio.create_task(manager.broadcast({
+        "type": "workspace_changed",
+        "active": str(p),
+        "name": p.name,
+        "recent": recent
+    }))
+
     return {
         "ok": True,
         "active": str(p),
@@ -945,6 +1007,131 @@ def remove_recent_workspace(path: str):
     cfg["recent"] = recent
     engine.save_workspaces_config(cfg)
     return {"ok": True, "recent": recent}
+
+
+@app.get("/api/active-state")
+def api_get_active_state():
+    st = get_active_state()
+    ws = engine.active_workspace_dir()
+    st["workspace"] = str(ws)
+    st["workspace_name"] = ws.name
+    return st
+
+
+@app.post("/api/active-state", dependencies=[Depends(local_only)])
+async def api_set_active_state(body: dict):
+    st = get_active_state()
+    if body.get("agent"):
+        st["agent"] = body["agent"]
+    if "session" in body:
+        st["session"] = body["session"]
+    if body.get("workspace"):
+        st["workspace"] = body["workspace"]
+        st["workspace_name"] = Path(body["workspace"]).name
+    save_active_state(st)
+    await manager.broadcast({
+        "type": "sync_active",
+        "agent": st.get("agent"),
+        "session": st.get("session"),
+        "workspace": st.get("workspace"),
+        "workspace_name": st.get("workspace_name")
+    })
+    return {"ok": True, "state": st}
+
+
+@app.get("/api/fs/drives", dependencies=[Depends(local_only)])
+def get_system_drives():
+    drives = []
+    if sys.platform == "win32":
+        import string
+        from ctypes import windll
+        bitmask = windll.kernel32.GetLogicalDrives()
+        for letter in string.ascii_uppercase:
+            if bitmask & 1:
+                drive_path = f"{letter}:\\"
+                try:
+                    usage = shutil.disk_usage(drive_path)
+                    free_gb = round(usage.free / (1024 ** 3), 1)
+                    total_gb = round(usage.total / (1024 ** 3), 1)
+                    drives.append({
+                        "name": f"Ổ đĩa {letter}: ({free_gb} GB trống / {total_gb} GB)",
+                        "path": drive_path,
+                        "letter": letter
+                    })
+                except Exception:
+                    drives.append({
+                        "name": f"Ổ đĩa {letter}:",
+                        "path": drive_path,
+                        "letter": letter
+                    })
+            bitmask >>= 1
+    else:
+        drives.append({"name": "Thư mục gốc (Root /)", "path": "/", "letter": "/"})
+    return {"drives": drives}
+
+
+@app.get("/api/fs/directories", dependencies=[Depends(local_only)])
+def get_system_directories(path: str = ""):
+    if not path:
+        return get_system_drives()
+    p = Path(path).resolve()
+    if not p.is_dir():
+        raise HTTPException(404, "Thư mục không tồn tại")
+    
+    ignore_dirs = {
+        "$recycle.bin", "system volume information", "recovery", "config.msi",
+        "msocache", "perflogs", "node_modules", ".git"
+    }
+    subdirs = []
+    try:
+        for entry in sorted(p.iterdir(), key=lambda x: x.name.lower()):
+            try:
+                if entry.is_dir():
+                    if entry.name.lower() in ignore_dirs or entry.name.startswith("$"):
+                        continue
+                    subdirs.append({
+                        "name": entry.name,
+                        "path": str(entry.resolve()),
+                        "is_dir": True
+                    })
+            except Exception:
+                continue
+    except PermissionError:
+        pass
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi đọc thư mục: {e}")
+
+    parent = str(p.parent.resolve()) if p.parent != p else None
+    return {
+        "current_path": str(p),
+        "name": p.name or str(p),
+        "parent": parent,
+        "directories": subdirs
+    }
+
+
+@app.post("/api/workspaces/browse-native", dependencies=[Depends(local_only)])
+def browse_native_workspace():
+    if sys.platform != "win32":
+        raise HTTPException(400, "Tính năng chỉ hỗ trợ trên Windows")
+    import subprocess
+    cmd = (
+        'powershell -NoProfile -Command "'
+        'Add-Type -AssemblyName System.Windows.Forms; '
+        '$f = New-Object System.Windows.Forms.FolderBrowserDialog; '
+        '$f.ShowNewFolderButton = $true; '
+        '$f.Description = \'Chọn thư mục dự án làm việc cho Kuro OS\'; '
+        'if ($f.ShowDialog() -eq \'OK\') { Write-Output $f.SelectedPath }"'
+    )
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, shell=True, timeout=120)
+        selected = proc.stdout.strip()
+        if selected and Path(selected).is_dir():
+            p = Path(selected).resolve()
+            return {"ok": True, "path": str(p), "name": p.name}
+        return {"ok": False, "cancelled": True}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi mở hộp thoại Windows: {e}")
 
 
 @app.get("/api/fs/tree")
@@ -1002,24 +1189,90 @@ def get_fs_file(path: str):
 
 @app.websocket("/ws")
 async def ws(sock: WebSocket):
-    # shortcut: không có đăng nhập vì chỉ nghe 127.0.0.1; trước khi mở ra mạng phải thêm đăng nhập (KE-HOACH.md mục 8)
     if not is_local(sock.headers):
         await sock.close(code=1008)
         return
-    await sock.accept()
+    await manager.connect(sock)
     try:
+        # Gửi init state cho client mới kết nối
+        cur_st = get_active_state()
+        await sock.send_json({"type": "init_state", "state": cur_st})
+
         while True:
-            req = await sock.receive_json()                  # {"session": id hoặc null, "text": "...", "agent": slug, "workspace": path}
+            req = await sock.receive_json()
+            req_type = req.get("type")
+            if req_type == "sync_active":
+                st = get_active_state()
+                if req.get("agent"):
+                    st["agent"] = req["agent"]
+                if "session" in req:
+                    st["session"] = req["session"]
+                if req.get("workspace"):
+                    st["workspace"] = req["workspace"]
+                    st["workspace_name"] = Path(req["workspace"]).name
+                save_active_state(st)
+                await manager.broadcast({
+                    "type": "sync_active",
+                    "agent": st.get("agent"),
+                    "session": st.get("session"),
+                    "workspace": st.get("workspace"),
+                    "workspace_name": st.get("workspace_name")
+                })
+                continue
+
             text = (req.get("text") or "").strip()
             if not text:
                 continue
             agent = req.get("agent") or "kuro-core"
             workspace = req.get("workspace") or str(engine.active_workspace_dir())
             sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace)
-            await sock.send_json({"type": "session", "id": sid, "agent": agent, "workspace": workspace})
-            await engine.chat(sid, text, agent=agent, emit=sock.send_json, workspace=workspace)
+
+            # Cập nhật trạng thái active
+            cur_st = get_active_state()
+            cur_st["agent"] = agent
+            cur_st["session"] = sid
+            cur_st["workspace"] = workspace
+            cur_st["workspace_name"] = Path(workspace).name
+            save_active_state(cur_st)
+
+            # Broadcast thông tin session & tin nhắn người dùng tới TẤT CẢ các thiết bị kết nối
+            await manager.broadcast({
+                "type": "session",
+                "id": sid,
+                "agent": agent,
+                "workspace": workspace,
+                "title": text
+            })
+            await manager.broadcast({
+                "type": "user_message",
+                "session": sid,
+                "agent": agent,
+                "workspace": workspace,
+                "text": text
+            })
+
+            # Broadcast từng token streaming tới tất cả thiết bị
+            async def broadcast_chunk(chunk: dict):
+                payload = dict(chunk)
+                payload["session"] = sid
+                payload["agent"] = agent
+                payload["workspace"] = workspace
+                await manager.broadcast(payload)
+
+            await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace)
+
+            # Broadcast kết thúc phiên để đồng bộ lịch sử trên cả 2 màn hình
+            await manager.broadcast({
+                "type": "session_saved",
+                "id": sid,
+                "agent": agent,
+                "workspace": workspace,
+                "title": text
+            })
     except WebSocketDisconnect:
-        pass
+        manager.disconnect(sock)
+    except Exception:
+        manager.disconnect(sock)
 
 
 app.mount("/", StaticFiles(directory=config.ROOT / "dashboard", html=True), name="ui")
