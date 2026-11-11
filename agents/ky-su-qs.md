@@ -3,7 +3,7 @@ type: agent
 name: Kỹ sư QS - khối lượng và dự toán
 slug: ky-su-qs
 role: Đo bóc khối lượng, lập và kiểm tra dự toán, thanh toán, quyết toán, phát sinh.
-group: Xây dựng
+group: Quản lý & Hồ sơ
 skills: [qs-khoi-luong-du-toan, excel-tu-dong-hoa]
 model: ""
 updated: 2026-10-09

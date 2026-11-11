@@ -142,16 +142,129 @@ function addMessage(role, html, senderName) {
   return d;
 }
 
+let groupsConfig = {};
+
 function currentAgent() {
+  if (selectedAgent && selectedAgent.startsWith("group:")) {
+    const grpName = selectedAgent.substring(6).trim();
+    const grpCfg = groupsConfig[grpName] || {};
+    return {
+      slug: selectedAgent,
+      name: `Agent Tổng: ${grpName}`,
+      role: grpCfg.role || `Điều phối quy trình tổng cho toàn bộ cộng sự nhóm ${grpName}`,
+      badge: "Agent Tổng",
+      is_core: false,
+      is_group_lead: true
+    };
+  }
   return agents.find((a) => a.slug === selectedAgent) || agents[0] || { slug: "kuro-core", name: "Kuro Core", role: "" };
 }
 
-// Lấy danh sách Agents từ server
+// Icon và quản lý nhóm cho từng Agent
+const GROUP_ICONS = {
+  "Hệ thống": "🛡️",
+  "Kỹ thuật & Thi công": "🏗️",
+  "Quản lý & Hồ sơ": "📋",
+  "BIM & Số hóa": "🌐",
+  "Tổ đội & Quy trình": "👥",
+  "Chuyên môn": "⚙️",
+};
+
+function getGroupIcon(groupName) {
+  return GROUP_ICONS[groupName] || "📁";
+}
+
+let currentGroupFilter = "all";
+let collapsedGroups = {};
+try {
+  collapsedGroups = JSON.parse(localStorage.getItem("kuro_agent_groups_collapsed") || "{}");
+} catch (_) {
+  collapsedGroups = {};
+}
+
+function saveCollapsedGroups() {
+  try {
+    localStorage.setItem("kuro_agent_groups_collapsed", JSON.stringify(collapsedGroups));
+  } catch (_) {}
+}
+
+// Render các chip lọc nhanh theo nhóm (Filter Pills)
+function renderGroupFilterChips() {
+  const bar = $("agent-filter-chips");
+  const datalist = $("agent-groups-datalist");
+  if (!bar) return;
+  bar.innerHTML = "";
+
+  // Tạo chip "Tất cả"
+  const allChip = document.createElement("button");
+  allChip.type = "button";
+  allChip.className = "filter-chip" + (currentGroupFilter === "all" ? " active" : "");
+  allChip.textContent = `Tất cả (${agents.length})`;
+  allChip.onclick = () => {
+    currentGroupFilter = "all";
+    renderGroupFilterChips();
+    renderAgentList();
+  };
+  bar.appendChild(allChip);
+
+  // Thu thập các nhóm duy nhất và đếm số lượng
+  const groupCounts = {};
+  agents.forEach((a) => {
+    const grp = a.group || (a.is_core ? "Hệ thống" : "Chuyên môn");
+    groupCounts[grp] = (groupCounts[grp] || 0) + 1;
+  });
+
+  // Cập nhật datalist cho input nhóm ở các dialog
+  if (datalist) {
+    datalist.innerHTML = "";
+    Object.keys(groupCounts).forEach((grp) => {
+      if (grp !== "Hệ thống") {
+        const opt = document.createElement("option");
+        opt.value = grp;
+        datalist.appendChild(opt);
+      }
+    });
+  }
+
+  const preferredOrder = ["Hệ thống", "Kỹ thuật & Thi công", "Quản lý & Hồ sơ", "BIM & Số hóa", "Tổ đội & Quy trình"];
+  const sortedGroups = Object.keys(groupCounts).sort((a, b) => {
+    const ia = preferredOrder.indexOf(a);
+    const ib = preferredOrder.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b, "vi");
+  });
+
+  sortedGroups.forEach((grp) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "filter-chip" + (currentGroupFilter === grp ? " active" : "");
+    chip.textContent = `${getGroupIcon(grp)} ${grp} (${groupCounts[grp]})`;
+    chip.onclick = () => {
+      currentGroupFilter = (currentGroupFilter === grp) ? "all" : grp;
+      renderGroupFilterChips();
+      renderAgentList();
+    };
+    bar.appendChild(chip);
+  });
+}
+
+// Lấy danh sách Agents và cấu hình Groups từ server
 async function loadAgents() {
   try {
-    const res = await fetch("/api/agents");
-    agents = await res.json();
+    const [resAgents, resGroups] = await Promise.all([
+      fetch("/api/agents"),
+      fetch("/api/groups").catch(() => ({ json: () => ({}) }))
+    ]);
+    agents = await resAgents.json();
+    try {
+      groupsConfig = await resGroups.json();
+    } catch (_) {
+      groupsConfig = {};
+    }
     $("agent-count").textContent = agents.length;
+    renderGroupFilterChips();
     renderAgentList();
     updateActiveAgentUI();
   } catch (e) {
@@ -159,59 +272,315 @@ async function loadAgents() {
   }
 }
 
-// Render danh sách Agents (Cộng sự)
+// Render danh sách Agents theo Accordion Group
 function renderAgentList() {
   const listEl = $("agent-list");
   listEl.innerHTML = "";
   const filter = ($("agent-search").value || "").trim().toLowerCase();
 
-  const filtered = agents.filter((a) => {
-    return !filter || a.name.toLowerCase().includes(filter) || (a.role && a.role.toLowerCase().includes(filter)) || a.slug.includes(filter);
+  // Lọc theo từ khóa tìm kiếm
+  let filtered = agents.filter((a) => {
+    const matchSearch = !filter ||
+      a.name.toLowerCase().includes(filter) ||
+      (a.role && a.role.toLowerCase().includes(filter)) ||
+      (a.group && a.group.toLowerCase().includes(filter)) ||
+      a.slug.includes(filter);
+    return matchSearch;
   });
 
-  const coreAgents = filtered.filter((a) => a.is_core);
-  const specAgents = filtered.filter((a) => !a.is_core);
-
-  if (coreAgents.length) {
-    const title = document.createElement("div");
-    title.className = "sec-title";
-    title.textContent = "Hệ thống";
-    listEl.appendChild(title);
-    coreAgents.forEach((a) => listEl.appendChild(createAgentCard(a)));
+  // Lọc theo chip nhóm đang chọn
+  if (currentGroupFilter !== "all") {
+    filtered = filtered.filter((a) => (a.group || (a.is_core ? "Hệ thống" : "Chuyên môn")) === currentGroupFilter);
   }
 
-  if (specAgents.length) {
-    const title = document.createElement("div");
-    title.className = "sec-title";
-    title.textContent = "Chuyên ngành (Đã ghim)";
-    listEl.appendChild(title);
-    specAgents.forEach((a) => listEl.appendChild(createAgentCard(a)));
+  // Cập nhật dòng trạng thái
+  const statusEl = $("agent-filter-status");
+  if (statusEl) {
+    if (filter) {
+      statusEl.textContent = `TÌM THẤY: ${filtered.length} CỘNG SỰ`;
+    } else if (currentGroupFilter !== "all") {
+      statusEl.textContent = `${currentGroupFilter.toUpperCase()} (${filtered.length})`;
+    } else {
+      statusEl.textContent = `TẤT CẢ (${agents.length})`;
+    }
   }
 
   if (!filtered.length) {
     const empty = document.createElement("div");
     empty.className = "session-empty";
-    empty.textContent = "Không tìm thấy cộng sự nào.";
+    empty.textContent = "Không tìm thấy cộng sự nào phù hợp.";
     listEl.appendChild(empty);
+    return;
+  }
+
+  // Gom nhóm
+  const grouped = {};
+  filtered.forEach((a) => {
+    const grp = a.group || (a.is_core ? "Hệ thống" : "Chuyên môn");
+    if (!grouped[grp]) grouped[grp] = [];
+    grouped[grp].push(a);
+  });
+
+  const preferredOrder = ["Hệ thống", "Kỹ thuật & Thi công", "Quản lý & Hồ sơ", "BIM & Số hóa", "Tổ đội & Quy trình"];
+  const sortedGroupNames = Object.keys(grouped).sort((a, b) => {
+    const ia = preferredOrder.indexOf(a);
+    const ib = preferredOrder.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b, "vi");
+  });
+
+  sortedGroupNames.forEach((grpName) => {
+    const groupAgents = grouped[grpName];
+    const groupEl = document.createElement("div");
+    const isSys = grpName === "Hệ thống";
+
+    const grpCfg = groupsConfig[grpName] || {};
+    const hasWorkflow = !!(grpCfg.workflow && grpCfg.workflow.trim());
+    const isGroupLeadSelected = selectedAgent === ("group:" + grpName);
+
+    let grpClasses = "agent-group";
+    if (isSys) grpClasses += " sys-group";
+    if (hasWorkflow) grpClasses += " is-coordinator";
+    if (isGroupLeadSelected) grpClasses += " is-active-lead";
+    groupEl.className = grpClasses;
+
+    // Nếu đang tìm kiếm hoặc đang chọn nhóm/agent trong nhóm: luôn mở nhóm
+    const containsSelected = groupAgents.some((a) => a.slug === selectedAgent) || isGroupLeadSelected;
+    if (containsSelected && !filter) {
+      collapsedGroups[grpName] = false;
+    }
+
+    const isCollapsed = !filter && !!collapsedGroups[grpName];
+    if (isCollapsed) {
+      groupEl.classList.add("collapsed");
+    }
+
+    // Header của Accordion
+    const header = document.createElement("div");
+    header.className = "agent-group-header";
+    header.innerHTML = `
+      <div class="agent-group-title">
+        <span class="agent-group-icon">${getGroupIcon(grpName)}</span>
+        <span class="agent-group-name">${DOMPurify.sanitize(grpName)}</span>
+        ${!isSys ? `<button class="agent-group-btn" title="Cấu hình nhóm & Workflow Agent Tổng" type="button" data-config-grp="${encodeURIComponent(grpName)}">✏️</button>` : ""}
+      </div>
+      <div class="agent-group-meta">
+        ${hasWorkflow ? `
+          <button type="button" class="agent-group-chat-btn" data-chat-grp="${encodeURIComponent(grpName)}" title="Giao việc và chat trực tiếp với Agent Điều phối Tổng của nhóm này">
+            ⚡ AGENT TỔNG
+          </button>
+        ` : ""}
+        <span class="agent-group-count">${groupAgents.length}</span>
+        <span class="agent-group-chevron">▼</span>
+      </div>
+    `;
+
+    // Click cấu hình nhóm & workflow
+    const configBtn = header.querySelector("[data-config-grp]");
+    if (configBtn) {
+      configBtn.onclick = (e) => {
+        e.stopPropagation();
+        openConfigGroup(grpName);
+      };
+    }
+
+    // Click nút Chat Agent Tổng
+    const chatGrpBtn = header.querySelector("[data-chat-grp]");
+    if (chatGrpBtn) {
+      chatGrpBtn.onclick = (e) => {
+        e.stopPropagation();
+        selectAgent("group:" + grpName);
+      };
+    }
+
+    header.onclick = (e) => {
+      e.stopPropagation();
+      const nowCollapsed = groupEl.classList.toggle("collapsed");
+      collapsedGroups[grpName] = nowCollapsed;
+      saveCollapsedGroups();
+    };
+
+    // Body của Accordion
+    const body = document.createElement("div");
+    body.className = "agent-group-body";
+    groupAgents.forEach((a) => {
+      body.appendChild(createAgentCard(a));
+    });
+
+    groupEl.appendChild(header);
+    groupEl.appendChild(body);
+    listEl.appendChild(groupEl);
+  });
+}
+
+// Render bảng chọn Agent điều phối / thành viên
+function renderMembersCheckboxes(targetTbodyId, selectedSlugs = [], excludeSlug = null) {
+  const tbody = $(targetTbodyId);
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const availableAgents = agents.filter((a) => !a.is_core && a.slug !== excludeSlug);
+  if (!availableAgents.length) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--muted); padding:8px;">Chưa có Agent nào khác để phối hợp.</td></tr>`;
+    return;
+  }
+
+  availableAgents.forEach((a) => {
+    const isChecked = selectedSlugs.includes(a.slug);
+    const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+    tr.innerHTML = `
+      <td style="text-align:center;">
+        <input type="checkbox" value="${a.slug}" ${isChecked ? "checked" : ""}>
+      </td>
+      <td>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <b style="color:var(--text); font-size:12px;">${DOMPurify.sanitize(a.name)}</b>
+        </div>
+      </td>
+      <td style="color:var(--muted); font-size:11.5px;">${DOMPurify.sanitize(a.role || '')}</td>
+    `;
+    tr.onclick = (e) => {
+      if (e.target.tagName !== "INPUT") {
+        const cb = tr.querySelector("input[type=checkbox]");
+        cb.checked = !cb.checked;
+      }
+    };
+    tbody.appendChild(tr);
+  });
+}
+
+// Thẻ Agent: Gọn gàng thanh lịch, chỉ hiển thị tên ngắn gọn, bung chi tiết khi chọn
+function createAgentCard(agent) {
+  const isSelected = agent.slug === selectedAgent;
+  const isTeam = agent.members && agent.members.length > 0;
+  const card = document.createElement("div");
+  card.className = "agent-card" + (agent.is_core ? " core-agent" : "") + (isSelected ? " on" : "");
+  card.onclick = () => selectAgent(agent.slug);
+
+  let html = `
+    <div class="agent-row-main">
+      <div class="agent-avatar">${isTeam ? '👥' : getAgentIcon(agent.slug)}</div>
+      <span class="agent-name" title="${DOMPurify.sanitize(agent.name)}">
+        ${DOMPurify.sanitize(agent.name)}
+        ${isTeam ? `<small style="font-size:10px; color:var(--cyan); margin-left:4px; opacity:.85;">[ĐIỀU PHỐI: ${agent.members.length}]</small>` : ''}
+      </span>
+      <span class="agent-dot-active"></span>
+    </div>
+  `;
+
+  // Chỉ khi được chọn: bung chi tiết phần mô tả và các nút hành động
+  if (isSelected) {
+    let teamMembersHtml = "";
+    if (isTeam) {
+      const memberNames = agent.members.map((mSlug) => {
+        const found = agents.find((x) => x.slug === mSlug);
+        return found ? found.name : mSlug;
+      }).join(", ");
+      teamMembersHtml = `
+        <div style="font-size:11px; padding:4px 6px; background:rgba(34,211,238,.08); border:1px solid rgba(34,211,238,.2); border-radius:3px; color:var(--cyan-soft); margin-bottom:4px;">
+          👥 <b>Điều phối ${agent.members.length} Agent:</b> ${DOMPurify.sanitize(memberNames)}
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="agent-details">
+        ${teamMembersHtml}
+        <p class="agent-desc">${DOMPurify.sanitize(agent.role || 'Trợ lý kỹ sư hạ tầng chuyên trách.')}</p>
+        <div class="agent-card-actions">
+          ${!agent.is_core ? `
+            <button type="button" class="btn-agent-act" data-edit-agent="${agent.slug}" title="Chỉnh sửa thông tin, đổi nhóm hoặc chọn Agent điều phối">✏️ Sửa / Điều phối</button>
+            <button type="button" class="btn-agent-act danger" data-delete-agent="${agent.slug}" title="Xóa cộng sự này">🗑️ Xóa</button>
+          ` : `
+            <span style="font-size:10px; color:var(--amber); letter-spacing:.05em;">LÕI HỆ THỐNG</span>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
+  card.innerHTML = html;
+
+  // Xử lý nút Sửa và Xóa trong card
+  const editBtn = card.querySelector("[data-edit-agent]");
+  if (editBtn) {
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      openEditAgent(agent.slug);
+    };
+  }
+
+  const delBtn = card.querySelector("[data-delete-agent]");
+  if (delBtn) {
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      confirmDeleteAgent(agent.slug, agent.name);
+    };
+  }
+
+  return card;
+}
+
+// Mở dialog chỉnh sửa Agent
+async function openEditAgent(slug) {
+  try {
+    const res = await fetch(`/api/agents/${encodeURIComponent(slug)}`);
+    if (!res.ok) {
+      alert("Không tìm thấy thông tin cộng sự này");
+      return;
+    }
+    const d = await res.json();
+    $("ea-slug").value = d.slug;
+    $("ea-name").value = d.name;
+    $("ea-group").value = d.group || "";
+    $("ea-role").value = d.role || "";
+    $("ea-prompt").value = d.prompt || "";
+    $("ea-msg").textContent = "";
+
+    // Render danh sách checkbox các agent thành viên
+    renderMembersCheckboxes("ea-members-list", d.members || [], slug);
+
+    $("edit-agent-dialog").showModal();
+  } catch (err) {
+    alert("Lỗi kết nối máy chủ");
   }
 }
 
-function createAgentCard(agent) {
-  const card = document.createElement("div");
-  card.className = "agent-card" + (agent.is_core ? " core-agent" : "") + (agent.slug === selectedAgent ? " on" : "");
-  card.onclick = () => selectAgent(agent.slug);
+// Mở dialog cấu hình nhóm & Workflow Agent tổng
+function openConfigGroup(groupName) {
+  const grpCfg = groupsConfig[groupName] || {};
+  $("cg-old-name").value = groupName;
+  $("cg-name").value = groupName;
+  $("cg-role").value = grpCfg.role || "";
+  $("cg-workflow").value = grpCfg.workflow || "";
+  $("cg-msg").textContent = "";
+  $("config-group-dialog").showModal();
+}
 
-  card.innerHTML = `
-    <div class="agent-avatar">${getAgentIcon(agent.slug)}</div>
-    <div class="agent-info">
-      <div class="agent-top-line">
-        <span class="agent-name">${DOMPurify.sanitize(agent.name)}</span>
-        <span class="agent-badge-tag ${agent.is_core ? 'sys' : ''}">${DOMPurify.sanitize(agent.badge || 'Chuyên môn')}</span>
-      </div>
-      <p class="agent-desc">${DOMPurify.sanitize(agent.role || '')}</p>
-    </div>
-  `;
-  return card;
+// Xóa cộng sự
+async function confirmDeleteAgent(slug, name) {
+  if (!confirm(`Bạn có chắc muốn xóa cộng sự "${name}" (${slug}) không? Thao tác này sẽ xóa tệp định nghĩa trong thư mục agents.`)) {
+    return;
+  }
+  try {
+    const res = await fetch(`/api/agents/${encodeURIComponent(slug)}`, { method: "DELETE" });
+    if (res.ok) {
+      if (selectedAgent === slug) {
+        selectedAgent = "kuro-core";
+        localStorage.setItem("kuro_active_agent", "kuro-core");
+      }
+      await loadAgents();
+      selectAgent(selectedAgent);
+    } else {
+      const j = await res.json();
+      alert(j.detail || "Không thể xóa cộng sự");
+    }
+  } catch (err) {
+    alert("Lỗi kết nối khi xóa");
+  }
 }
 
 // Khi người dùng bấm chọn một Agent
@@ -219,6 +588,14 @@ async function selectAgent(slug) {
   if (selectedAgent === slug && session) return;
   selectedAgent = slug;
   localStorage.setItem("kuro_active_agent", slug);
+
+  // Đảm bảo mở nhóm của agent vừa chọn
+  const agentObj = agents.find((a) => a.slug === slug);
+  if (agentObj) {
+    const grp = agentObj.group || (agentObj.is_core ? "Hệ thống" : "Chuyên môn");
+    collapsedGroups[grp] = false;
+    saveCollapsedGroups();
+  }
 
   // Cập nhật highlight thẻ Agent
   renderAgentList();
@@ -263,18 +640,46 @@ function updateActiveAgentUI() {
   });
 }
 
-// Tìm kiếm Agent
+// Tìm kiếm và điều khiển nhóm Agent
 $("agent-search").oninput = renderAgentList;
 
-// Tải lịch sử phiên cho Agent được chọn
+const btnExpandAll = $("btn-agents-expand-all");
+if (btnExpandAll) {
+  btnExpandAll.onclick = () => {
+    collapsedGroups = {};
+    saveCollapsedGroups();
+    renderAgentList();
+  };
+}
+
+const btnCollapseAll = $("btn-agents-collapse-all");
+if (btnCollapseAll) {
+  btnCollapseAll.onclick = () => {
+    agents.forEach((a) => {
+      const grp = a.group || (a.is_core ? "Hệ thống" : "Chuyên môn");
+      collapsedGroups[grp] = true;
+    });
+    saveCollapsedGroups();
+    renderAgentList();
+  };
+}
+
+// Tải lịch sử phiên cho Agent được chọn (cô lập theo Workspace hiện tại)
 async function loadSessions(agentSlug) {
   agentSlug = agentSlug || selectedAgent;
   try {
-    const res = await fetch(`/api/sessions?agent=${encodeURIComponent(agentSlug)}`);
+    const wsParam = currentWorkspace && currentWorkspace.path ? `&workspace=${encodeURIComponent(currentWorkspace.path)}` : "";
+    const res = await fetch(`/api/sessions?agent=${encodeURIComponent(agentSlug)}${wsParam}`);
     currentSessions = await res.json();
     renderSessionList();
     if (!session && currentSessions.length > 0) {
       await openSession(currentSessions[0].id);
+    } else if (session && !currentSessions.some((s) => s.id === session)) {
+      if (currentSessions.length > 0) {
+        await openSession(currentSessions[0].id);
+      } else {
+        newSession();
+      }
     } else {
       await loadSessionContext(session);
     }
@@ -923,23 +1328,15 @@ $("f").onsubmit = async (e) => {
 
     // Nếu là lệnh /plan
     if (cmd === "plan") {
-      $("q").value = "";
       const prompt = `[CHẾ ĐỘ LẬP KẾ HOẠCH - PLAN MODE]\nTrước khi bắt tay vào thực hiện, hãy lập kế hoạch chi tiết từng bước cho yêu cầu sau. Phân tích: căn cứ tiêu chuẩn, dữ liệu đầu vào cần có, các bước thực hiện, điểm kiểm soát (Hold Points) và rủi ro tiềm ẩn:\n\n${arg}`;
-      addMessage("user", "").textContent = text;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      setBusy(true);
-      ws.send(JSON.stringify({ session: session, text: prompt, agent: selectedAgent }));
+      sendChatMessage(text, prompt);
       return;
     }
 
     // Nếu là lệnh /goal
     if (cmd === "goal") {
-      $("q").value = "";
       const prompt = `[CHẾ ĐỘ MỤC TIÊU BỀN BỈ - GOAL MODE]\nHãy tập trung giải quyết triệt để và trọn vẹn mục tiêu sau đây, không dừng lại giữa chừng khi bài toán chưa hoàn tất:\n\n${arg}`;
-      addMessage("user", "").textContent = text;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      setBusy(true);
-      ws.send(JSON.stringify({ session: session, text: prompt, agent: selectedAgent }));
+      sendChatMessage(text, prompt);
       return;
     }
 
@@ -949,44 +1346,53 @@ $("f").onsubmit = async (e) => {
     const isSkillMatch = skillsList.some((s) => s.slug === targetSkill);
 
     if (isSkillMatch) {
-      $("q").value = "";
       const prompt = `[KÍCH HOẠT SKILL: ${targetSkill}]\nHãy đọc và tuân thủ nghiêm ngặt quy trình của skill \`${targetSkill}\` trong thư mục skill để xử lý yêu cầu sau:\n\n${skillArg || 'Áp dụng quy trình chuẩn của skill này để hướng dẫn và triển khai.'}`;
-      addMessage("user", "").textContent = text;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      setBusy(true);
-      ws.send(JSON.stringify({ session: session, text: prompt, agent: selectedAgent }));
+      sendChatMessage(text, prompt);
       return;
     }
   }
 
   // Tin nhắn thông thường
+  sendChatMessage(text);
+};
+
+function sendChatMessage(displayText, promptToSend) {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     alert("Chưa kết nối được với máy chủ Kuro. Vui lòng đợi trong giây lát...");
     return;
   }
   setBusy(true);
-  addMessage("user", "").textContent = text;
+  addMessage("user", "").textContent = displayText;
   $("q").value = "";
   $("q").style.height = "auto";
-  ws.send(JSON.stringify({ session: session, text: text, agent: selectedAgent }));
-};
+  const wsPath = currentWorkspace && currentWorkspace.path ? currentWorkspace.path : "";
+  ws.send(JSON.stringify({
+    session: session,
+    text: promptToSend || displayText,
+    agent: selectedAgent,
+    workspace: wsPath
+  }));
+}
 
-// Modal Tạo cộng sự mới
+// Modal Tạo Agent mới
 $("btn-create-agent").onclick = () => {
   $("caf").reset();
   $("ca-msg").textContent = "";
+  renderMembersCheckboxes("ca-members-list", []);
   $("create-agent-dialog").showModal();
 };
 $("ca-close").onclick = () => $("create-agent-dialog").close();
 
 $("caf").onsubmit = async (e) => {
   e.preventDefault();
+  const members = Array.from(document.querySelectorAll("#ca-members-list input[type=checkbox]:checked")).map((cb) => cb.value);
   const data = {
     name: $("ca-name").value.trim(),
     slug: $("ca-slug").value.trim().toLowerCase(),
-    group: $("ca-group").value.trim(),
+    group: $("ca-group").value.trim() || "Chuyên môn",
     role: $("ca-role").value.trim(),
-    prompt: $("ca-prompt").value.trim()
+    prompt: $("ca-prompt").value.trim(),
+    members: members
   };
   const msg = $("ca-msg");
   msg.textContent = "Đang lưu...";
@@ -1003,12 +1409,136 @@ $("caf").onsubmit = async (e) => {
       await loadAgents();
       selectAgent(j.slug);
     } else {
-      msg.textContent = j.detail || "Lỗi tạo cộng sự";
+      msg.textContent = j.detail || "Lỗi tạo Agent";
     }
   } catch (err) {
     msg.textContent = "Lỗi kết nối máy chủ";
   }
 };
+
+// Modal Chỉnh sửa Agent
+if ($("ea-close")) $("ea-close").onclick = () => $("edit-agent-dialog").close();
+
+if ($("eaf")) {
+  $("eaf").onsubmit = async (e) => {
+    e.preventDefault();
+    const slug = $("ea-slug").value;
+    const members = Array.from(document.querySelectorAll("#ea-members-list input[type=checkbox]:checked")).map((cb) => cb.value);
+    const data = {
+      name: $("ea-name").value.trim(),
+      group: $("ea-group").value.trim() || "Chuyên môn",
+      role: $("ea-role").value.trim(),
+      prompt: $("ea-prompt").value.trim(),
+      members: members
+    };
+    const msg = $("ea-msg");
+    msg.textContent = "Đang lưu...";
+    try {
+      const res = await fetch(`/api/agents/${encodeURIComponent(slug)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      const j = await res.json();
+      if (res.ok) {
+        msg.textContent = "Đã cập nhật!";
+        $("edit-agent-dialog").close();
+        await loadAgents();
+        if (selectedAgent === slug) {
+          updateActiveAgentUI();
+        }
+      } else {
+        msg.textContent = j.detail || "Lỗi cập nhật";
+      }
+    } catch (err) {
+      msg.textContent = "Lỗi kết nối máy chủ";
+    }
+  };
+}
+
+// Xử lý nút THÊM AGENT (Tải lên file .zip, .md, .skill)
+const btnUpload = $("btn-upload-agent");
+const fileInput = $("agent-file-input");
+if (btnUpload && fileInput) {
+  btnUpload.onclick = () => fileInput.click();
+
+  fileInput.onchange = async () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+
+    let totalImported = 0;
+    let errors = [];
+
+    for (const f of files) {
+      const fd = new FormData();
+      fd.append("file", f);
+      try {
+        const res = await fetch("/api/agents/upload", {
+          method: "POST",
+          body: fd
+        });
+        const j = await res.json();
+        if (res.ok) {
+          totalImported += j.count || 1;
+        } else {
+          errors.push(`${f.name}: ${j.detail || 'Lỗi không xác định'}`);
+        }
+      } catch (err) {
+        errors.push(`${f.name}: Lỗi kết nối`);
+      }
+    }
+
+    fileInput.value = "";
+    await loadAgents();
+
+    if (totalImported > 0) {
+      alert(`Đã tích hợp thành công ${totalImported} Agent vào hệ thống!`);
+    }
+    if (errors.length) {
+      alert("Một số tệp không thể tích hợp:\n" + errors.join("\n"));
+    }
+  };
+}
+
+// Modal Cấu hình nhóm & Workflow Agent Tổng
+if ($("cg-close")) $("cg-close").onclick = () => $("config-group-dialog").close();
+
+if ($("cgf")) {
+  $("cgf").onsubmit = async (e) => {
+    e.preventDefault();
+    const oldName = $("cg-old-name").value;
+    const name = $("cg-name").value.trim();
+    const role = $("cg-role").value.trim();
+    const workflow = $("cg-workflow").value.trim();
+    if (!name) return;
+
+    const msg = $("cg-msg");
+    msg.textContent = "Đang lưu cấu hình...";
+    try {
+      const res = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ old_name: oldName, name, role, workflow })
+      });
+      const j = await res.json();
+      if (res.ok) {
+        msg.textContent = "Đã lưu thành công!";
+        $("config-group-dialog").close();
+
+        if (selectedAgent === ("group:" + oldName)) {
+          selectedAgent = "group:" + name;
+          localStorage.setItem("kuro_active_agent", selectedAgent);
+        }
+
+        await loadAgents();
+      } else {
+        msg.textContent = j.detail || "Lỗi lưu cấu hình nhóm";
+      }
+    } catch (err) {
+      msg.textContent = "Lỗi kết nối máy chủ";
+    }
+  };
+}
 
 // Cài đặt hệ thống
 let modelTheoAi = {};
@@ -1484,12 +2014,154 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+// ==========================================
+// WORKSPACE MANAGER (QUẢN LÝ THƯ MỤC DỰ ÁN)
+// ==========================================
+let currentWorkspace = { path: "", name: "" };
+let recentWorkspaces = [];
+
+async function loadWorkspaces() {
+  try {
+    const res = await fetch("/api/workspaces");
+    if (!res.ok) return;
+    const data = await res.json();
+    currentWorkspace = {
+      path: data.active,
+      name: data.name
+    };
+    recentWorkspaces = data.recent || [];
+    updateWorkspaceUI();
+  } catch (err) {
+    console.error("Lỗi nạp workspace:", err);
+  }
+}
+
+function updateWorkspaceUI() {
+  const nameEl = $("ws-active-name");
+  const pathEl = $("ws-active-path");
+  const hdrNameEl = $("header-ws-name");
+  if (nameEl) nameEl.textContent = currentWorkspace.name || "Dự án";
+  if (pathEl) {
+    pathEl.textContent = currentWorkspace.path || "...";
+    pathEl.title = currentWorkspace.path || "";
+  }
+  if (hdrNameEl) hdrNameEl.textContent = currentWorkspace.name || "Dự án";
+}
+
+function renderRecentWorkspaces() {
+  const listEl = $("ws-recent-list");
+  if (!listEl) return;
+  listEl.innerHTML = "";
+
+  if (!recentWorkspaces || recentWorkspaces.length === 0) {
+    listEl.innerHTML = `<div style="color:var(--muted); font-size:12px; padding:12px; text-align:center;">Chưa có lịch sử thư mục dự án nào.</div>`;
+    return;
+  }
+
+  recentWorkspaces.forEach((ws) => {
+    const isAct = currentWorkspace && currentWorkspace.path.toLowerCase() === ws.path.toLowerCase();
+    const item = document.createElement("div");
+    item.className = "ws-recent-item " + (isAct ? "active" : "");
+    item.innerHTML = `
+      <div class="ws-recent-left">
+        <span style="font-size:18px;">${isAct ? "💼" : "📂"}</span>
+        <div class="ws-recent-meta">
+          <div class="ws-recent-name">${DOMPurify.sanitize(ws.name || ws.path)}</div>
+          <div class="ws-recent-path">${DOMPurify.sanitize(ws.path)}</div>
+        </div>
+      </div>
+      <div class="ws-recent-actions">
+        ${isAct ? '<span class="ws-active-badge">Đang mở</span>' : '<button class="btn-ws-switch" type="button">MỞ</button>'}
+        <button class="btn-recent-del" type="button" title="Xóa khỏi danh sách gần đây">✕</button>
+      </div>
+    `;
+
+    item.onclick = async (e) => {
+      if (e.target.closest(".btn-recent-del")) {
+        e.stopPropagation();
+        await removeRecentWorkspace(ws.path);
+        return;
+      }
+      if (!isAct) {
+        await switchWorkspace(ws.path, ws.name);
+      }
+    };
+
+    listEl.appendChild(item);
+  });
+}
+
+function openWorkspaceDialog() {
+  const errEl = $("ws-open-error");
+  if (errEl) errEl.style.display = "none";
+  $("ws-input-path").value = currentWorkspace.path || "";
+  renderRecentWorkspaces();
+  $("workspace-dialog").showModal();
+}
+
+async function switchWorkspace(path, name) {
+  if (!path) return;
+  try {
+    const res = await fetch("/api/workspaces/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: path, name: name, create: true })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || "Không thể mở thư mục này");
+    }
+
+    currentWorkspace = {
+      path: data.active,
+      name: data.name
+    };
+    recentWorkspaces = data.recent || [];
+    updateWorkspaceUI();
+
+    // 1. Làm mới cây thư mục tệp tin của dự án mới
+    fsExpanded.clear();
+    await refreshFsTree();
+
+    // 2. Chuyển đổi và cô lập lịch sử hội thoại của Agent theo dự án mới
+    await loadSessions(selectedAgent);
+
+    $("workspace-dialog").close();
+  } catch (err) {
+    const errEl = $("ws-open-error");
+    if (errEl) {
+      errEl.textContent = err.message;
+      errEl.style.display = "block";
+    }
+  }
+}
+
+async function removeRecentWorkspace(path) {
+  try {
+    const res = await fetch(`/api/workspaces/recent?path=${encodeURIComponent(path)}`, {
+      method: "DELETE"
+    });
+    const data = await res.json();
+    if (data.ok) {
+      recentWorkspaces = data.recent || [];
+      renderRecentWorkspaces();
+    }
+  } catch (e) {
+    console.error("Lỗi xóa recent workspace:", e);
+  }
+}
+
 // Tải và hiển thị cây thư mục
 async function refreshFsTree() {
   $("fs-status").textContent = "Đang tải...";
   try {
     const res = await fetch(`/api/fs/tree?sub=&show_hidden=${fsShowHidden}`);
     fsRootData = await res.json();
+    if (fsRootData.workspace_name) {
+      currentWorkspace.name = fsRootData.workspace_name;
+      currentWorkspace.path = fsRootData.workspace_path;
+      updateWorkspaceUI();
+    }
     renderFsRoot();
     $("fs-status").textContent = "Đã đồng bộ";
   } catch (err) {
@@ -1503,16 +2175,20 @@ function renderFsRoot() {
   container.innerHTML = "";
   if (!fsRootData || !fsRootData.items) return;
 
-  // Root node: KURO-WORKSPACE
+  const wsName = fsRootData.workspace_name || currentWorkspace.name || "Dự án";
+  const wsPath = fsRootData.workspace_path || currentWorkspace.path || "";
+
+  // Root node: THƯ MỤC DỰ ÁN LÀM VIỆC
   const rootNode = document.createElement("div");
   rootNode.className = "tree-node";
 
   const rootItem = document.createElement("div");
   rootItem.className = "tree-item";
+  rootItem.title = `Thư mục làm việc: ${wsPath}\nBấm để mở/thu gọn`;
   rootItem.innerHTML = `
     <span class="tree-caret open">▶</span>
-    <span class="tree-icon">📂</span>
-    <strong class="tree-name" style="color:var(--amber);">KURO (DỰ ÁN)</strong>
+    <span class="tree-icon">💼</span>
+    <strong class="tree-name" style="color:var(--amber); text-transform:uppercase;">${DOMPurify.sanitize(wsName)} (DỰ ÁN)</strong>
   `;
 
   const rootChildren = document.createElement("div");
@@ -1524,7 +2200,6 @@ function renderFsRoot() {
     const isOpen = rootChildren.style.display !== "none";
     rootChildren.style.display = isOpen ? "none" : "flex";
     rootItem.querySelector(".tree-caret").className = "tree-caret " + (isOpen ? "" : "open");
-    rootItem.querySelector(".tree-icon").textContent = isOpen ? "📁" : "📂";
   };
 
   rootNode.appendChild(rootItem);
@@ -1623,7 +2298,7 @@ $("fs-search").oninput = () => {
   if (fsRootData) renderFsRoot();
 };
 
-// Toolbar Explorer
+// Toolbar Explorer & Workspace Manager
 $("btn-fs-refresh").onclick = refreshFsTree;
 $("btn-fs-collapse").onclick = () => {
   fsExpanded.clear();
@@ -1634,12 +2309,48 @@ $("btn-fs-hidden").onclick = () => {
   $("btn-fs-hidden").style.color = fsShowHidden ? "var(--cyan)" : "var(--muted)";
   refreshFsTree();
 };
-$("btn-fs-brain").onclick = async () => {
-  fsExpanded.add("brains");
-  fsExpanded.add("brains/Brain Default");
-  switchSidebarTab("explorer");
-  await refreshFsTree();
-};
+
+if ($("btn-fs-workspace")) $("btn-fs-workspace").onclick = openWorkspaceDialog;
+if ($("ws-banner")) $("ws-banner").onclick = openWorkspaceDialog;
+if ($("btn-ws-banner-switch")) $("btn-ws-banner-switch").onclick = (e) => { e.stopPropagation(); openWorkspaceDialog(); };
+if ($("btn-fs-workspace-footer")) $("btn-fs-workspace-footer").onclick = openWorkspaceDialog;
+if ($("btn-workspace-header")) $("btn-workspace-header").onclick = openWorkspaceDialog;
+
+if ($("btn-close-ws-dialog")) $("btn-close-ws-dialog").onclick = () => $("workspace-dialog").close();
+if ($("btn-close-ws-dialog2")) $("btn-close-ws-dialog2").onclick = () => $("workspace-dialog").close();
+
+if ($("btn-ws-open-submit")) {
+  $("btn-ws-open-submit").onclick = async () => {
+    const p = $("ws-input-path").value.trim();
+    if (!p) {
+      const errEl = $("ws-open-error");
+      if (errEl) {
+        errEl.textContent = "Vui lòng nhập đường dẫn thư mục làm việc.";
+        errEl.style.display = "block";
+      }
+      return;
+    }
+    await switchWorkspace(p);
+  };
+}
+
+if ($("btn-ws-create-sample")) {
+  $("btn-ws-create-sample").onclick = async () => {
+    const projName = prompt("Nhập tên thư mục dự án mới muốn tạo:", "DuAn_CauMyThuan");
+    if (!projName) return;
+    const cleanName = projName.trim().replace(/[\/\\:*?"<>|]/g, "_");
+    const samplePath = `C:\\Kuro-os\\Kuro\\projects\\${cleanName}`;
+    $("ws-input-path").value = samplePath;
+    await switchWorkspace(samplePath, cleanName);
+  };
+}
+
+if ($("btn-fs-brain")) {
+  $("btn-fs-brain").onclick = async () => {
+    switchSidebarTab("explorer");
+    await refreshFsTree();
+  };
+}
 
 // Mở modal xem trước tệp tin
 async function openFilePreview(filePath, fileName, ext) {
@@ -1785,8 +2496,10 @@ if ("serviceWorker" in navigator) {
 // Khởi chạy
 connect();
 loadSkills();
-loadAgents().then(() => {
-  loadSessions(selectedAgent);
+loadWorkspaces().then(async () => {
+  await loadAgents();
+  await loadSessions(selectedAgent);
+  await refreshFsTree();
 });
 loadModels().catch(() => {});
 checkUpdate().catch(() => {});

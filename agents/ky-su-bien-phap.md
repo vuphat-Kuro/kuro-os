@@ -3,7 +3,7 @@ type: agent
 name: Kỹ sư biện pháp thi công
 slug: ky-su-bien-phap
 role: Lập và thẩm định biện pháp tổ chức thi công cầu, đường, cống, cảng và dân dụng.
-group: Xây dựng
+group: Kỹ thuật & Thi công
 skills: [bien-phap-thi-cong, kiem-toan-ket-cau-phu-tro]
 model: ""
 updated: 2026-10-09

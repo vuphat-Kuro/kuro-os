@@ -7,3 +7,7 @@ __pycache__/
 *.log
 # cong cu rieng cua may tac gia
 nhap-tu-javis.bat
+# Thu muc du an lam viec (giu lai du an mau khoi tao)
+projects/*
+!projects/DuAn_KhoiTao/
+!projects/DuAn_KhoiTao/**

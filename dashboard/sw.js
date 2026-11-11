@@ -1,46 +1,34 @@
 // Kuro OS Service Worker (PWA)
-const CACHE_NAME = "kuro-os-v1";
-const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/app.js",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/apple-touch-icon.png",
-  "/favicon.png"
-];
+const CACHE_NAME = "kuro-os-v3";
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn("[SW] Cache addAll skipped for some assets:", err);
-      });
-    })
-  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((k) => {
-          if (k !== CACHE_NAME) return caches.delete(k);
-        })
-      );
+      return Promise.all(keys.map((k) => caches.delete(k)));
     })
   );
   self.clients.claim();
 });
 
-// Network-first strategy for dynamic chat and APIs
+// Network-first: Luôn lấy từ máy chủ, chỉ fallback sang cache khi mất mạng hoàn toàn
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || e.request.url.includes("/api/") || e.request.url.includes("/ws")) {
-    return; // Pass through to network
+    return;
   }
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    fetch(e.request)
+      .then((res) => {
+        // Cập nhật ngầm vào cache
+        if (res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

@@ -3,7 +3,7 @@ type: agent
 name: Điều phối BIM
 slug: dieu-phoi-bim
 role: Quản lý BIM dự án, CDE theo ISO 19650 và viết script tự động hoá Revit, Tekla, Dynamo.
-group: Xây dựng
+group: BIM & Số hóa
 tags: [Xây dựng]
 skills: [bim-quan-ly-du-an, bim-automation, cde-dong-bo]
 model: ""

@@ -145,6 +145,73 @@
   .fp-body { flex:1; overflow:auto; padding:20px; font:13.5px/1.6 var(--body); }
   .fp-body pre { margin:0; font:12.5px/1.5 Consolas, monospace; color:var(--text); white-space:pre-wrap; }
 
+  /* Workspace Banner & Dialog Styles */
+  .workspace-current-banner {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin:8px 12px 4px; padding:8px 10px; background:rgba(34,211,238,.06);
+    border:1px solid rgba(34,211,238,.22); border-radius:5px; cursor:pointer;
+    transition:all .18s ease;
+  }
+  .workspace-current-banner:hover {
+    background:rgba(34,211,238,.12); border-color:var(--cyan); box-shadow:0 0 10px rgba(34,211,238,.15);
+  }
+  .ws-banner-left { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
+  .ws-banner-icon { font-size:18px; flex:none; }
+  .ws-banner-meta { min-width:0; flex:1; }
+  .ws-banner-name {
+    font:700 12.5px/1.2 var(--hud); letter-spacing:.06em; color:var(--cyan-soft);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .ws-banner-path {
+    font:11px/1.3 "Consolas", monospace; color:var(--muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .btn-ws-switch {
+    padding:3px 8px; font:700 10px/1 var(--hud); letter-spacing:.08em;
+    background:rgba(34,211,238,.15); border:1px solid rgba(34,211,238,.35);
+    color:var(--cyan-soft); border-radius:3px; cursor:pointer; flex:none;
+    transition:all .15s;
+  }
+  .btn-ws-switch:hover { background:var(--cyan); color:#031018; }
+
+  .btn-ws-tag {
+    display:inline-flex; align-items:center; gap:5px; padding:5px 10px;
+    font:600 11.5px/1 var(--hud); letter-spacing:.06em; color:var(--cyan-soft);
+    background:rgba(34,211,238,.08); border:1px solid rgba(34,211,238,.25);
+    border-radius:3px; cursor:pointer; transition:all .15s;
+  }
+  .btn-ws-tag:hover { background:rgba(34,211,238,.18); border-color:var(--cyan); }
+
+  /* Workspace Dialog */
+  #workspace-dialog { width:min(640px, calc(100vw - 32px)); max-height:85vh; padding:0; border:1px solid var(--line-hi); background:var(--panel-solid); color:var(--text); box-shadow:0 12px 40px rgba(0,0,0,.85); }
+  .workspace-dialog-wrap { display:flex; flex-direction:column; padding:20px 24px; gap:16px; }
+  .ws-open-box { display:flex; flex-direction:column; gap:8px; background:rgba(0,0,0,.25); padding:12px; border:1px solid var(--line); border-radius:5px; }
+  .ws-input-row { display:flex; gap:8px; }
+  .ws-input-row input {
+    flex:1; background:rgba(5,12,20,.8); border:1px solid var(--line-hi); padding:8px 12px;
+    font:13px/1.4 "Consolas", monospace; color:var(--text); outline:none; transition:border-color .15s;
+  }
+  .ws-input-row input:focus { border-color:var(--cyan); box-shadow:0 0 8px rgba(34,211,238,.2); }
+  .ws-quick-actions { display:flex; justify-content:flex-end; gap:10px; }
+  .ws-recent-section { display:flex; flex-direction:column; gap:8px; }
+  .ws-recent-title { font:700 11px/1 var(--hud); letter-spacing:.14em; color:var(--amber); text-transform:uppercase; }
+  .ws-recent-list { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; padding-right:4px; }
+  .ws-recent-item {
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px;
+    background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:4px; cursor:pointer;
+    transition:all .15s ease;
+  }
+  .ws-recent-item:hover { background:rgba(34,211,238,.08); border-color:rgba(34,211,238,.3); }
+  .ws-recent-item.active { background:rgba(34,211,238,.14); border-color:var(--cyan); }
+  .ws-recent-left { display:flex; align-items:center; gap:10px; min-width:0; flex:1; }
+  .ws-recent-meta { min-width:0; flex:1; }
+  .ws-recent-name { font:600 12.5px/1.2 var(--hud); color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ws-recent-path { font:11px/1.3 "Consolas", monospace; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ws-recent-actions { display:flex; align-items:center; gap:6px; flex:none; }
+  .ws-active-badge { font:700 9px/1 var(--hud); padding:2px 6px; border-radius:2px; background:rgba(34,211,238,.2); color:var(--cyan-soft); border:1px solid rgba(34,211,238,.4); text-transform:uppercase; }
+  .btn-recent-del { background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 6px; border-radius:2px; }
+  .btn-recent-del:hover { color:var(--hazard-hi); background:rgba(239,68,68,.15); }
+
   .search-wrap { padding:10px 14px; }
   .search-box {
     display:flex; align-items:center; background:rgba(0,0,0,.35); border:1px solid var(--line); padding:6px 10px; gap:8px;
@@ -156,52 +223,191 @@
   }
   .search-box input::placeholder { color:var(--muted); font-size:12.5px; }
 
-  #agent-list { flex:1; overflow-y:auto; padding:6px 12px 14px; display:flex; flex-direction:column; gap:6px; }
-  .sec-title {
-    padding:10px 8px 4px; font:600 10.5px/1 var(--hud); letter-spacing:.22em; color:var(--muted); text-transform:uppercase;
+  /* Bộ lọc nhóm và Accordion cho Agent List */
+  .agent-filter-bar {
+    display:flex; align-items:center; gap:5px; padding:0 14px 6px; overflow-x:auto; scrollbar-width:none;
   }
+  .agent-filter-bar::-webkit-scrollbar { display:none; }
+  .filter-chip {
+    padding:3px 9px; font:600 10px/1 var(--hud); letter-spacing:.04em; border-radius:12px;
+    background:rgba(255,255,255,.04); border:1px solid var(--line); color:var(--muted);
+    cursor:pointer; white-space:nowrap; transition:all .15s ease; flex:none;
+  }
+  .filter-chip:hover { border-color:var(--cyan); color:var(--text); }
+  .filter-chip.active {
+    background:rgba(34,211,238,.14); border-color:var(--cyan); color:var(--cyan-soft);
+    box-shadow:0 0 8px rgba(34,211,238,.15);
+  }
+  .agent-actions-row {
+    display:flex; align-items:center; justify-content:space-between; padding:4px 14px 6px;
+    font:600 10px/1 var(--hud); letter-spacing:.1em; color:var(--muted); text-transform:uppercase;
+  }
+  .agent-actions-btns { display:flex; align-items:center; gap:6px; }
+  .btn-text-action {
+    background:none; border:none; color:var(--muted); font:inherit; cursor:pointer; padding:2px 0;
+    transition:color .15s;
+  }
+  .btn-text-action:hover { color:var(--cyan-soft); }
+
+  #agent-list {
+    flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    padding: 4px 10px 20px; display: flex; flex-direction: column; gap: 8px;
+  }
+
+  /* Accordion Group Card */
+  .agent-group {
+    display: flex; flex-direction: column; flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.22);
+    border-radius: 6px; overflow: hidden; transition: border-color .2s;
+  }
+  .agent-group:hover { border-color: rgba(34,211,238,.28); }
+  .agent-group.sys-group { border-color: rgba(251,191,36,.22); }
+  .agent-group.sys-group:hover { border-color: rgba(251,191,36,.45); }
+
+  .agent-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; cursor: pointer; user-select: none;
+    background: rgba(255,255,255,.04); transition: background .18s;
+  }
+  .agent-group-header:hover { background: rgba(34,211,238,.08); }
+  .agent-group.sys-group .agent-group-header:hover { background: rgba(251,191,36,.08); }
+
+  .agent-group-title {
+    display: flex; align-items: center; gap: 7px;
+    font: 600 11px/1.2 var(--hud); letter-spacing: .08em; color: var(--text); text-transform: uppercase;
+    min-width: 0;
+  }
+  .agent-group-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-group-icon { font-size: 13px; flex: none; opacity: .95; }
+  .agent-group-meta { display: flex; align-items: center; gap: 6px; flex: none; }
+  .agent-group-btn {
+    display: none; background: none; border: none; color: var(--muted);
+    font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 3px; transition: all .15s;
+  }
+  .agent-group-header:hover .agent-group-btn { display: inline-flex; }
+  .agent-group-btn:hover { color: var(--cyan-soft); background: rgba(34,211,238,.15); }
+
+  .agent-group-chat-btn {
+    padding: 2px 7px; font: 600 9.5px/1 var(--hud); letter-spacing: .08em; text-transform: uppercase;
+    border-radius: 3px; background: rgba(34,211,238,.14); color: var(--cyan-soft);
+    border: 1px solid var(--cyan); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    transition: all .15s;
+  }
+  .agent-group-chat-btn:hover {
+    background: var(--cyan); color: #000; box-shadow: 0 0 10px rgba(34,211,238,.5);
+  }
+  .agent-group.is-coordinator { border-color: rgba(34,211,238,.35); }
+  .agent-group.is-active-lead {
+    border-color: var(--cyan); box-shadow: 0 0 12px rgba(34,211,238,.25);
+  }
+  .agent-group.is-active-lead .agent-group-header { background: rgba(34,211,238,.14); }
+
+  .agent-group-count {
+    padding: 1px 6px; font: 600 9.5px/1 var(--hud); border-radius: 10px;
+    background: rgba(255,255,255,.06); color: var(--muted); border: 1px solid var(--line);
+  }
+  .agent-group-chevron {
+    width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center;
+    transition: transform .2s ease; color: var(--muted); font-size: 10px;
+  }
+  .agent-group.collapsed .agent-group-chevron { transform: rotate(-90deg); }
+
+  .agent-group-body {
+    display: flex; flex-direction: column; gap: 4px; padding: 5px;
+  }
+  .agent-group.collapsed .agent-group-body {
+    display: none;
+  }
+
+  /* Thẻ Agent: Gọn gàng thanh lịch, chỉ mở rộng khi chọn */
   .agent-card {
-    display:flex; align-items:flex-start; gap:12px; padding:10px 12px; background:var(--card-bg);
-    border:1px solid var(--line); cursor:pointer; transition:all .18s ease; text-align:left; width:100%;
+    display: flex; flex-direction: column; flex-shrink: 0;
+    padding: 7px 9px; background: var(--card-bg);
+    border: 1px solid var(--line); border-radius: 4px;
+    cursor: pointer; transition: all .18s ease; text-align: left; width: 100%; box-sizing: border-box;
   }
-  .agent-card:hover { background:var(--card-hover); border-color:var(--line-hi); transform:translateX(2px); }
+  .agent-card:hover { background: var(--card-hover); border-color: var(--line-hi); }
   .agent-card.on {
-    background:rgba(34,211,238,.12); border-color:var(--cyan);
-    box-shadow:inset 2px 0 0 var(--cyan), 0 0 14px rgba(34,211,238,.18);
+    background: rgba(34,211,238,.12); border-color: var(--cyan);
+    box-shadow: inset 2px 0 0 var(--cyan), 0 0 12px rgba(34,211,238,.15);
   }
   .agent-card.core-agent.on {
-    background:rgba(251,191,36,.12); border-color:var(--amber);
-    box-shadow:inset 2px 0 0 var(--amber), 0 0 14px rgba(251,191,36,.2);
+    background: rgba(251,191,36,.12); border-color: var(--amber);
+    box-shadow: inset 2px 0 0 var(--amber), 0 0 12px rgba(251,191,36,.18);
+  }
+
+  .agent-row-main {
+    display: flex; align-items: center; gap: 8px; width: 100%;
   }
 
   .agent-avatar {
-    width:38px; height:38px; flex:none; border-radius:8px; display:flex; align-items:center; justify-content:center;
-    background:rgba(16,40,58,.85); border:1px solid var(--line-hi); position:relative;
+    width: 24px; height: 24px; flex: none; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    background: rgba(16,40,58,.85); border: 1px solid var(--line-hi);
   }
-  .agent-avatar svg { width:22px; height:22px; }
-  .agent-card.core-agent .agent-avatar { border-color:var(--amber); background:rgba(40,28,10,.85); }
+  .agent-avatar svg { width: 14px; height: 14px; }
+  .agent-card.core-agent .agent-avatar { border-color: var(--amber); background: rgba(40,28,10,.85); }
 
-  .agent-info { flex:1; min-width:0; }
-  .agent-top-line { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:2px; }
   .agent-name {
-    font:600 13px/1.3 var(--hud); letter-spacing:.04em; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    flex: 1; font: 600 12px/1.3 var(--hud); letter-spacing: .03em;
+    color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .agent-card.on .agent-name { color:var(--cyan-soft); }
-  .agent-card.core-agent.on .agent-name { color:var(--amber-soft); }
-  .agent-badge-tag {
-    padding:2px 6px; font:600 9.5px/1 var(--hud); letter-spacing:.08em; text-transform:uppercase; border-radius:3px;
-    background:rgba(34,211,238,.12); color:var(--cyan-soft); border:1px solid rgba(34,211,238,.3); flex:none;
+  .agent-card.on .agent-name { color: var(--cyan-soft); font-size: 12.5px; }
+  .agent-card.core-agent.on .agent-name { color: var(--amber-soft); }
+
+  .agent-dot-active {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan); flex: none; display: none;
   }
-  .agent-badge-tag.sys {
-    background:rgba(251,191,36,.14); color:var(--amber); border-color:rgba(251,191,36,.4);
+  .agent-card.on .agent-dot-active { display: block; }
+  .agent-card.core-agent.on .agent-dot-active { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+  /* Chi tiết mô tả và hành động: Chỉ hiển thị khi chọn */
+  .agent-details {
+    display: none; margin-top: 6px; padding-top: 6px;
+    border-top: 1px dashed rgba(255,255,255,.1);
   }
+  .agent-card.on .agent-details {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
   .agent-desc {
-    margin:0; font-size:12px; line-height:1.4; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2;
-    -webkit-box-orient:vertical; overflow:hidden;
+    margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); white-space: normal;
   }
+
+  .agent-card-actions {
+    display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 2px;
+  }
+  .btn-agent-act {
+    padding: 3px 8px; font: 600 10px/1 var(--hud); letter-spacing: .05em; text-transform: uppercase;
+    border-radius: 3px; background: rgba(255,255,255,.05); border: 1px solid var(--line);
+    color: var(--muted); cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .btn-agent-act:hover {
+    color: var(--cyan-soft); border-color: var(--cyan); background: rgba(34,211,238,.1);
+  }
+  .btn-agent-act.danger:hover {
+    color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,.12);
+  }
+
+  /* Bảng chọn Agent thành viên điều phối */
+  .members-select-section { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+  .agent-members-table-wrap {
+    max-height: 160px; overflow-y: auto; border: 1px solid var(--line);
+    background: rgba(0,0,0,.3); border-radius: 4px;
+  }
+  .agent-members-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .agent-members-table th {
+    position: sticky; top: 0; background: #0c1c28; padding: 6px 8px; text-align: left;
+    font: 600 10.5px/1 var(--hud); letter-spacing: .08em; color: var(--cyan-soft);
+    border-bottom: 1px solid var(--line-hi); z-index: 1;
+  }
+  .agent-members-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: middle; }
+  .agent-members-table tr:hover { background: rgba(34,211,238,.07); }
+  .agent-members-table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--cyan); }
 
   .sidebar-bottom {
-    padding:10px 14px 14px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; background:var(--panel-solid);
+    flex-shrink: 0; padding: 10px 14px 14px; border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 8px; background: var(--panel-solid);
   }
   .btn-create-agent {
     width:100%; padding:9px 12px; font:600 12px/1 var(--hud); letter-spacing:.14em; text-transform:uppercase;
@@ -738,7 +944,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.4.0</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.5.0</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -759,18 +965,39 @@
     <div class="search-wrap">
       <div class="search-box">
         <span>🔍</span>
-        <input id="agent-search" type="search" placeholder="Tất cả cộng sự..." aria-label="Tìm kiếm cộng sự">
+        <input id="agent-search" type="search" placeholder="Tìm kiếm cộng sự..." aria-label="Tìm kiếm cộng sự">
+      </div>
+    </div>
+
+    <!-- Thanh lọc nhanh theo nhóm (Filter Pills) -->
+    <div class="agent-filter-bar" id="agent-filter-chips">
+      <!-- Sinh động: Tất cả, Kỹ thuật & Thi công, Quản lý & Hồ sơ... -->
+    </div>
+
+    <!-- Thanh điều khiển mở/thu gọn nhóm -->
+    <div class="agent-actions-row">
+      <span id="agent-filter-status">TẤT CẢ (7)</span>
+      <div class="agent-actions-btns">
+        <button id="btn-agents-expand-all" class="btn-text-action" type="button" title="Mở rộng tất cả các nhóm">Mở hết</button>
+        <span style="opacity:0.3">|</span>
+        <button id="btn-agents-collapse-all" class="btn-text-action" type="button" title="Thu gọn tất cả các nhóm">Thu gọn</button>
       </div>
     </div>
 
     <div id="agent-list">
-      <!-- Render động các Agent từ /api/agents -->
+      <!-- Render động các Agent theo Accordion Group từ /api/agents -->
     </div>
 
     <div class="sidebar-bottom">
-      <button id="btn-create-agent" type="button" class="btn-create-agent">
-        <span>+</span> Tạo cộng sự mới
-      </button>
+      <div style="display:flex; gap:6px;">
+        <button id="btn-create-agent" type="button" class="btn-create-agent" style="flex:1;">
+          <span>+</span> TẠO AGENT
+        </button>
+        <button id="btn-upload-agent" type="button" class="btn-create-agent" style="flex:1;" title="Tải bộ Agent có sẵn (.zip, .md, .skill)">
+          <span>📥</span> THÊM AGENT
+        </button>
+        <input type="file" id="agent-file-input" accept=".zip,.md,.skill" style="display:none;" multiple>
+      </div>
       <div class="sys-status-row">
         <div><span class="dot"></span>Kết nối <span class="val" id="net">Đang nối</span></div>
         <div>AI <span class="val" id="core">-</span></div>
@@ -784,11 +1011,25 @@
     <div class="explorer-toolbar">
       <span class="explorer-title">EXPLORER // DỰ ÁN</span>
       <div class="explorer-actions">
+        <button id="btn-fs-workspace" class="btn-tool-sm" type="button" title="Mở hoặc đổi thư mục làm việc (Workspace)">📂</button>
         <button id="btn-fs-refresh" class="btn-tool-sm" type="button" title="Làm mới cây thư mục">🔄</button>
         <button id="btn-fs-collapse" class="btn-tool-sm" type="button" title="Thu gọn tất cả">⊖</button>
         <button id="btn-fs-hidden" class="btn-tool-sm" type="button" title="Hiện/ẩn tệp ẩn">👁</button>
       </div>
     </div>
+
+    <!-- Banner Thư mục làm việc hiện hành -->
+    <div class="workspace-current-banner" id="ws-banner" title="Bấm để đổi thư mục dự án làm việc">
+      <div class="ws-banner-left">
+        <span class="ws-banner-icon">💼</span>
+        <div class="ws-banner-meta">
+          <div class="ws-banner-name" id="ws-active-name">DuAn_KhoiTao</div>
+          <div class="ws-banner-path" id="ws-active-path">C:\Kuro-os\Kuro\projects\DuAn_KhoiTao</div>
+        </div>
+      </div>
+      <button type="button" class="btn-ws-switch" id="btn-ws-banner-switch">ĐỔI</button>
+    </div>
+
     <div class="search-wrap" style="padding:6px 14px;">
       <div class="search-box">
         <span>🔍</span>
@@ -800,7 +1041,7 @@
     </div>
     <div class="explorer-footer">
       <span id="fs-status">Sẵn sàng</span>
-      <button id="btn-fs-brain" class="btn-link" type="button" title="Xem thư mục Brain">🧠 Brain</button>
+      <button id="btn-fs-workspace-footer" class="btn-link" type="button" title="Đổi thư mục làm việc">📂 Đổi thư mục</button>
     </div>
   </div>
 </aside>
@@ -821,10 +1062,13 @@
     </div>
 
     <div class="header-controls">
+      <button id="btn-workspace-header" class="btn-hdr btn-ws-tag" type="button" title="Thư mục làm việc hiện tại của dự án. Bấm để chuyển dự án.">
+        📁 <span id="header-ws-name">DuAn_KhoiTao</span>
+      </button>
       <button id="new" class="btn-hdr primary" type="button">+ Phiên mới</button>
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Kiểm tra phiên bản & cập nhật">
-        <span class="ver-dot"></span><span id="header-version-text">v1.4.0</span>
+        <span class="ver-dot"></span><span id="header-version-text">v1.5.0</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ màn hình & Kết nối điện thoại di động">
         📱 <span>Đồng bộ ĐT</span>
@@ -1024,31 +1268,132 @@
   </div>
 </aside>
 
-<!-- DIALOG TẠO CỘNG SỰ MỚI -->
+<!-- DATALIST CÁC NHÓM NGHIỆP VỤ -->
+<datalist id="agent-groups-datalist">
+  <option value="Kỹ thuật & Thi công">
+  <option value="Quản lý & Hồ sơ">
+  <option value="BIM & Số hóa">
+  <option value="Tổ đội & Quy trình">
+</datalist>
+
+<!-- DIALOG TẠO AGENT MỚI -->
 <dialog id="create-agent-dialog" aria-labelledby="ca-title">
-  <form id="caf" class="dialog-form">
-    <h2 id="ca-title">TẠO CỘNG SỰ MỚI</h2>
+  <form id="caf" class="dialog-form" style="max-width:540px;">
+    <h2 id="ca-title">TẠO AGENT MỚI</h2>
     <p class="sub">Tạo một AI Agent chuyên trách mới cho hệ thống kỹ sư hạ tầng của bạn.</p>
 
-    <label for="ca-name">Tên cộng sự</label>
+    <label for="ca-name">Tên Agent</label>
     <input id="ca-name" name="name" placeholder="Ví dụ: Kỹ sư Trắc địa & Quan trắc" required spellcheck="false">
 
     <label for="ca-slug">Mã định danh (Slug không dấu)</label>
     <input id="ca-slug" name="slug" placeholder="Ví dụ: ky-su-trac-dia" required spellcheck="false">
 
-    <label for="ca-group">Nhóm nghiệp vụ</label>
-    <input id="ca-group" name="group" placeholder="Ví dụ: Hiện trường / Pháp lý / Thiết kế" value="Chuyên môn">
+    <label for="ca-group">Nhóm nghiệp vụ (chọn hoặc gõ nhóm mới)</label>
+    <input id="ca-group" name="group" list="agent-groups-datalist" placeholder="Chọn hoặc gõ tên nhóm..." value="Chuyên môn">
 
     <label for="ca-role">Chức trách / Vai trò tóm tắt</label>
     <input id="ca-role" name="role" placeholder="Ví dụ: Lập lưới khống chế, xử lý số liệu quan trắc lún và chuyển vị" required spellcheck="false">
 
+    <div class="members-select-section">
+      <label style="margin-bottom:2px;">Agent điều phối / Phối hợp nhóm (Tùy chọn)</label>
+      <small style="color:var(--muted); font-size:11.5px; margin-bottom:6px;">Tích chọn các Agent mà Agent này sẽ chỉ huy hoặc phối hợp chung một nhiệm vụ:</small>
+      <div class="agent-members-table-wrap">
+        <table class="agent-members-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">Chọn</th>
+              <th>Cộng sự</th>
+              <th>Chuyên môn</th>
+            </tr>
+          </thead>
+          <tbody id="ca-members-list">
+            <!-- Render động danh sách agent có sẵn -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <label for="ca-prompt">Hướng dẫn nghiệp vụ chi tiết (System Prompt)</label>
-    <textarea id="ca-prompt" name="prompt" rows="5" placeholder="Quy trình thực hiện, tiêu chuẩn áp dụng, yêu cầu kiểm toán và định dạng báo cáo..."></textarea>
+    <textarea id="ca-prompt" name="prompt" rows="4" placeholder="Quy trình thực hiện, tiêu chuẩn áp dụng, yêu cầu kiểm toán và định dạng báo cáo..."></textarea>
 
     <div class="foot">
       <span id="ca-msg" role="status"></span>
       <button class="btn" type="button" id="ca-close">Đóng</button>
-      <button class="btn main" type="submit">Lưu cộng sự</button>
+      <button class="btn main" type="submit">Lưu Agent</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG CHỈNH SỬA AGENT -->
+<dialog id="edit-agent-dialog" aria-labelledby="ea-title">
+  <form id="eaf" class="dialog-form" style="max-width:540px;">
+    <h2 id="ea-title">CHỈNH SỬA AGENT</h2>
+    <p class="sub">Thay đổi tên, phân nhóm hoặc quy trình hướng dẫn của Agent.</p>
+    <input type="hidden" id="ea-slug" name="slug">
+
+    <label for="ea-name">Tên Agent</label>
+    <input id="ea-name" name="name" required spellcheck="false">
+
+    <label for="ea-group">Nhóm nghiệp vụ (chọn hoặc gõ nhóm mới)</label>
+    <input id="ea-group" name="group" list="agent-groups-datalist" placeholder="Chọn hoặc gõ tên nhóm mới...">
+
+    <label for="ea-role">Chức trách / Vai trò tóm tắt</label>
+    <input id="ea-role" name="role" required spellcheck="false">
+
+    <div class="members-select-section">
+      <label style="margin-bottom:2px;">Agent điều phối / Phối hợp nhóm (Tùy chọn)</label>
+      <small style="color:var(--muted); font-size:11.5px; margin-bottom:6px;">Tích chọn các Agent mà Agent này sẽ chỉ huy hoặc phối hợp chung một nhiệm vụ:</small>
+      <div class="agent-members-table-wrap">
+        <table class="agent-members-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">Chọn</th>
+              <th>Cộng sự</th>
+              <th>Chuyên môn</th>
+            </tr>
+          </thead>
+          <tbody id="ea-members-list">
+            <!-- Render động danh sách agent có sẵn -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <label for="ea-prompt">Hướng dẫn nghiệp vụ chi tiết (System Prompt)</label>
+    <textarea id="ea-prompt" name="prompt" rows="4"></textarea>
+
+    <div class="foot">
+      <span id="ea-msg" role="status"></span>
+      <button class="btn" type="button" id="ea-close">Đóng</button>
+      <button class="btn main" type="submit">Lưu thay đổi</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG CẤU HÌNH NHÓM & AGENT ĐIỀU PHỐI TỔNG -->
+<dialog id="config-group-dialog" aria-labelledby="cg-title">
+  <form id="cgf" class="dialog-form" style="max-width:540px;">
+    <h2 id="cg-title">CẤU HÌNH NHÓM & AGENT TỔNG</h2>
+    <p class="sub">Không nhập workflow: nhóm sắp xếp bình thường. Nhập workflow: nhóm trở thành một Agent Điều phối Tổng để chỉ huy các cộng sự bên dưới.</p>
+    <input type="hidden" id="cg-old-name" name="old_name">
+
+    <label for="cg-name">Tên nhóm nghiệp vụ</label>
+    <input id="cg-name" name="name" required spellcheck="false" placeholder="Ví dụ: Kỹ thuật & Thi công">
+
+    <label for="cg-role">Chức trách Agent tổng (tùy chọn)</label>
+    <input id="cg-role" name="role" placeholder="Ví dụ: Chỉ huy trưởng kỹ thuật hiện trường, điều phối biện pháp và kiểm toán an toàn" spellcheck="false">
+
+    <label for="cg-workflow">Quy trình điều phối (Workflow) của Agent tổng</label>
+    <textarea id="cg-workflow" name="workflow" rows="6" placeholder="Nhập quy trình phối hợp giữa các Agent con...&#10;Ví dụ:&#10;1. Biện pháp thi công lập phương án và mặt bằng cẩu lắp.&#10;2. Kiểm toán kết cấu phụ trợ kiểm tra tải trọng đà giáo ván khuôn.&#10;3. An toàn HSE lập danh mục kiểm tra và điểm dừng an toàn.&#10;4. Trưởng nhóm tổng hợp báo cáo hoàn chỉnh.&#10;&#10;(Để trống = nhóm phân loại bình thường, không kích hoạt Agent tổng)"></textarea>
+
+    <div style="font-size:11.5px; color:var(--muted); line-height:1.45; padding:6px 10px; background:rgba(34,211,238,.05); border:1px dashed rgba(34,211,238,.25); border-radius:4px;">
+      💡 <b>Cơ chế hoạt động:</b> Nếu nhập workflow, nhóm này sẽ xuất hiện nút <b>⚡ AGENT TỔNG</b>. Bạn có thể bấm vào để chat trực tiếp với Agent Trưởng nhóm. AI sẽ tự động đọc toàn bộ năng lực của các Agent con và áp dụng quy trình trên để phối hợp giải quyết bài toán.
+    </div>
+
+    <div class="foot">
+      <span id="cg-msg" role="status"></span>
+      <button class="btn" type="button" id="cg-close">Đóng</button>
+      <button class="btn main" type="submit">Lưu cấu hình nhóm</button>
     </div>
   </form>
 </dialog>
@@ -1150,12 +1495,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.4.0</div>
+        <div class="vc-val" id="vd-current-ver">v1.5.0</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.4.0</div>
+        <div class="vc-val" id="vd-latest-ver">v1.5.0</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
       </div>
     </div>
@@ -1301,6 +1646,51 @@
   </div>
 </dialog>
 
-<script src="app.js?v=18"></script>
+<!-- DIALOG QUẢN LÝ THƯ MỤC DỰ ÁN LÀM VIỆC (WORKSPACE MANAGER) -->
+<dialog id="workspace-dialog" aria-labelledby="wsd-title">
+  <div class="workspace-dialog-wrap">
+    <div class="dialog-header-row" style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div class="dialog-title-group">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:22px;">💼</span>
+          <h2 id="wsd-title" style="margin:0; font:700 15px/1.2 var(--hud); letter-spacing:.08em; color:var(--cyan-soft);">THƯ MỤC DỰ ÁN LÀM VIỆC (WORKSPACE)</h2>
+        </div>
+        <p style="margin:6px 0 0; font-size:12px; color:var(--muted); line-height:1.4;">
+          Chọn thư mục dự án trên máy tính để bắt đầu làm việc. Khi chuyển dự án, cây tệp tin và lịch sử hội thoại của các Agent sẽ được cập nhật tương ứng theo dự án đó.
+        </p>
+      </div>
+      <button class="btn-icon" type="button" id="btn-close-ws-dialog" title="Đóng" style="background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button>
+    </div>
+
+    <!-- KHUNG NHẬP ĐƯỜNG DẪN THƯ MỤC -->
+    <div class="ws-open-box">
+      <label style="font:700 11px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">
+        ĐƯỜNG DẪN THƯ MỤC DỰ ÁN (WORKSPACE FOLDER):
+      </label>
+      <div class="ws-input-row">
+        <input id="ws-input-path" type="text" placeholder="Ví dụ: D:\DuAn_CauMyThuan hoặc C:\Projects\GoiThau1" autocomplete="off" />
+        <button id="btn-ws-open-submit" class="btn-primary" type="button" style="padding:8px 16px; font:700 11.5px/1 var(--hud); background:var(--cyan); color:#031018; border:none; cursor:pointer; text-transform:uppercase;">MỞ DỰ ÁN</button>
+      </div>
+      <div class="ws-quick-actions" style="margin-top:4px;">
+        <button id="btn-ws-create-sample" class="btn-link" type="button" style="font-size:12px;">+ Tạo nhanh thư mục dự án mới</button>
+      </div>
+      <div id="ws-open-error" style="display:none; color:var(--hazard-hi); font-size:12px; margin-top:4px;"></div>
+    </div>
+
+    <!-- DANH SÁCH DỰ ÁN GẦN ĐÂY -->
+    <div class="ws-recent-section">
+      <div class="ws-recent-title">DỰ ÁN GẦN ĐÂY (RECENT WORKSPACES):</div>
+      <div id="ws-recent-list" class="ws-recent-list">
+        <!-- Render danh sách recent projects -->
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; padding-top:8px; border-top:1px solid var(--line);">
+      <button type="button" class="btn-hdr" id="btn-close-ws-dialog2">Đóng</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="app.js?v=23"></script>
 </body>
 </html>

@@ -119,7 +119,7 @@ def _agy_event(e: dict, st: dict):
             yield {"type": "text", "text": r["response"]}
 
 
-async def run(kind: str, prompt: str, resume: str | None):
+async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None):
     """Sinh sự kiện cùng khuôn với engine.run_turn; final mang mã hội thoại trần, engine gắn tiền tố id AI."""
     if not find(kind):
         yield {"type": "error", "text": f"Chưa cài `{kind}` trên máy này. Xem hướng dẫn ở ⚙ Cài đặt."}
@@ -127,8 +127,9 @@ async def run(kind: str, prompt: str, resume: str | None):
         return
     cmd, stdin = _cmd(kind, prompt, resume, "Bash" in config.ALLOWED_TOOLS)
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
+    work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(
-        *cmd, cwd=str(config.BRAIN), limit=16 * 1024 * 1024,
+        *cmd, cwd=work_dir, limit=16 * 1024 * 1024,
         stdin=subprocess.PIPE if stdin else subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if stdin:

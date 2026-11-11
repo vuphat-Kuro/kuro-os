@@ -9,6 +9,7 @@ Luồng sự kiện gửi cho giao diện:
 import asyncio
 import json
 from datetime import datetime
+from pathlib import Path
 
 import httpx
 import yaml
@@ -54,10 +55,106 @@ def load_agents() -> dict[str, AgentDefinition]:
     return out
 
 
+GROUPS_FILE = config.STATE / "groups.json"
+
+
+def get_groups_config() -> dict:
+    if GROUPS_FILE.is_file():
+        try:
+            return json.loads(GROUPS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_groups_config(cfg: dict):
+    GROUPS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    GROUPS_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+WORKSPACES_FILE = config.STATE / "workspaces.json"
+
+
+def get_workspaces_config() -> dict:
+    if WORKSPACES_FILE.is_file():
+        try:
+            return json.loads(WORKSPACES_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_workspaces_config(cfg: dict):
+    WORKSPACES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    WORKSPACES_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def get_default_workspace() -> Path:
+    default_dir = config.ROOT / "projects" / "DuAn_KhoiTao"
+    if not default_dir.is_dir():
+        default_dir.mkdir(parents=True, exist_ok=True)
+        readme = default_dir / "README.md"
+        if not readme.exists():
+            readme.write_text(
+                "# DỰ ÁN KHỞI TẠO\n\nĐây là thư mục làm việc của dự án. Bạn có thể lưu bản vẽ, hồ sơ thiết kế, bảng tính Excel, tài liệu QA/QC tại đây để Kuro và các Agent phân tích.",
+                encoding="utf-8"
+            )
+    return default_dir
+
+
+def active_workspace_dir() -> Path:
+    cfg = get_workspaces_config()
+    act = (cfg.get("active") or "").strip()
+    if act and Path(act).is_dir():
+        return Path(act).resolve()
+    def_ws = get_default_workspace()
+    save_workspaces_config({
+        "active": str(def_ws.resolve()),
+        "recent": [
+            {
+                "name": def_ws.name,
+                "path": str(def_ws.resolve()),
+                "last_opened": int(datetime.now().timestamp())
+            }
+        ]
+    })
+    return def_ws.resolve()
+
+
 def agent_persona(slug: str) -> tuple[dict, str]:
-    """Lấy metadata và nội dung hướng dẫn của agent từ file markdown."""
+    """Lấy metadata và nội dung hướng dẫn của agent từ file markdown hoặc nhóm điều phối."""
     if not slug or slug == "kuro-core":
         return {"name": "Kuro Core", "role": "Trợ lý hệ thống kỹ sư hạ tầng"}, ""
+
+    # Nếu là Agent Điều phối Tổng của một Nhóm
+    if slug.startswith("group:"):
+        group_name = slug[6:].strip()
+        cfg = get_groups_config()
+        grp_data = cfg.get(group_name) or {}
+        workflow = (grp_data.get("workflow") or "").strip()
+        role = (grp_data.get("role") or "").strip() or f"Agent điều phối tổng nhóm {group_name}"
+
+        # Tìm các agent thành viên con trong nhóm
+        all_agents = list_agents_info()
+        member_slugs = [a["slug"] for a in all_agents if a.get("group") == group_name and not a["slug"].startswith("group:")]
+
+        meta = {
+            "name": f"Agent Tổng - {group_name}",
+            "slug": slug,
+            "role": role,
+            "group": group_name,
+            "workflow": workflow,
+            "members": member_slugs,
+            "is_group_lead": True
+        }
+        body = f"""Bạn là **Agent Điều phối Tổng** (Lead Coordinator) của nhóm chuyên môn **{group_name}**.
+Trách nhiệm của bạn là nhận bài toán tổng thể từ kỹ sư hạ tầng, vận hành theo quy trình (workflow) dưới đây để chỉ huy và phối hợp nhịp nhàng các cộng sự trong nhóm.
+
+### QUY TRÌNH PHỐI HỢP & WORKFLOW ĐIỀU PHỐI CỦA NHÓM:
+{workflow or "(Chưa có quy trình cụ thể, hãy tự động phối hợp các chuyên môn con phù hợp)"}
+"""
+        return meta, body
+
     for d in (config.BRAIN / "agents", config.ROOT / "agents"):
         p = d / f"{slug}.md"
         if p.is_file():
@@ -81,6 +178,8 @@ def list_agents_info() -> list[dict]:
         "group": "Hệ thống",
         "badge": "Hệ thống",
         "icon": "kuro",
+        "members": [],
+        "is_team": False,
         "is_core": True,
         "pinned": True,
     }]
@@ -97,19 +196,49 @@ def list_agents_info() -> list[dict]:
             role = meta.get("role") or ""
             group = meta.get("group") or "Chuyên môn"
             skills = meta.get("skills") or []
+            members = meta.get("members") or []
+            is_team = bool(members)
             seen.add(slug)
             agents.append({
                 "slug": slug,
                 "name": name,
                 "role": role,
                 "group": group,
-                "badge": group,
+                "badge": "Điều phối" if is_team else group,
                 "skills": skills,
-                "icon": slug,
+                "members": members,
+                "is_team": is_team,
+                "icon": "team" if is_team else slug,
                 "is_core": False,
                 "pinned": True,
             })
     return agents
+
+
+def agent_prompt_block(agent: str) -> str:
+    """Xây dựng nội dung vai trò chuyên môn, hỗ trợ gộp tri thức các agent con nếu là agent điều phối/nhóm."""
+    if not agent or agent == "kuro-core":
+        return ""
+    meta, body = agent_persona(agent)
+    if not meta and not body:
+        return ""
+    name = meta.get("name") or agent
+    role = meta.get("role") or ""
+    members = meta.get("members") or []
+
+    lines = [f"\n\n## VAI TRÒ CHUYÊN MÔN CỦA BẠN TRONG PHIÊN NÀY\nBạn đang đảm nhiệm vai trò: **{name}**\nChức trách: {role}\nQuy trình thực hiện:\n{body}"]
+
+    if members:
+        lines.append("\n\n### DANH SÁCH CÁC CỘNG SỰ & QUY TRÌNH BẠN ĐIỀU PHỐI:")
+        lines.append("Bản chất bạn là một Agent Điều phối (Team Lead). Bạn chỉ huy và kết hợp toàn diện năng lực của các Agent thành viên sau:")
+        for idx, m_slug in enumerate(members, 1):
+            m_meta, m_body = agent_persona(m_slug)
+            m_name = m_meta.get("name") or m_slug
+            m_role = m_meta.get("role") or ""
+            lines.append(f"\n{idx}. **{m_name}** ({m_role}):\n{m_body}")
+        lines.append("\n*Yêu cầu điều phối:* Khi nhận nhiệm vụ từ người dùng, hãy áp dụng quy trình và góc nhìn kỹ thuật của từng thành viên liên quan, kiểm tra chéo và đưa ra giải pháp toàn diện, chặt chẽ!")
+
+    return "\n".join(lines)
 
 
 def system_append() -> str:
@@ -122,15 +251,13 @@ def system_append() -> str:
     return "\n\n".join(parts)
 
 
-def options(claude_id: str | None, agent: str = "kuro-core") -> ClaudeAgentOptions:
-    extra = ""
-    if agent and agent != "kuro-core":
-        meta, body = agent_persona(agent)
-        if meta or body:
-            extra = f"\n\n## VAI TRÒ CHUYÊN MÔN:\n**{meta.get('name', agent)}**: {meta.get('role', '')}\n{body}"
+def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None) -> ClaudeAgentOptions:
+    extra = agent_prompt_block(agent)
+    ws_path = cwd or str(active_workspace_dir())
+    ws_note = f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\nĐường dẫn thư mục dự án: `{ws_path}`.\nKhi cần đọc, tạo hoặc kiểm toán hồ sơ kỹ thuật, bản vẽ, bảng tính hay script, hãy thực hiện trong thư mục này."
     return ClaudeAgentOptions(
-        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra},
-        cwd=str(config.BRAIN),
+        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note},
+        cwd=ws_path,
         model=config.MODEL or None,
         env=config.provider_env(),
         resume=claude_id,
@@ -166,9 +293,11 @@ def skill_index() -> str:
     return "\n".join(out)
 
 
-def cli_prompt(text: str, first: bool, agent: str = "kuro-core") -> str:
+def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None) -> str:
+    ws_path = ws_dir or str(active_workspace_dir())
+    ws_note = f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC\nThư mục hiện hành: `{ws_path}`."
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
-        return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}.)\n\n{text}"
+        return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n\n{text}"
     if "Bash" in config.ALLOWED_TOOLS:
         calc_rule = ("Không có tool tinh_python: viết script Python vào thư mục tinh-toan/, chạy bằng shell, ghi đường "
                      "dẫn script vào câu trả lời.")
@@ -176,15 +305,8 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core") -> str:
         calc_rule = ("Phiên này KHÔNG được ghi file và KHÔNG được chạy lệnh: thử là bị chặn và hỏng lượt trả lời. "
                      "Đọc file thì được nếu công cụ cho phép; không đọc được thì dựa vào mô tả skill ở trên. Phép tính "
                      "làm trực tiếp trong câu trả lời, ghi rõ \"(chưa kiểm bằng script)\" cạnh mỗi kết quả.")
-    agent_info = ""
-    if agent and agent != "kuro-core":
-        meta, body = agent_persona(agent)
-        if meta or body:
-            agent_info = (f"\n\n## VAI TRÒ CHUYÊN MÔN CỦA BẠN TRONG PHIÊN NÀY\n"
-                          f"Bạn đang đảm nhiệm vai trò: **{meta.get('name', agent)}**\n"
-                          f"Chức trách: {meta.get('role', '')}\n"
-                          f"Quy trình và yêu cầu chuyên môn cụ thể:\n{body}\n")
-    return (f"<huong_dan_kuro>\n{system_append()}{agent_info}\n\n## Skill ngành\nCâu hỏi chuyên môn: đọc file SKILL.md phù hợp "
+    agent_info = agent_prompt_block(agent)
+    return (f"<huong_dan_kuro>\n{system_append()}{agent_info}{ws_note}\n\n## Skill ngành\nCâu hỏi chuyên môn: đọc file SKILL.md phù hợp "
             f"TRƯỚC khi trả lời rồi làm theo.\n{skill_index()}\n\n## Tính toán\n{calc_rule}\n</huong_dan_kuro>\n\n"
             "Câu hỏi của người dùng:\n" + text)
 
@@ -255,14 +377,14 @@ def loi_tieng_viet(err: str) -> str:
     return err
 
 
-async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core"):
+async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None):
     """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
     cur = config.PROVIDER or "claude"
     owner, conv = split_conv(claude_id)
     if owner and owner != cur:   # mỗi hãng giữ hội thoại riêng: AI mới không nối được mạch cũ (specs/001 FR-007)
         yield {"type": "text", "text": f"_(Đã đổi sang {config.PROVIDERS.get(cur, {}).get('ten', cur)}: "
                                        "AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
-    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur, agent=agent):
+    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur, agent=agent, cwd=cwd):
         if ev["type"] == "error":
             ev = {**ev, "text": loi_tieng_viet(ev["text"])}
         elif ev["type"] == "final" and ev.get("claude_id"):
@@ -270,13 +392,14 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
         yield ev
 
 
-async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core"):
+async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core", cwd: str | None = None):
+    ws_path = cwd or str(active_workspace_dir())
     if kind := cli_kind():
-        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent), resume):
+        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path), resume, cwd=ws_path):
             yield ev
         return
     try:
-        async for m in query(prompt=prompt, options=options(resume, agent=agent)):
+        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
@@ -295,12 +418,13 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
         yield {"type": "error", "text": f"{type(e).__name__}: {e}"}
 
 
-async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None) -> str:
+async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None) -> str:
     """Một lượt hoàn chỉnh: lưu câu hỏi, chạy, đẩy sự kiện qua emit (nếu có), lưu câu trả lời."""
-    store.ensure(sid, title=text, agent=agent)
+    ws_path = workspace or str(active_workspace_dir())
+    store.ensure(sid, title=text, agent=agent, workspace=ws_path)
     store.add(sid, "user", text)
     shown, final = [], ""
-    async for ev in run_turn(text, (store.get(sid) or {}).get("claude_id"), agent=agent):
+    async for ev in run_turn(text, (store.get(sid) or {}).get("claude_id"), agent=agent, cwd=ws_path):
         if ev["type"] == "text":
             shown.append(ev["text"])
         elif ev["type"] == "error":

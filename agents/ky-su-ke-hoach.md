@@ -3,7 +3,7 @@ type: agent
 name: Kỹ sư kế hoạch - tiến độ và sản lượng
 slug: ky-su-ke-hoach
 role: Lập, kiểm soát tiến độ thi công, báo cáo sản lượng, phân tích EVM và bù tiến độ.
-group: Xây dựng
+group: Quản lý & Hồ sơ
 skills: [tien-do-san-luong, excel-tu-dong-hoa]
 model: ""
 updated: 2026-10-09

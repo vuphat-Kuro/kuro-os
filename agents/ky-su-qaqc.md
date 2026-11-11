@@ -3,7 +3,7 @@ type: agent
 name: Kỹ sư QA/QC - hồ sơ chất lượng
 slug: ky-su-qaqc
 role: Lập ITP, checklist, biên bản nghiệm thu và kiểm soát hồ sơ chất lượng, hoàn công.
-group: Xây dựng
+group: Quản lý & Hồ sơ
 skills: [qc-nghiem-thu-ho-so, word-ho-so-tu-dong]
 model: ""
 updated: 2026-10-09

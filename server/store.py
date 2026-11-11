@@ -33,13 +33,36 @@ def init() -> None:
         _q("ALTER TABLE sessions ADD COLUMN agent TEXT DEFAULT 'kuro-core'")
     except Exception:
         pass
+    try:
+        _q("ALTER TABLE sessions ADD COLUMN workspace TEXT DEFAULT ''")
+    except Exception:
+        pass
+    try:
+        from pathlib import Path
+        import config
+        def_ws = normalize_workspace(str(config.ROOT / "projects" / "DuAn_KhoiTao"))
+        _q("UPDATE sessions SET workspace=? WHERE workspace='' OR workspace IS NULL", (def_ws,))
+    except Exception:
+        pass
 
 
-def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core") -> str:
+def normalize_workspace(ws: str | None) -> str:
+    if not ws:
+        return ""
+    try:
+        from pathlib import Path
+        return Path(ws).resolve().as_posix().lower()
+    except Exception:
+        return ws.strip().replace("\\", "/").lower()
+
+
+def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core", workspace: str = "") -> str:
     sid = sid or uuid.uuid4().hex[:12]
     now = time.time()
     agent = agent or "kuro-core"
-    _q("INSERT OR IGNORE INTO sessions(id,title,agent,created,updated) VALUES(?,?,?,?,?)", (sid, title[:80], agent, now, now))
+    workspace = normalize_workspace(workspace)
+    _q("INSERT OR IGNORE INTO sessions(id,title,agent,workspace,created,updated) VALUES(?,?,?,?,?,?)",
+       (sid, title[:80], agent, workspace, now, now))
     return sid
 
 
@@ -74,10 +97,21 @@ def add(sid: str, role: str, text: str) -> None:
     _q("UPDATE sessions SET updated=? WHERE id=?", (time.time(), sid))
 
 
-def sessions(limit: int = 100, agent: str | None = None) -> list[dict]:
+def sessions(limit: int = 100, agent: str | None = None, workspace: str | None = None) -> list[dict]:
+    clauses = []
+    args = []
     if agent and agent != "all":
-        return _q("SELECT id,title,updated,agent FROM sessions WHERE agent=? ORDER BY updated DESC LIMIT ?", (agent, limit))
-    return _q("SELECT id,title,updated,agent FROM sessions ORDER BY updated DESC LIMIT ?", (limit,))
+        clauses.append("agent=?")
+        args.append(agent)
+    if workspace and workspace != "all":
+        norm_ws = normalize_workspace(workspace)
+        clauses.append("workspace=?")
+        args.append(norm_ws)
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    sql = f"SELECT id,title,updated,agent,workspace FROM sessions {where} ORDER BY updated DESC LIMIT ?"
+    args.append(limit)
+    return _q(sql, tuple(args))
 
 
 def messages(sid: str) -> list[dict]:

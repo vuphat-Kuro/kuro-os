@@ -3,7 +3,7 @@ type: agent
 name: Kỹ sư kiểm toán kết cấu phụ trợ
 slug: ky-su-kiem-toan-phu-tro
 role: Kiểm toán, rà soát bảng tính kết cấu phụ trợ thi công theo TCVN và QCVN.
-group: Xây dựng
+group: Kỹ thuật & Thi công
 skills: [kiem-toan-ket-cau-phu-tro]
 model: ""
 updated: 2026-10-09

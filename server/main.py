@@ -7,8 +7,13 @@ import shutil
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
+import io
+import time
+import zipfile
+from pathlib import Path
+import yaml
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 import cli_engines
@@ -177,6 +182,7 @@ def create_agent(body: dict):
     group = (body.get("group") or "Chuyên môn").strip()
     prompt = (body.get("prompt") or "").strip() or f"Bạn là {name}, chuyên trách {role}."
     skills = body.get("skills") or []
+    members = body.get("members") or []
     from datetime import datetime
     content = f"""---
 type: agent
@@ -185,6 +191,7 @@ slug: {slug}
 role: {role}
 group: {group}
 skills: {skills}
+members: {members}
 model: ""
 updated: {datetime.now():%Y-%m-%d}
 ---
@@ -193,20 +200,229 @@ updated: {datetime.now():%Y-%m-%d}
     for d in (config.ROOT / "agents", config.BRAIN / "agents"):
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{slug}.md").write_text(content, encoding="utf-8")
-    return {"ok": True, "slug": slug, "name": name}
+    return {"ok": True, "slug": slug, "name": name, "group": group, "members": members}
+
+
+@app.get("/api/agents/{slug}")
+def get_agent_detail(slug: str):
+    meta, body = engine.agent_persona(slug)
+    if not meta and not body:
+        raise HTTPException(404, "Không tìm thấy cộng sự")
+    return {
+        "slug": slug,
+        "name": meta.get("name") or slug,
+        "role": meta.get("role") or "",
+        "group": meta.get("group") or ("Hệ thống" if slug == "kuro-core" else "Chuyên môn"),
+        "skills": meta.get("skills") or [],
+        "members": meta.get("members") or [],
+        "prompt": body,
+        "is_core": slug == "kuro-core",
+    }
+
+
+@app.put("/api/agents/{slug}")
+def update_agent(slug: str, body: dict):
+    if slug == "kuro-core":
+        raise HTTPException(400, "Không thể sửa agent hệ thống Kuro Core")
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Tên cộng sự không được để trống")
+    role = (body.get("role") or "").strip()
+    group = (body.get("group") or "Chuyên môn").strip()
+    prompt = (body.get("prompt") or "").strip() or f"Bạn là {name}, chuyên trách {role}."
+    skills = body.get("skills") or []
+    members = body.get("members") or []
+    from datetime import datetime
+    content = f"""---
+type: agent
+name: {name}
+slug: {slug}
+role: {role}
+group: {group}
+skills: {skills}
+members: {members}
+model: ""
+updated: {datetime.now():%Y-%m-%d}
+---
+{prompt}
+"""
+    for d in (config.BRAIN / "agents", config.ROOT / "agents"):
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{slug}.md").write_text(content, encoding="utf-8")
+    return {"ok": True, "slug": slug, "name": name, "group": group, "members": members}
+
+
+@app.post("/api/agents/upload")
+async def upload_agent_file(file: UploadFile = File(...)):
+    filename = file.filename or ""
+    content_bytes = await file.read()
+    if not content_bytes:
+        raise HTTPException(400, "Tệp tải lên rỗng")
+
+    from datetime import datetime
+    import io
+    import re
+    from pathlib import Path
+    import zipfile
+    import yaml
+
+    imported_agents = []
+
+    def save_agent_md(raw_text: str, default_slug: str):
+        raw_text = raw_text.replace("\r\n", "\n")
+        meta = {}
+        body = raw_text.strip()
+        if raw_text.startswith("---\n"):
+            try:
+                _, fm, body = raw_text.split("---\n", 2)
+                meta = yaml.safe_load(fm) or {}
+            except Exception:
+                pass
+        slug = (meta.get("slug") or default_slug).strip().lower()
+        slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
+        if not slug:
+            slug = f"agent-{int(datetime.now().timestamp())}"
+        name = meta.get("name") or slug
+        role = meta.get("role") or "Chuyên gia chuyên trách"
+        group = meta.get("group") or "Chuyên môn"
+        skills = meta.get("skills") or []
+        members = meta.get("members") or []
+
+        # Tái tạo frontmatter sạch chuẩn
+        final_text = f"""---
+type: agent
+name: {name}
+slug: {slug}
+role: {role}
+group: {group}
+skills: {skills}
+members: {members}
+model: ""
+updated: {datetime.now():%Y-%m-%d}
+---
+{body.strip()}
+"""
+        for d in (config.ROOT / "agents", config.BRAIN / "agents"):
+            d.mkdir(parents=True, exist_ok=True)
+            (d / f"{slug}.md").write_text(final_text, encoding="utf-8")
+        imported_agents.append({"slug": slug, "name": name, "group": group})
+
+    ext = Path(filename).suffix.lower()
+
+    if ext == ".md":
+        save_agent_md(content_bytes.decode("utf-8", errors="replace"), Path(filename).stem)
+    elif ext in (".zip", ".skill"):
+        # Thử mở dưới dạng zip
+        try:
+            with zipfile.ZipFile(io.BytesIO(content_bytes)) as z:
+                for name in z.namelist():
+                    if name.endswith("/") or name.startswith("__MACOSX/") or Path(name).name.startswith("."):
+                        continue
+                    p_name = Path(name)
+                    if p_name.suffix.lower() == ".md":
+                        file_data = z.read(name).decode("utf-8", errors="replace")
+                        if "type: agent" in file_data or "agents/" in name or not ("skills/" in name):
+                            save_agent_md(file_data, p_name.stem)
+                        elif "type: skill" in file_data or p_name.name == "SKILL.md" or "skills/" in name:
+                            skill_dir = p_name.parent.name if p_name.name == "SKILL.md" else p_name.stem
+                            for target_base in (config.ROOT / "skills", config.BRAIN / ".claude" / "skills"):
+                                target_dir = target_base / skill_dir
+                                target_dir.mkdir(parents=True, exist_ok=True)
+                                (target_dir / p_name.name).write_text(file_data, encoding="utf-8")
+        except zipfile.BadZipFile:
+            if ext == ".skill":
+                save_agent_md(content_bytes.decode("utf-8", errors="replace"), Path(filename).stem)
+            else:
+                raise HTTPException(400, "Tệp zip hoặc skill bị lỗi hoặc không thể giải nén")
+    else:
+        raise HTTPException(400, "Vui lòng chọn tệp .zip, .md hoặc .skill")
+
+    return {"ok": True, "count": len(imported_agents), "agents": imported_agents}
+
+
+@app.delete("/api/agents/{slug}")
+def delete_agent(slug: str):
+    if slug == "kuro-core":
+        raise HTTPException(400, "Không thể xóa agent hệ thống Kuro Core")
+    deleted = False
+    for d in (config.BRAIN / "agents", config.ROOT / "agents"):
+        p = d / f"{slug}.md"
+        if p.is_file():
+            try:
+                p.unlink()
+                deleted = True
+            except Exception as e:
+                raise HTTPException(500, f"Lỗi xóa file agent: {e}")
+    if not deleted:
+        raise HTTPException(404, "Không tìm thấy file agent để xóa")
+    return {"ok": True, "slug": slug}
+
+
+@app.get("/api/groups")
+def get_groups():
+    return engine.get_groups_config()
+
+
+@app.post("/api/groups")
+def save_group_config(body: dict):
+    old_name = (body.get("old_name") or "").strip()
+    name = (body.get("name") or old_name).strip()
+    role = (body.get("role") or "").strip()
+    workflow = (body.get("workflow") or "").strip()
+    if not name or name == "Hệ thống":
+        raise HTTPException(400, "Tên nhóm không hợp lệ hoặc không thể chỉnh sửa nhóm Hệ thống")
+
+    # Nếu đổi tên nhóm thì cập nhật các agent con
+    if old_name and old_name != name and old_name != "Hệ thống":
+        rename_agent_group({"old_name": old_name, "new_name": name})
+
+    cfg = engine.get_groups_config()
+    if old_name and old_name != name and old_name in cfg:
+        del cfg[old_name]
+
+    if workflow or role:
+        cfg[name] = {"role": role, "workflow": workflow}
+    else:
+        if name in cfg:
+            del cfg[name]
+
+    engine.save_groups_config(cfg)
+    return {"ok": True, "name": name, "has_workflow": bool(workflow)}
+
+
+@app.post("/api/agent-groups/rename")
+def rename_agent_group(body: dict):
+    old_name = (body.get("old_name") or "").strip()
+    new_name = (body.get("new_name") or "").strip()
+    if not old_name or not new_name or old_name == "Hệ thống":
+        raise HTTPException(400, "Tên nhóm không hợp lệ hoặc không thể đổi tên nhóm Hệ thống")
+    import re
+    updated_count = 0
+    for d in (config.BRAIN / "agents", config.ROOT / "agents"):
+        if not d.is_dir():
+            continue
+        for p in d.glob("*.md"):
+            txt = p.read_text(encoding="utf-8")
+            if re.search(rf"^group:\s*{re.escape(old_name)}\s*$", txt, flags=re.MULTILINE):
+                new_txt = re.sub(rf"^group:\s*{re.escape(old_name)}\s*$", f"group: {new_name}", txt, flags=re.MULTILINE)
+                p.write_text(new_txt, encoding="utf-8")
+                updated_count += 1
+    return {"ok": True, "old_name": old_name, "new_name": new_name, "updated": updated_count}
 
 
 @app.get("/api/sessions")
-def list_sessions(agent: str | None = None):
-    return store.sessions(agent=agent)
+def list_sessions(agent: str | None = None, workspace: str | None = None):
+    ws = workspace if workspace is not None else str(engine.active_workspace_dir())
+    return store.sessions(agent=agent, workspace=ws)
 
 
 @app.post("/api/sessions")
 def create_session(body: dict):
     agent = body.get("agent") or "kuro-core"
     title = body.get("title") or "Phiên mới"
-    sid = store.ensure(None, title=title, agent=agent)
-    return {"id": sid, "agent": agent, "title": title}
+    workspace = body.get("workspace") or str(engine.active_workspace_dir())
+    sid = store.ensure(None, title=title, agent=agent, workspace=workspace)
+    return {"id": sid, "agent": agent, "title": title, "workspace": workspace}
 
 
 @app.delete("/api/sessions/{sid}")
@@ -583,9 +799,77 @@ async def compact_session(sid: str):
     return {"ok": True, "compacted": True, "summary": summary_text, "session_id": sid}
 
 
+@app.get("/api/workspaces")
+def get_workspaces():
+    cfg = engine.get_workspaces_config()
+    active = engine.active_workspace_dir()
+    recent = cfg.get("recent") or []
+    has_active = any(Path(r.get("path", "")).resolve() == active.resolve() for r in recent if r.get("path"))
+    if not has_active:
+        recent.insert(0, {
+            "name": active.name,
+            "path": str(active.resolve()),
+            "last_opened": int(time.time())
+        })
+        cfg["active"] = str(active.resolve())
+        cfg["recent"] = recent
+        engine.save_workspaces_config(cfg)
+    return {
+        "active": str(active.resolve()),
+        "name": active.name,
+        "recent": recent
+    }
+
+
+@app.post("/api/workspaces/open", dependencies=[Depends(local_only)])
+def open_workspace(body: dict):
+    p_str = (body.get("path") or "").strip()
+    if not p_str:
+        raise HTTPException(400, "Đường dẫn thư mục không được để trống")
+    p = Path(p_str).resolve()
+    create = bool(body.get("create", True))
+    if not p.is_dir():
+        if create:
+            try:
+                p.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                raise HTTPException(400, f"Không tạo được thư mục: {e}")
+        else:
+            raise HTTPException(404, f"Thư mục không tồn tại: {p_str}")
+
+    cfg = engine.get_workspaces_config()
+    recent = [r for r in (cfg.get("recent") or []) if Path(r.get("path", "")).resolve() != p]
+    name = body.get("name") or p.name
+    recent.insert(0, {
+        "name": name,
+        "path": str(p),
+        "last_opened": int(time.time())
+    })
+    recent = recent[:25]
+    cfg["active"] = str(p)
+    cfg["recent"] = recent
+    engine.save_workspaces_config(cfg)
+    return {
+        "ok": True,
+        "active": str(p),
+        "name": p.name,
+        "recent": recent
+    }
+
+
+@app.delete("/api/workspaces/recent", dependencies=[Depends(local_only)])
+def remove_recent_workspace(path: str):
+    cfg = engine.get_workspaces_config()
+    target = Path(path).resolve()
+    recent = [r for r in (cfg.get("recent") or []) if Path(r.get("path", "")).resolve() != target]
+    cfg["recent"] = recent
+    engine.save_workspaces_config(cfg)
+    return {"ok": True, "recent": recent}
+
+
 @app.get("/api/fs/tree")
 def get_fs_tree(sub: str = "", show_hidden: bool = False):
-    base = config.ROOT
+    base = engine.active_workspace_dir()
     target = (base / sub).resolve()
     if not str(target).startswith(str(base.resolve())):
         raise HTTPException(400, "Đường dẫn không hợp lệ")
@@ -612,12 +896,18 @@ def get_fs_tree(sub: str = "", show_hidden: bool = False):
             })
     except Exception as e:
         raise HTTPException(500, f"Lỗi đọc thư mục: {e}")
-    return {"path": sub, "name": target.name or "Kuro", "items": items}
+    return {
+        "path": sub,
+        "name": target.name or base.name,
+        "workspace_name": base.name,
+        "workspace_path": str(base),
+        "items": items
+    }
 
 
 @app.get("/api/fs/file")
 def get_fs_file(path: str):
-    base = config.ROOT
+    base = engine.active_workspace_dir()
     target = (base / path).resolve()
     if not str(target).startswith(str(base.resolve())) or not target.is_file():
         raise HTTPException(404, "Không tìm thấy file")
@@ -639,14 +929,15 @@ async def ws(sock: WebSocket):
     await sock.accept()
     try:
         while True:
-            req = await sock.receive_json()                  # {"session": id hoặc null, "text": "...", "agent": slug}
+            req = await sock.receive_json()                  # {"session": id hoặc null, "text": "...", "agent": slug, "workspace": path}
             text = (req.get("text") or "").strip()
             if not text:
                 continue
             agent = req.get("agent") or "kuro-core"
-            sid = store.ensure(req.get("session"), title=text, agent=agent)
-            await sock.send_json({"type": "session", "id": sid, "agent": agent})
-            await engine.chat(sid, text, agent=agent, emit=sock.send_json)
+            workspace = req.get("workspace") or str(engine.active_workspace_dir())
+            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace)
+            await sock.send_json({"type": "session", "id": sid, "agent": agent, "workspace": workspace})
+            await engine.chat(sid, text, agent=agent, emit=sock.send_json, workspace=workspace)
     except WebSocketDisconnect:
         pass
 
