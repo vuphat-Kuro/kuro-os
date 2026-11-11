@@ -7,14 +7,20 @@ thao tác tệp tin không bị hạn chế bởi cơ chế sandbox của trình
 
 import sys
 import os
+from pathlib import Path
+
+# Thư mục gốc Kuro và thư mục server
+ROOT = Path(__file__).resolve().parent
+SERVER_DIR = ROOT / "server"
+if str(SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(SERVER_DIR))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import threading
 import time
-from pathlib import Path
 import urllib.request
 import webview
-
-# Thư mục gốc Kuro
-ROOT = Path(__file__).resolve().parent
 
 class DesktopApi:
     """Cầu nối API giữa JavaScript giao diện và hệ điều hành Windows."""

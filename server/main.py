@@ -6,6 +6,16 @@ import os
 import re
 import shutil
 import sys
+from pathlib import Path
+
+# Đảm bảo đường dẫn thư mục server và root luôn có trong sys.path
+_SERVER_DIR = Path(__file__).resolve().parent
+_ROOT_DIR = _SERVER_DIR.parent
+if str(_SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(_SERVER_DIR))
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
+
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
