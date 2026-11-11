@@ -17,6 +17,20 @@ if str(SERVER_DIR) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Đảm bảo stdout và stderr luôn tồn tại khi chạy dưới pythonw.exe (GUI mode không có console)
+# tránh lỗi crash "AttributeError: 'NoneType' object has no attribute 'write'" khi uvicorn/logging ghi log
+if sys.stdout is None or sys.stderr is None:
+    try:
+        log_dir = ROOT / "state"
+        log_dir.mkdir(exist_ok=True)
+        gui_log = open(log_dir / "desktop.log", "a", encoding="utf-8", buffering=1)
+        if sys.stdout is None:
+            sys.stdout = gui_log
+        if sys.stderr is None:
+            sys.stderr = gui_log
+    except Exception:
+        pass
+
 # Đặt AppUserModelID cho Windows để Taskbar hiển thị đúng Icon Kuro thay vì icon mặc định của Python
 if sys.platform == "win32":
     import ctypes
@@ -106,53 +120,71 @@ def run_fastapi_server():
         from server.main import app
         # Lắng nghe 0.0.0.0 để điện thoại qua Tailscale/Wi-Fi vẫn kết nối bình thường
         uvicorn.run(app, host="0.0.0.0", port=7788, log_level="warning")
-    except Exception as e:
-        print(f"[Desktop Server] Lỗi khởi động server: {e}")
+    except BaseException as e:
+        import traceback
+        try:
+            with open(ROOT / "state" / "desktop_server_error.log", "w", encoding="utf-8") as f:
+                f.write(traceback.format_exc())
+        except Exception:
+            pass
 
 
 def main():
-    # 0. Giải phóng cổng 7788 nếu có tiến trình zombie từ phiên trước
-    free_port(7788)
-    time.sleep(0.3)
+    try:
+        # 0. Giải phóng cổng 7788 nếu có tiến trình zombie từ phiên trước
+        free_port(7788)
+        time.sleep(0.3)
 
-    # 1. Đảm bảo server Kuro OS đang chạy với code mới nhất
-    print("[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ...")
-    server_thread = threading.Thread(target=run_fastapi_server, daemon=True)
-    server_thread.start()
-    for _ in range(30):
-        time.sleep(0.2)
-        if is_server_running():
-            break
+        # 1. Đảm bảo server Kuro OS đang chạy với code mới nhất
+        print("[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ...")
+        server_thread = threading.Thread(target=run_fastapi_server, daemon=True)
+        server_thread.start()
+        for _ in range(30):
+            time.sleep(0.2)
+            if is_server_running():
+                break
 
-    # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
-    api = DesktopApi()
-    icon_path = (ROOT / "kuro_logo.ico").resolve()
-    icon_str = str(icon_path) if icon_path.is_file() else None
+        # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
+        api = DesktopApi()
+        icon_path = (ROOT / "kuro_logo.ico").resolve()
+        icon_str = str(icon_path) if icon_path.is_file() else None
 
-    window = webview.create_window(
-        title="Kuro OS - Trợ lý Kỹ sư Hạ tầng",
-        url="http://127.0.0.1:7788",
-        width=1340,
-        height=880,
-        min_size=(960, 620),
-        text_select=True,
-        zoomable=True,
-        js_api=api
-    )
-    api.set_window(window)
+        window = webview.create_window(
+            title="Kuro OS - Trợ lý Kỹ sư Hạ tầng",
+            url="http://127.0.0.1:7788",
+            width=1340,
+            height=880,
+            min_size=(960, 620),
+            text_select=True,
+            zoomable=True,
+            js_api=api
+        )
+        api.set_window(window)
 
-    def on_closed():
-        # Thoát dứt khoát khi tắt cửa sổ để không để lại tiến trình ma
+        def on_closed():
+            # Thoát dứt khoát khi tắt cửa sổ để không để lại tiến trình ma
+            os._exit(0)
+
+        window.events.closed += on_closed
+
+        # 3. Khởi chạy cửa sổ ứng dụng Windows Native (Edge WebView2)
+        webview.start(
+            debug=False,
+            icon=icon_str
+        )
         os._exit(0)
-
-    window.events.closed += on_closed
-
-    # 3. Khởi chạy cửa sổ ứng dụng Windows Native (Edge WebView2)
-    webview.start(
-        debug=False,
-        icon=icon_str
-    )
-    os._exit(0)
+    except Exception as e:
+        import traceback
+        err_msg = traceback.format_exc()
+        try:
+            with open(ROOT / "state" / "desktop_error.log", "a", encoding="utf-8") as f:
+                f.write(err_msg + "\n")
+        except Exception:
+            pass
+        if sys.platform == "win32":
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, f"Lỗi khởi chạy Kuro OS:\n{e}\n\nXem chi tiết tại state/desktop_error.log", "Kuro OS Error", 16)
+        os._exit(1)
 
 
 if __name__ == "__main__":

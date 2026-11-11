@@ -15,15 +15,14 @@ $locations = @(
 $oneDriveDesktop = Join-Path $env:USERPROFILE "OneDrive\Desktop"
 if (Test-Path $oneDriveDesktop) { $locations += $oneDriveDesktop }
 
-$appId = 'kuro.os.infrastructure.assistant.desktop.v1'
-$setAppIdExe = Join-Path $dir "set_appid.exe"
-
 foreach ($noi in $locations) {
   if (Test-Path $noi) {
     $oldLnk = Join-Path $noi 'Kuro.lnk'
     if (Test-Path $oldLnk) { Remove-Item $oldLnk -Force -ErrorAction SilentlyContinue }
     
     $lnkPath = Join-Path $noi 'Kuro OS.lnk'
+    if (Test-Path $lnkPath) { Remove-Item $lnkPath -Force -ErrorAction SilentlyContinue }
+
     $s = $sh.CreateShortcut($lnkPath)
     $s.TargetPath = $pythonw
     $s.Arguments = '"' + $appScript + '"'
@@ -31,18 +30,7 @@ foreach ($noi in $locations) {
     $s.IconLocation = $iconFile + ',0'
     $s.Description = 'Kuro OS - Tro ly Ky su Ha tang (Windows App)'
     $s.Save()
-
-    # Gan AppUserModelID de Windows gom chung 1 icon duy nhat tren Taskbar
-    if (Test-Path $setAppIdExe) {
-      & $setAppIdExe $lnkPath $appId | Out-Null
-    }
   }
-}
-
-# Dong bo luon shortcut da ghim tren Taskbar neu co
-$taskbarLnk = Join-Path $env:APPDATA "Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Kuro OS.lnk"
-if ((Test-Path $taskbarLnk) -and (Test-Path $setAppIdExe)) {
-  & $setAppIdExe $taskbarLnk $appId | Out-Null
 }
 
 # Thong bao cho Windows Explorer lam moi lai toan bo Icon tren man hinh
