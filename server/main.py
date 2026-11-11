@@ -1163,7 +1163,7 @@ async def browse_native_workspace():
             return {"ok": True, "path": str(p), "name": name, "recent": recent}
         return {"ok": False, "cancelled": True}
     except Exception as e:
-        logger.error(f"Lỗi mở hộp thoại Windows: {e}")
+        print(f"[browse-native] Lỗi mở hộp thoại Windows: {e}")
         return {"ok": False, "error": str(e)}
 
 

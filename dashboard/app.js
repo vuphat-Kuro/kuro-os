@@ -2376,7 +2376,6 @@ async function browseDirectory(path, name) {
 async function browseNativeWorkspace(triggerBtn = null) {
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   if (isMobile) {
-    // Trên điện thoại, mở bộ duyệt trực quan & lịch sử thư mục
     openWorkspaceDialog();
     return;
   }
@@ -2385,7 +2384,7 @@ async function browseNativeWorkspace(triggerBtn = null) {
   const origNativeHtml = btnNative ? btnNative.innerHTML : "";
   const origTriggerHtml = triggerBtn ? triggerBtn.innerHTML : "";
   const statusEl = $("state");
-  const origStatus = statusEl ? statusEl.textContent : "Sẵn sàng";
+  const origStatus = "Sẵn sàng";
 
   if (triggerBtn) {
     triggerBtn.innerHTML = `⏳`;
@@ -2397,8 +2396,16 @@ async function browseNativeWorkspace(triggerBtn = null) {
   }
   if (statusEl) statusEl.textContent = "Đang mở hộp thoại Windows...";
 
+  // Tạo AbortController để tự động hủy sau 15 giây nếu Windows không phản hồi
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   try {
-    const res = await fetch("/api/workspaces/browse-native", { method: "POST" });
+    const res = await fetch("/api/workspaces/browse-native", {
+      method: "POST",
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
     const data = await res.json();
     if (data.ok && data.path) {
       currentWorkspace = {
@@ -2416,13 +2423,18 @@ async function browseNativeWorkspace(triggerBtn = null) {
     } else if (data.cancelled) {
       if (statusEl) statusEl.textContent = "Đã hủy chọn thư mục";
       setTimeout(() => { if (!busy && statusEl) statusEl.textContent = origStatus; }, 2000);
-    } else if (data.error) {
-      alert("Lỗi mở hộp thoại Windows: " + data.error);
+    } else {
+      // Nếu server không mở được cửa sổ Windows, mở ngay dialog duyệt ổ đĩa trực quan
+      openWorkspaceDialog();
+      if (statusEl) statusEl.textContent = "Duyệt ổ đĩa trực quan";
+      setTimeout(() => { if (!busy && statusEl) statusEl.textContent = origStatus; }, 2000);
     }
   } catch (e) {
-    console.error("Lỗi duyệt native:", e);
-    // Fallback sang dialog duyệt web nếu lỗi kết nối
+    clearTimeout(timeoutId);
+    console.warn("Native picker timeout hoặc lỗi kết nối, chuyển sang bộ duyệt trực quan:", e);
     openWorkspaceDialog();
+    if (statusEl) statusEl.textContent = "Duyệt ổ đĩa trực quan";
+    setTimeout(() => { if (!busy && statusEl) statusEl.textContent = origStatus; }, 2000);
   } finally {
     if (triggerBtn) {
       triggerBtn.innerHTML = origTriggerHtml;
