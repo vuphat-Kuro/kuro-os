@@ -1111,27 +1111,53 @@ def get_system_directories(path: str = ""):
 
 
 @app.post("/api/workspaces/browse-native", dependencies=[Depends(local_only)])
-def browse_native_workspace():
+async def browse_native_workspace():
     if sys.platform != "win32":
         raise HTTPException(400, "Tính năng chỉ hỗ trợ trên Windows")
     import subprocess
-    cmd = (
-        'powershell -NoProfile -Command "'
-        'Add-Type -AssemblyName System.Windows.Forms; '
-        '$f = New-Object System.Windows.Forms.FolderBrowserDialog; '
-        '$f.ShowNewFolderButton = $true; '
-        '$f.Description = \'Chọn thư mục dự án làm việc cho Kuro OS\'; '
-        'if ($f.ShowDialog() -eq \'OK\') { Write-Output $f.SelectedPath }"'
-    )
+    script_path = Path(__file__).parent / "pick_folder.py"
+    current = str(engine.active_workspace_dir().resolve())
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, shell=True, timeout=120)
-        selected = proc.stdout.strip()
-        if selected and Path(selected).is_dir():
-            p = Path(selected).resolve()
-            return {"ok": True, "path": str(p), "name": p.name}
+        loop = asyncio.get_event_loop()
+        def _run():
+            return subprocess.run(
+                [sys.executable, str(script_path), current],
+                capture_output=True,
+                timeout=300
+            )
+        proc = await loop.run_in_executor(None, _run)
+        raw_out = proc.stdout.decode("utf-8", errors="ignore").strip()
+        if raw_out and Path(raw_out).is_dir():
+            p = Path(raw_out).resolve()
+            cfg = engine.get_workspaces_config()
+            recent = [r for r in (cfg.get("recent") or []) if Path(r.get("path", "")).resolve() != p]
+            name = p.name or str(p)
+            recent.insert(0, {
+                "name": name,
+                "path": str(p),
+                "last_opened": int(time.time())
+            })
+            recent = recent[:25]
+            cfg["active"] = str(p)
+            cfg["recent"] = recent
+            engine.save_workspaces_config(cfg)
+
+            cur_st = get_active_state()
+            cur_st["workspace"] = str(p)
+            cur_st["workspace_name"] = name
+            save_active_state(cur_st)
+
+            await manager.broadcast({
+                "type": "workspace_changed",
+                "active": str(p),
+                "name": name,
+                "recent": recent
+            })
+            return {"ok": True, "path": str(p), "name": name, "recent": recent}
         return {"ok": False, "cancelled": True}
     except Exception as e:
-        raise HTTPException(500, f"Lỗi mở hộp thoại Windows: {e}")
+        logger.error(f"Lỗi mở hộp thoại Windows: {e}")
+        return {"ok": False, "error": str(e)}
 
 
 @app.get("/api/fs/tree")

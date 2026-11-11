@@ -1222,7 +1222,7 @@
       <span class="tab-badge" id="agent-count">7</span>
     </button>
     <button class="tab-item" id="tab-btn-explorer" type="button">
-      <span>📁 Tệp tin</span>
+      <span>📁 Thư mục</span>
     </button>
   </div>
 
@@ -1275,9 +1275,9 @@
   <!-- VIEW 2: CÂY THƯ MỤC DỰ ÁN (PROJECT EXPLORER KIỂU ANTIGRAVITY IDE) -->
   <div id="view-explorer" class="sidebar-view" style="display:none;">
     <div class="explorer-toolbar">
-      <span class="explorer-title">EXPLORER // DỰ ÁN</span>
+      <span class="explorer-title">CÂY THƯ MỤC</span>
       <div class="explorer-actions">
-        <button id="btn-fs-workspace" class="btn-tool-sm" type="button" title="Mở hoặc đổi thư mục làm việc (Workspace)">📂</button>
+        <button id="btn-fs-workspace" class="btn-tool-sm" type="button" title="Mở hộp thoại Windows chọn thư mục làm việc mới">📂</button>
         <button id="btn-fs-refresh" class="btn-tool-sm" type="button" title="Làm mới cây thư mục">🔄</button>
         <button id="btn-fs-collapse" class="btn-tool-sm" type="button" title="Thu gọn tất cả">⊖</button>
         <button id="btn-fs-hidden" class="btn-tool-sm" type="button" title="Hiện/ẩn tệp ẩn">👁</button>
@@ -1285,7 +1285,7 @@
     </div>
 
     <!-- Banner Thư mục làm việc hiện hành -->
-    <div class="workspace-current-banner" id="ws-banner" title="Bấm để đổi thư mục dự án làm việc">
+    <div class="workspace-current-banner" id="ws-banner" title="Bấm để mở hộp thoại Windows chọn thư mục làm việc">
       <div class="ws-banner-left">
         <span class="ws-banner-icon">💼</span>
         <div class="ws-banner-meta">
@@ -1293,13 +1293,13 @@
           <div class="ws-banner-path" id="ws-active-path">C:\Kuro-os\Kuro\projects\DuAn_KhoiTao</div>
         </div>
       </div>
-      <button type="button" class="btn-ws-switch" id="btn-ws-banner-switch">ĐỔI</button>
+      <button type="button" class="btn-ws-switch" id="btn-ws-banner-switch" title="Mở hộp thoại Windows chọn thư mục mới">ĐỔI</button>
     </div>
 
     <div class="search-wrap" style="padding:6px 14px;">
       <div class="search-box">
         <span>🔍</span>
-        <input id="fs-search" type="search" placeholder="Tìm tệp tin dự án..." aria-label="Tìm kiếm file">
+        <input id="fs-search" type="search" placeholder="Tìm tệp tin & thư mục..." aria-label="Tìm kiếm file">
       </div>
     </div>
     <div id="fs-tree-container" class="fs-tree-container">
@@ -1307,7 +1307,7 @@
     </div>
     <div class="explorer-footer">
       <span id="fs-status">Sẵn sàng</span>
-      <button id="btn-fs-workspace-footer" class="btn-link" type="button" title="Đổi thư mục làm việc">📂 Đổi thư mục</button>
+      <button id="btn-fs-workspace-footer" class="btn-link" type="button" title="Xem lịch sử dự án & Duyệt ổ đĩa">📋 Lịch sử & Duyệt ổ đĩa</button>
     </div>
   </div>
 </aside>
@@ -1358,9 +1358,9 @@
         <span class="btn-icon">📱</span>
         <span class="btn-text">Đồng bộ ĐT</span>
       </button>
-      <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Cây tệp tin dự án (Explorer)">
+      <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Cây thư mục dự án">
         <span class="btn-icon">📂</span>
-        <span class="btn-text">Tệp tin</span>
+        <span class="btn-text">Thư mục</span>
       </button>
       <button id="btn-context-header" class="btn-hdr btn-context-pill" type="button" title="Dung lượng ngữ cảnh AI (Context)">
         <span class="btn-icon">📊</span>
@@ -2058,6 +2058,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=26"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>
