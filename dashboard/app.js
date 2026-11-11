@@ -857,13 +857,14 @@ function closeAgentsSidebar() {
 }
 
 function openHistorySidebar() {
+  const hs = $("history-sidebar");
+  if (!hs) return;
+  hs.classList.remove("collapsed");
   if (window.innerWidth <= 768) {
-    $("history-sidebar").classList.add("open");
+    hs.classList.add("open");
     $("agents-sidebar").classList.remove("open");
     const backdrop = $("sidebar-backdrop");
     if (backdrop) backdrop.classList.add("active");
-  } else {
-    $("history-sidebar").classList.toggle("collapsed");
   }
   if (currentInspectorTab === "context") {
     loadSessionContext(session);
@@ -871,7 +872,10 @@ function openHistorySidebar() {
 }
 
 function closeHistorySidebar() {
-  $("history-sidebar").classList.remove("open");
+  const hs = $("history-sidebar");
+  if (!hs) return;
+  hs.classList.remove("open");
+  hs.classList.add("collapsed");
   if (window.innerWidth <= 768 && !$("agents-sidebar").classList.contains("open")) {
     const backdrop = $("sidebar-backdrop");
     if (backdrop) backdrop.classList.remove("active");
@@ -886,10 +890,13 @@ function closeAllDrawers() {
 }
 
 function toggleHistorySidebar() {
-  if ($("history-sidebar").classList.contains("open")) {
-    closeHistorySidebar();
-  } else {
+  const hs = $("history-sidebar");
+  if (!hs) return;
+  const isClosed = hs.classList.contains("collapsed") || (window.innerWidth <= 768 && !hs.classList.contains("open"));
+  if (isClosed) {
     openHistorySidebar();
+  } else {
+    closeHistorySidebar();
   }
 }
 $("btn-toggle-history").onclick = toggleHistorySidebar;
@@ -2272,9 +2279,7 @@ function renderRecentWorkspaces() {
             await removeRecentWorkspace(ws.path);
             return;
           }
-          if (!isAct) {
-            await switchWorkspace(ws.path, ws.name);
-          }
+          await switchWorkspace(ws.path, ws.name);
         };
         listEl.appendChild(item);
       });
@@ -2310,9 +2315,7 @@ function renderRecentWorkspaces() {
             await removeRecentWorkspace(ws.path);
             return;
           }
-          if (!isAct) {
-            await switchWorkspace(ws.path, ws.name);
-          }
+          await switchWorkspace(ws.path, ws.name);
         };
         sidebarListEl.appendChild(item);
       });
@@ -2533,6 +2536,8 @@ function openWorkspaceDialog() {
 
 async function switchWorkspace(path, name) {
   if (!path) return;
+  const statusEl = $("state");
+  if (statusEl) statusEl.textContent = "Đang chuyển thư mục...";
   try {
     const res = await fetch("/api/workspaces/open", {
       method: "POST",
@@ -2550,6 +2555,7 @@ async function switchWorkspace(path, name) {
     };
     recentWorkspaces = data.recent || [];
     updateWorkspaceUI();
+    renderRecentWorkspaces();
 
     // 1. Làm mới cây thư mục tệp tin của dự án mới
     fsExpanded.clear();
@@ -2558,8 +2564,17 @@ async function switchWorkspace(path, name) {
     // 2. Chuyển đổi và cô lập lịch sử hội thoại của Agent theo dự án mới
     await loadSessions(selectedAgent);
 
-    $("workspace-dialog").close();
+    if (statusEl) statusEl.textContent = `Thư mục: ${data.name}`;
+    setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 2500);
+
+    try {
+      const dlg = $("workspace-dialog");
+      if (dlg && dlg.open) dlg.close();
+    } catch (e) {}
   } catch (err) {
+    console.error("Lỗi chuyển workspace:", err);
+    if (statusEl) statusEl.textContent = "Lỗi đổi thư mục";
+    setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 2500);
     const errEl = $("ws-open-error");
     if (errEl) {
       errEl.textContent = err.message;

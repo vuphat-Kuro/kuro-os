@@ -540,21 +540,30 @@
   main { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; height:100%; }
 
   header {
-    display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px; border-bottom:1px solid var(--line);
-    background:rgba(5,9,15,.65); backdrop-filter:blur(8px); z-index:15;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line);
+    background:rgba(5,9,15,.65); backdrop-filter:blur(8px); z-index:15; min-width:0; overflow:hidden;
   }
-  .header-top-bar { display:flex; align-items:center; gap:12px; min-width:0; }
+  .header-top-bar { display:flex; align-items:center; gap:10px; min-width:0; flex-shrink:1; overflow:hidden; }
   .header-top-quick { display:none; }
-  .header-agent-zone { display:flex; align-items:center; gap:12px; min-width:0; }
+  .header-agent-zone { display:flex; align-items:center; gap:10px; min-width:0; flex-shrink:1; overflow:hidden; }
   .header-avatar {
     width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
     background:rgba(16,40,58,.8); border:1px solid var(--line-hi); flex:none;
   }
   .header-avatar svg { width:20px; height:20px; }
-  .header-agent-texts { display:flex; flex-direction:column; min-width:0; }
-  .header-agent-title-row { display:flex; align-items:center; gap:8px; }
-  .header-agent-title { font:700 15px/1.2 var(--hud); letter-spacing:.05em; color:var(--cyan-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .header-agent-role { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:42vw; }
+  .header-agent-texts { display:flex; flex-direction:column; min-width:0; flex-shrink:1; overflow:hidden; }
+  .header-agent-title-row { display:flex; align-items:center; gap:6px; min-width:0; flex-wrap:nowrap; overflow:hidden; }
+  .header-agent-title { font:700 14px/1.2 var(--hud); letter-spacing:.04em; color:var(--cyan-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:1; }
+  .header-agent-role { font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:36vw; }
+  .agent-badge-tag {
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+    padding:2px 6px; font:700 9.5px/1 var(--hud); letter-spacing:.06em; text-transform:uppercase;
+    border-radius:3px; background:rgba(34,211,238,.12); color:var(--cyan-soft);
+    border:1px solid rgba(34,211,238,.3); white-space:nowrap;
+  }
+  .agent-badge-tag.sys {
+    background:rgba(251,191,36,.12); color:var(--amber); border-color:rgba(251,191,36,.35);
+  }
 
   .header-controls { display:flex; align-items:center; gap:6px; flex:none; }
   .btn-hdr {
@@ -739,9 +748,22 @@
   /* CỘT 3: INSPECTOR PANEL (LỊCH SỬ & NGỮ CẢNH THEO PHONG CÁCH CLAUDE CODE) */
   #history-sidebar {
     width:320px; flex:none; display:flex; flex-direction:column; background:var(--panel); border-left:1px solid var(--line);
-    backdrop-filter:blur(10px); z-index:20; height:100%; transition:margin-right .25s ease;
+    backdrop-filter:blur(10px); z-index:20; height:100%; transition:all .25s ease;
   }
-  #history-sidebar.collapsed { margin-right:-320px; }
+  #history-sidebar.collapsed {
+    display: none !important;
+    width: 0 !important;
+    margin-right: -320px !important;
+  }
+  
+  #btn-close-history {
+    cursor:pointer; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center;
+    border-radius:4px; border:1px solid transparent; color:var(--muted); background:transparent; font-size:13px;
+    transition:all .15s; margin-left:auto;
+  }
+  #btn-close-history:hover {
+    color:#ef4444; background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.3);
+  }
   
   .inspector-tabs {
     display:flex; align-items:center; padding:6px 10px 0; border-bottom:1px solid var(--line); background:rgba(0,0,0,.25);
@@ -1058,8 +1080,16 @@
 
   /* Mobile & responsive */
   #btn-menu-agents, #gear2 { display:none; }
+  @media (max-width:1250px) {
+    .header-agent-role { display: none !important; }
+  }
   @media (max-width:1100px) {
     #history-sidebar { position:absolute; right:0; top:0; bottom:0; box-shadow:-8px 0 24px rgba(0,0,0,.6); }
+    .agent-badge-tag { display: none !important; }
+    #btn-remote-header, #btn-version-header { display: none !important; }
+  }
+  @media (max-width:880px) {
+    #btn-toggle-explorer, #btn-context-header { display: none !important; }
   }
   /* Button & Dialog Remote Control / Đồng bộ điện thoại */
   .btn-remote-tag {
@@ -2132,6 +2162,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=33"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>

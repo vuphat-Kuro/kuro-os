@@ -962,7 +962,7 @@ def get_workspaces():
 
 
 @app.post("/api/workspaces/open", dependencies=[Depends(local_only)])
-def open_workspace(body: dict):
+async def open_workspace(body: dict):
     p_str = (body.get("path") or "").strip()
     if not p_str:
         raise HTTPException(400, "Đường dẫn thư mục không được để trống")
@@ -994,12 +994,15 @@ def open_workspace(body: dict):
     cur_st["workspace"] = str(p)
     cur_st["workspace_name"] = p.name
     save_active_state(cur_st)
-    asyncio.create_task(manager.broadcast({
-        "type": "workspace_changed",
-        "active": str(p),
-        "name": p.name,
-        "recent": recent
-    }))
+    try:
+        await manager.broadcast({
+            "type": "workspace_changed",
+            "active": str(p),
+            "name": p.name,
+            "recent": recent
+        })
+    except Exception as e:
+        print(f"[WS] Broadcast error: {e}")
 
     return {
         "ok": True,
