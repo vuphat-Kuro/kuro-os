@@ -17,6 +17,15 @@ if str(SERVER_DIR) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Đặt AppUserModelID cho Windows để Taskbar hiển thị đúng Icon Kuro thay vì icon mặc định của Python
+if sys.platform == "win32":
+    import ctypes
+    try:
+        myappid = 'kuro.os.infrastructure.assistant.desktop.v1'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception as e:
+        print(f"[Desktop App] Không đặt được AppUserModelID: {e}")
+
 import threading
 import time
 import urllib.request
@@ -99,7 +108,8 @@ def main():
 
     # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
     api = DesktopApi()
-    icon_path = ROOT / "kuro.ico"
+    icon_path = (ROOT / "kuro.ico").resolve()
+    icon_str = str(icon_path) if icon_path.is_file() else None
 
     window = webview.create_window(
         title="Kuro OS - Trợ lý Kỹ sư Hạ tầng",
@@ -116,7 +126,7 @@ def main():
     # 3. Khởi chạy cửa sổ ứng dụng Windows Native (Edge WebView2)
     webview.start(
         debug=False,
-        icon=str(icon_path) if icon_path.is_file() else None
+        icon=icon_str
     )
 
 

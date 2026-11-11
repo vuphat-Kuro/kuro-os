@@ -182,6 +182,52 @@
   }
   .btn-ws-tag:hover { background:rgba(34,211,238,.18); border-color:var(--cyan); }
 
+  /* Danh sách Dự án gần đây trong Cây thư mục */
+  .sidebar-recent-workspaces {
+    margin: 4px 12px 6px; padding: 6px 8px;
+    background: rgba(10, 22, 34, 0.45); border: 1px solid rgba(34, 211, 238, 0.15);
+    border-radius: 4px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .recent-ws-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .recent-ws-title {
+    font: 700 10px/1 var(--hud); letter-spacing: .12em; color: var(--amber); text-transform: uppercase;
+  }
+  .recent-ws-list {
+    display: flex; flex-direction: column; gap: 3px; max-height: 120px;
+    overflow-y: auto; scrollbar-width: thin;
+  }
+  .recent-ws-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    padding: 4px 6px; background: rgba(5, 9, 15, 0.6); border: 1px solid var(--line);
+    border-radius: 3px; cursor: pointer; transition: all .14s ease;
+  }
+  .recent-ws-item:hover {
+    background: rgba(34, 211, 238, 0.12); border-color: var(--cyan);
+  }
+  .recent-ws-item.active {
+    border-color: var(--cyan); background: rgba(34, 211, 238, 0.18);
+  }
+  .recent-ws-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+  .recent-ws-name {
+    font: 600 11.5px/1.2 var(--body); color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .recent-ws-item.active .recent-ws-name { color: var(--cyan-soft); font-weight: 700; }
+  .recent-ws-path {
+    font-size: 9.5px; font-family: monospace; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .recent-ws-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+  .recent-ws-time { font-size: 9px; color: var(--muted); }
+  .recent-ws-del {
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 10px; padding: 1px 3px; line-height: 1; border-radius: 2px;
+  }
+  .recent-ws-del:hover { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+
   /* Workspace Dialog */
   #workspace-dialog { width:min(680px, calc(100vw - 24px)); max-height:88vh; padding:0; border:1px solid var(--line-hi); background:var(--panel-solid); color:var(--text); box-shadow:0 12px 40px rgba(0,0,0,.85); }
   .workspace-dialog-wrap { display:flex; flex-direction:column; padding:18px 20px; gap:14px; max-height:86vh; overflow-y:auto; }
@@ -1296,6 +1342,17 @@
       <button type="button" class="btn-ws-switch" id="btn-ws-banner-switch" title="Mở hộp thoại Windows chọn thư mục mới">ĐỔI</button>
     </div>
 
+    <!-- Danh sách Dự án gần đây (Recent Workspaces Bar) -->
+    <div class="sidebar-recent-workspaces" id="sidebar-recent-workspaces">
+      <div class="recent-ws-header">
+        <span class="recent-ws-title">DỰ ÁN GẦN ĐÂY (<span id="recent-ws-count">0</span>)</span>
+        <button type="button" id="btn-toggle-recent-ws" class="btn-text-action" title="Ẩn/Hiện danh sách dự án gần đây">Thu gọn</button>
+      </div>
+      <div class="recent-ws-list" id="sidebar-recent-ws-list">
+        <!-- Render động danh sách các thư mục cũ -->
+      </div>
+    </div>
+
     <div class="search-wrap" style="padding:6px 14px;">
       <div class="search-box">
         <span>🔍</span>
@@ -2058,6 +2115,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

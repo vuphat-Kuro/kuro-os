@@ -2228,50 +2228,94 @@ function updateWorkspaceUI() {
     pathEl.title = currentWorkspace.path || "";
   }
   if (hdrNameEl) hdrNameEl.textContent = currentWorkspace.name || "Dự án";
+  renderRecentWorkspaces();
 }
 
 function renderRecentWorkspaces() {
   const listEl = $("ws-recent-list");
-  if (!listEl) return;
-  listEl.innerHTML = "";
+  const sidebarListEl = $("sidebar-recent-ws-list");
+  const countEl = $("recent-ws-count");
 
-  if (!recentWorkspaces || recentWorkspaces.length === 0) {
-    listEl.innerHTML = `<div style="color:var(--muted); font-size:12px; padding:12px; text-align:center;">Chưa có lịch sử thư mục dự án nào.</div>`;
-    return;
+  const recents = recentWorkspaces || [];
+  if (countEl) countEl.textContent = recents.length;
+
+  // 1. Render trong modal dialog
+  if (listEl) {
+    listEl.innerHTML = "";
+    if (recents.length === 0) {
+      listEl.innerHTML = `<div style="color:var(--muted); font-size:12px; padding:12px; text-align:center;">Chưa có lịch sử thư mục dự án nào.</div>`;
+    } else {
+      recents.forEach((ws) => {
+        const isAct = currentWorkspace && currentWorkspace.path.toLowerCase() === ws.path.toLowerCase();
+        const item = document.createElement("div");
+        item.className = "ws-recent-item " + (isAct ? "active" : "");
+        const timeText = ws.last_opened ? `<span style="color:var(--cyan-soft); font-size:10.5px; margin-left:6px;">(${formatWsTime(ws.last_opened)})</span>` : "";
+        item.innerHTML = `
+          <div class="ws-recent-left">
+            <span style="font-size:18px;">${isAct ? "💼" : "📂"}</span>
+            <div class="ws-recent-meta">
+              <div class="ws-recent-name">${DOMPurify.sanitize(ws.name || ws.path)} ${timeText}</div>
+              <div class="ws-recent-path">${DOMPurify.sanitize(ws.path)}</div>
+            </div>
+          </div>
+          <div class="ws-recent-actions">
+            ${isAct ? '<span class="ws-active-badge">Đang mở</span>' : '<button class="btn-ws-switch" type="button">MỞ NGAY</button>'}
+            <button class="btn-recent-del" type="button" title="Xóa khỏi danh sách gần đây">✕</button>
+          </div>
+        `;
+
+        item.onclick = async (e) => {
+          if (e.target.closest(".btn-recent-del")) {
+            e.stopPropagation();
+            await removeRecentWorkspace(ws.path);
+            return;
+          }
+          if (!isAct) {
+            await switchWorkspace(ws.path, ws.name);
+          }
+        };
+        listEl.appendChild(item);
+      });
+    }
   }
 
-  recentWorkspaces.forEach((ws) => {
-    const isAct = currentWorkspace && currentWorkspace.path.toLowerCase() === ws.path.toLowerCase();
-    const item = document.createElement("div");
-    item.className = "ws-recent-item " + (isAct ? "active" : "");
-    const timeText = ws.last_opened ? `<span style="color:var(--cyan-soft); font-size:10.5px; margin-left:6px;">(${formatWsTime(ws.last_opened)})</span>` : "";
-    item.innerHTML = `
-      <div class="ws-recent-left">
-        <span style="font-size:18px;">${isAct ? "💼" : "📂"}</span>
-        <div class="ws-recent-meta">
-          <div class="ws-recent-name">${DOMPurify.sanitize(ws.name || ws.path)} ${timeText}</div>
-          <div class="ws-recent-path">${DOMPurify.sanitize(ws.path)}</div>
-        </div>
-      </div>
-      <div class="ws-recent-actions">
-        ${isAct ? '<span class="ws-active-badge">Đang mở</span>' : '<button class="btn-ws-switch" type="button">MỞ NGAY</button>'}
-        <button class="btn-recent-del" type="button" title="Xóa khỏi danh sách gần đây">✕</button>
-      </div>
-    `;
-
-    item.onclick = async (e) => {
-      if (e.target.closest(".btn-recent-del")) {
-        e.stopPropagation();
-        await removeRecentWorkspace(ws.path);
-        return;
-      }
-      if (!isAct) {
-        await switchWorkspace(ws.path, ws.name);
-      }
-    };
-
-    listEl.appendChild(item);
-  });
+  // 2. Render nhanh trong Panel CÂY THƯ MỤC
+  if (sidebarListEl) {
+    sidebarListEl.innerHTML = "";
+    if (recents.length === 0) {
+      sidebarListEl.innerHTML = `<div style="color:var(--muted); font-size:10.5px; padding:6px; text-align:center;">Chưa có dự án cũ</div>`;
+    } else {
+      recents.slice(0, 10).forEach((ws) => {
+        const isAct = currentWorkspace && currentWorkspace.path.toLowerCase() === ws.path.toLowerCase();
+        const item = document.createElement("div");
+        item.className = "recent-ws-item " + (isAct ? "active" : "");
+        item.title = `${ws.path}\nBấm để chuyển sang dự án này`;
+        const timeStr = ws.last_opened ? formatWsTime(ws.last_opened) : "";
+        item.innerHTML = `
+          <span style="font-size:13px; flex:none;">${isAct ? "💼" : "📁"}</span>
+          <div class="recent-ws-meta">
+            <span class="recent-ws-name">${DOMPurify.sanitize(ws.name || ws.path)}</span>
+            <span class="recent-ws-path">${DOMPurify.sanitize(ws.path)}</span>
+          </div>
+          <div class="recent-ws-actions">
+            ${timeStr ? `<span class="recent-ws-time">${timeStr}</span>` : ""}
+            <button class="recent-ws-del" type="button" title="Xóa khỏi danh sách">✕</button>
+          </div>
+        `;
+        item.onclick = async (e) => {
+          if (e.target.closest(".recent-ws-del")) {
+            e.stopPropagation();
+            await removeRecentWorkspace(ws.path);
+            return;
+          }
+          if (!isAct) {
+            await switchWorkspace(ws.path, ws.name);
+          }
+        };
+        sidebarListEl.appendChild(item);
+      });
+    }
+  }
 }
 
 function formatWsTime(ts) {
@@ -2695,6 +2739,16 @@ $("btn-fs-hidden").onclick = () => {
   $("btn-fs-hidden").style.color = fsShowHidden ? "var(--cyan)" : "var(--muted)";
   refreshFsTree();
 };
+
+if ($("btn-toggle-recent-ws")) {
+  $("btn-toggle-recent-ws").onclick = () => {
+    const list = $("sidebar-recent-ws-list");
+    if (!list) return;
+    const isHide = list.style.display === "none";
+    list.style.display = isHide ? "flex" : "none";
+    $("btn-toggle-recent-ws").textContent = isHide ? "Thu gọn" : "Mở rộng";
+  };
+}
 
 if ($("btn-fs-workspace")) $("btn-fs-workspace").onclick = function() { browseNativeWorkspace(this); };
 if ($("ws-banner")) $("ws-banner").onclick = function() { browseNativeWorkspace(this); };
