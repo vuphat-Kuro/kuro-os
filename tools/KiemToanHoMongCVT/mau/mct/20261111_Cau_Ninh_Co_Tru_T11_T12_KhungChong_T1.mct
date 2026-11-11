@@ -1,0 +1,392 @@
+;---------------------------------------------------------------------------
+;  MIDAS/Civil Text(MCT) File.
+;  Date : 2026/11/11
+;---------------------------------------------------------------------------
+;  DON VI: luc TONF, chieu dai M (khai bao ngay dau tep o *UNIT). Muc dich: kiem tra lai tren Midas Civil mo hinh ma chuong trinh da giai.
+;  Xuat tu chuong trinh Kiem toan vong vay coc van thep (PKTTC): khung chong mat bang tang T1.
+;  Cong trinh: Cau Ninh Co - Tru T11, T12. Truc X, Y nam trong mat bang (Z = 0), tai q nam trong mat bang.
+;  Goc xoay tiet dien (ANGLE): van dat nam (orient = nam) = 90, van dat dung (orient = dung) = 0, theo quy uoc truc cuc bo mac dinh cua Midas (z huong len). [CAN KIEM TRA]
+;  Tai: moi giai doan mot truong hop tai GDn; q = 1,1 x phan luc tang chong cua giai doan do (T/m), tac dung vao trong ho tren dam bien.
+;  Trinh tu khai bao: don vi -> nut -> phan tu -> vat lieu, tiet dien -> truong hop tai -> lien ket (goi, lo xo, khop) -> tai trong.
+
+*VERSION
+   8.7.5
+
+*UNIT    ; Unit System
+; FORCE, LENGTH, HEAT, TEMPER
+   TONF , M, KJ, C
+
+*PROJINFO    ; Project Information
+   USER=PKTTC
+   ADDRESS=Cau Ninh Co - Tru T11, T12
+
+*STRUCTYPE    ; Structure Type
+; iSTYP, iMASS, iSMAS, bMASSOFFSET, bSELFWEIGHT, GRAV, TEMPER, bALIGNBEAM, bALIGNSLAB, bROTRIGID
+     0, 1, 1, NO, NO, 9.806, 0, NO, NO, NO
+
+*NODE    ; Nodes
+; iNO, X, Y, Z
+     1, 0, 0, 0
+     2, 20, 0, 0
+     3, 20, 24.5, 0
+     4, 0, 24.5, 0
+     5, 3.16, 0, 0
+     6, 5.7, 0, 0
+     7, 8.24, 0, 0
+     8, 11.76, 0, 0
+     9, 14.3, 0, 0
+    10, 16.84, 0, 0
+    11, 20, 5.1, 0
+    12, 20, 10.1, 0
+    13, 20, 14.4, 0
+    14, 20, 19.4, 0
+    15, 16.84, 24.5, 0
+    16, 14.3, 24.5, 0
+    17, 11.76, 24.5, 0
+    18, 8.24, 24.5, 0
+    19, 5.7, 24.5, 0
+    20, 3.16, 24.5, 0
+    21, 0, 19.4, 0
+    22, 0, 14.4, 0
+    23, 0, 10.1, 0
+    24, 0, 5.1, 0
+    25, 5.7, 5.1, 0
+    26, 5.7, 10.1, 0
+    27, 5.7, 14.4, 0
+    28, 5.7, 19.4, 0
+    29, 14.3, 5.1, 0
+    30, 14.3, 10.1, 0
+    31, 14.3, 14.4, 0
+    32, 14.3, 19.4, 0
+    33, 5.7, 2.54, 0
+    34, 5.7, 21.96, 0
+    35, 14.3, 2.54, 0
+    36, 14.3, 21.96, 0
+
+*ELEMENT    ; Elements
+; iEL, TYPE, iMAT, iPRO, iN1, iN2, ANGLE, iSUB, EXVAL, iOPT(EXVAL2) ; Frame  Element
+     1, BEAM  ,    1,     1,     1,     5,    90,   0
+     2, BEAM  ,    1,     1,     5,     6,    90,   0
+     3, BEAM  ,    1,     1,     6,     7,    90,   0
+     4, BEAM  ,    1,     1,     7,     8,    90,   0
+     5, BEAM  ,    1,     1,     8,     9,    90,   0
+     6, BEAM  ,    1,     1,     9,    10,    90,   0
+     7, BEAM  ,    1,     1,    10,     2,    90,   0
+     8, BEAM  ,    1,     1,     2,    11,    90,   0
+     9, BEAM  ,    1,     1,    11,    12,    90,   0
+    10, BEAM  ,    1,     1,    12,    13,    90,   0
+    11, BEAM  ,    1,     1,    13,    14,    90,   0
+    12, BEAM  ,    1,     1,    14,     3,    90,   0
+    13, BEAM  ,    1,     1,     3,    15,    90,   0
+    14, BEAM  ,    1,     1,    15,    16,    90,   0
+    15, BEAM  ,    1,     1,    16,    17,    90,   0
+    16, BEAM  ,    1,     1,    17,    18,    90,   0
+    17, BEAM  ,    1,     1,    18,    19,    90,   0
+    18, BEAM  ,    1,     1,    19,    20,    90,   0
+    19, BEAM  ,    1,     1,    20,     4,    90,   0
+    20, BEAM  ,    1,     1,     4,    21,    90,   0
+    21, BEAM  ,    1,     1,    21,    22,    90,   0
+    22, BEAM  ,    1,     1,    22,    23,    90,   0
+    23, BEAM  ,    1,     1,    23,    24,    90,   0
+    24, BEAM  ,    1,     1,    24,     1,    90,   0
+    25, BEAM  ,    1,     1,    24,    25,     0,   0
+    26, BEAM  ,    1,     1,    25,    29,     0,   0
+    27, BEAM  ,    1,     1,    29,    11,     0,   0
+    28, BEAM  ,    1,     1,    23,    26,     0,   0
+    29, BEAM  ,    1,     1,    26,    30,     0,   0
+    30, BEAM  ,    1,     1,    30,    12,     0,   0
+    31, BEAM  ,    1,     1,    22,    27,     0,   0
+    32, BEAM  ,    1,     1,    27,    31,     0,   0
+    33, BEAM  ,    1,     1,    31,    13,     0,   0
+    34, BEAM  ,    1,     1,    21,    28,     0,   0
+    35, BEAM  ,    1,     1,    28,    32,     0,   0
+    36, BEAM  ,    1,     1,    32,    14,     0,   0
+    37, BEAM  ,    1,     1,     6,    33,     0,   0
+    38, BEAM  ,    1,     1,    33,    25,     0,   0
+    39, BEAM  ,    1,     1,    25,    26,     0,   0
+    40, BEAM  ,    1,     1,    26,    27,     0,   0
+    41, BEAM  ,    1,     1,    27,    28,     0,   0
+    42, BEAM  ,    1,     1,    28,    34,     0,   0
+    43, BEAM  ,    1,     1,    34,    19,     0,   0
+    44, BEAM  ,    1,     1,     9,    35,     0,   0
+    45, BEAM  ,    1,     1,    35,    29,     0,   0
+    46, BEAM  ,    1,     1,    29,    30,     0,   0
+    47, BEAM  ,    1,     1,    30,    31,     0,   0
+    48, BEAM  ,    1,     1,    31,    32,     0,   0
+    49, BEAM  ,    1,     1,    32,    36,     0,   0
+    50, BEAM  ,    1,     1,    36,    16,     0,   0
+    51, BEAM  ,    1,     1,    33,     5,    90,   0
+    52, BEAM  ,    1,     1,    33,     7,    90,   0
+    53, BEAM  ,    1,     1,    34,    20,    90,   0
+    54, BEAM  ,    1,     1,    34,    18,    90,   0
+    55, BEAM  ,    1,     1,    35,     8,    90,   0
+    56, BEAM  ,    1,     1,    35,    10,    90,   0
+    57, BEAM  ,    1,     1,    36,    17,    90,   0
+    58, BEAM  ,    1,     1,    36,    15,    90,   0
+
+*MATERIAL    ; Material
+; iMAT, TYPE, MNAME, SPHEAT, HEATCO, PLAST, TUNIT, bMASS, DAMPRATIO, [DATA1]           ; STEEL, CONC, USER
+; [DATA1] : 2, ELAST, POISN, THERMAL, DEN, MASS
+    1, STEEL, Thep              , 0, 0, , C, NO, 0.02, 2, 2.1000e+007,   0.3, 1.1700e-005, 7.85, 0
+
+*SECTION    ; Section
+; iSEC, TYPE, SNAME, [OFFSET], bSD, bWE, SHAPE, [DATA1], [DATA2]                    ; 1st line - DB/USER
+; [DATA1] : 1, DB, NAME or 2, D1, D2, D3, D4, D5, D6, D7, D8, D9, D10
+    1, DBUSER    , H 400x400x13/21    , CC, 0, 0, 0, 0, 0, 0, NO, NO, H  , 1, JIS, H 400x400x13/21
+;   H400x400: A = 218.7 cm2, Ix = 66600 cm4, Iy = 22400 cm4 (bang TCVN 7571-16 cua chuong trinh)
+
+*STLDCASE    ; Static Load Cases
+; LCNAME, LCTYPE, DESC
+   SW , D , Trong luong ban than (khong tinh vao khung mat bang)
+   GD1 , D , Dao xoi hut duoi nuoc den day bit day (-12.10m)
+   GD2 , D , Do be tong bit day day 3.00m duoi nuoc (giu nuoc can bang)
+   GD3 , D , Bom ha nuoc lap tang chong T2 (-1.00m)
+   GD4 , D , Bom ha nuoc lap tang chong T3 (-4.00m)
+   GD5 , D , Hut can nuoc hoan toan trong ho den dinh bit day (-9.10m)
+   GD6 , D , Do be chen khe be - cu den -4.50 m thao tang chong T3
+   GD7 , D , Do be chen khe be - cu den -4.50 m thao tang chong T2
+
+*CONSTRAINT    ; Supports
+; NODE_LIST, CONST(Dx,Dy,Dz,Rx,Ry,Rz), GROUP
+   1, 111000, 
+   2, 011000, 
+   3 4, 001000, 
+;  Goi dang dung: tu can bang (chi khu 3 bac chuyen vi cung).
+
+*USE-STLD, SW
+
+; *SELFWEIGHT, X, Y, Z, GROUP
+*SELFWEIGHT, 0, 0, -1, 
+
+*USE-STLD, GD1
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -6.27173819, 1, -6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 6.27173819, 1, 6.27173819, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD2
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.71702416, 1, -2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.71702416, 1, 2.71702416, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD3
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -14.98503575, 1, -14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 14.98503575, 1, 14.98503575, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD4
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -13.29993225, 1, -13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 13.29993225, 1, 13.29993225, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD5
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -2.3319581, 1, -2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.3319581, 1, 2.3319581, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD6
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -1.66951973, 1, -1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 1.66951973, 1, 1.66951973, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD7
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     1, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     2, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     3, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    11, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    12, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    13, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    14, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    15, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    16, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    17, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    18, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    19, LINE   , UNILOAD, GY, NO , NO, aDir[1], , , , 0, -3.83832087, 1, -3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    20, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    21, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    22, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    23, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    24, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 3.83832087, 1, 3.83832087, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*ENDDATA

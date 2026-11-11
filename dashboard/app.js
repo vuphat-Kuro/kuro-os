@@ -45,6 +45,9 @@ const AGENT_ICONS = {
     <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
     <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
   </svg>`,
+  "ky-su-kiem-toan-ho-mong-cvt": `<svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v11"></path><path d="M15 10v11"></path>
+  </svg>`,
   "ky-su-qs": `<svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line>
     <line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line>
@@ -84,6 +87,11 @@ const AGENT_PROMPTS = {
     "Kiểm toán kết cấu hệ đà giáo ván khuôn dầm bê tông bản theo TCVN 11823:2017",
     "Rà soát tính ổn định tổng thể và chuyển vị đỉnh cừ ván thép Larsen IV đào hố móng",
     "Kiểm tra tải trọng gió tác dụng lên hệ tháp tạm và dây neo thi công dầm cầu"
+  ],
+  "ky-su-kiem-toan-ho-mong-cvt": [
+    "Kiểm toán vòng vây cọc ván thép hố móng trụ T11 cầu Ninh Cơ theo TCVN 11815:2017",
+    "Chạy kiểm toán theo file JSON số liệu và xuất bảng tổng hợp đạt/không đạt",
+    "Xuất mô hình MCT sang Midas Civil và đối chiếu nội lực dầm cừ, khung văng chống"
   ],
   "ky-su-qs": [
     "Bóc tách khối lượng bê tông, cốt thép và ván khuôn kết cấu mố trụ cầu M1",

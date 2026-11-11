@@ -1,0 +1,1766 @@
+{
+ "bptc_mode": "AUTO",
+ "project": {
+  "name": "Cầu Ninh Cơ - Trụ T11, T12",
+  "duAn": "Dự án đầu tư xây dựng đường vành đai 2 đoạn tuyến Tân Vũ - Hưng Đạo - Đường Bùi Viện",
+  "congTrinh": "Cầu Ninh Cơ",
+  "hangMuc": "Thi công trụ T11, T12",
+  "engineer": "",
+  "reviewer": "Kiều Linh Nghĩa - Phó phòng KT-TC",
+  "date": "2026-11-01",
+  "description": "BẢNG TÍNH VÒNG VÂY CỌC VÁN THÉP THI CÔNG TRỤ T11, T12 - CẦU NINH CƠ",
+  "borehole": ""
+ },
+ "hydrology": {
+  "mntc": 1.78,
+  "gamma_w": 1,
+  "mn_gd1": 1.78,
+  "beta": 0.8,
+  "mn_max": 1.78,
+  "mnn": 1.78
+ },
+ "geometry": {
+  "pit_a": 20.346,
+  "pit_b": 24.892,
+  "footing_a": 18,
+  "footing_b": 23,
+  "frame_a": 20,
+  "frame_b": 24.5,
+  "seal_cover": 0.1,
+  "pit_ext": 0.9,
+  "el_top": 3,
+  "el_toe": -15,
+  "el_ground": -4.37,
+  "el_pit_bottom": -9.1,
+  "el_seal_top": -9.1,
+  "el_seal_bot": -12.1,
+  "seal_thick": 3,
+  "gamma_bt": 2.35,
+  "n_bored": 20,
+  "d_bored": 2,
+  "f1_bored": 5.5,
+  "n_sheet": 224,
+  "f2_sheet": 5.5,
+  "corner_leg_a": 0.373,
+  "corner_leg_b": 0.246,
+  "n_sheet_a": 49,
+  "n_sheet_b": 61,
+  "K_dn": 1.05,
+  "plan_shape": "rect",
+  "closed": true,
+  "sheet_width": 0.4,
+  "stock_length": 12,
+  "seal_L_edge": 2.673,
+  "seal_L_mid": 5,
+  "el_scour": null,
+  "R_bt": 0.75,
+  "gamma_seal_underwater": 0.85,
+  "alpha_I": 0.5
+ },
+ "footing": {
+  "a": 18,
+  "b": 23,
+  "height": 4.5,
+  "el_top": -4.5,
+  "el_bot": -9
+ },
+ "pile_grid": {
+  "nx": 4,
+  "ny": 5,
+  "sx": 5,
+  "sy": 5,
+  "D": 2,
+  "el_top": null,
+  "casing": true
+ },
+ "piles": [
+  {
+   "id": "CKN-01",
+   "x": -7.5,
+   "y": -10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-02",
+   "x": -2.5,
+   "y": -10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-03",
+   "x": 2.5,
+   "y": -10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-04",
+   "x": 7.5,
+   "y": -10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-05",
+   "x": -7.5,
+   "y": -5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-06",
+   "x": -2.5,
+   "y": -5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-07",
+   "x": 2.5,
+   "y": -5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-08",
+   "x": 7.5,
+   "y": -5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-09",
+   "x": -7.5,
+   "y": 0,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-10",
+   "x": -2.5,
+   "y": 0,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-11",
+   "x": 2.5,
+   "y": 0,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-12",
+   "x": 7.5,
+   "y": 0,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-13",
+   "x": -7.5,
+   "y": 5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-14",
+   "x": -2.5,
+   "y": 5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-15",
+   "x": 2.5,
+   "y": 5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-16",
+   "x": 7.5,
+   "y": 5,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-17",
+   "x": -7.5,
+   "y": 10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-18",
+   "x": -2.5,
+   "y": 10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-19",
+   "x": 2.5,
+   "y": 10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  },
+  {
+   "id": "CKN-20",
+   "x": 7.5,
+   "y": 10,
+   "D": 2,
+   "casing": true,
+   "el_top": null
+  }
+ ],
+ "sheet_pile": {
+  "type": "Larsen_IV",
+  "steel_grade": "SY295",
+  "R": 2950,
+  "m_work": 0.95,
+  "k": 1.1,
+  "Ix": 38600,
+  "Wx": 2270,
+  "weight_m": 190,
+  "eta_w": 0.85,
+  "strut_grade": "SS400",
+  "gamma_M": 1,
+  "strut_fy": 2350
+ },
+ "struts": [
+  {
+   "name": "T1",
+   "el": 2,
+   "profile": "H400x400",
+   "spacing_l": 5.1,
+   "unbraced_L0": 20,
+   "plan_config": {
+    "corner_brace_mode": "none",
+    "corner_brace_count": 1,
+    "corner_brace_lx": 2.5,
+    "corner_brace_ly": 2.5,
+    "corner_brace_profile": "H400x400",
+    "corner_brace_orient": "nam",
+    "has_knee_braces": true,
+    "knee_brace_lx": 2.54,
+    "knee_brace_ly": 2.54,
+    "knee_brace_profile": "H400x400",
+    "knee_brace_orient": "nam",
+    "knee_x_at": "none",
+    "knee_y_at": "5.7, 14.3",
+    "king_post_profile": "H300x300",
+    "single_kp_mode": "none",
+    "selected_king_posts": [
+     "kp_0_0",
+     "kp_1_0",
+     "kp_0_3",
+     "kp_1_3"
+    ],
+    "king_post_nodes": [
+     {
+      "id": "kp_0_0",
+      "name": "KP_1_1",
+      "node_id": "kp_0_0",
+      "i": 0,
+      "j": 0,
+      "x": 5.7,
+      "y": 5.1,
+      "z": 2,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_0_3",
+      "name": "KP_1_4",
+      "node_id": "kp_0_3",
+      "i": 0,
+      "j": 3,
+      "x": 5.7,
+      "y": 19.4,
+      "z": 2,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_1_0",
+      "name": "KP_2_1",
+      "node_id": "kp_1_0",
+      "i": 1,
+      "j": 0,
+      "x": 14.3,
+      "y": 5.1,
+      "z": 2,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_1_3",
+      "name": "KP_2_4",
+      "node_id": "kp_1_3",
+      "i": 1,
+      "j": 3,
+      "x": 14.3,
+      "y": 19.4,
+      "z": 2,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     }
+    ],
+    "all_grid_nodes": [
+     {
+      "id": "kp_0_0",
+      "name": "N_1_1",
+      "i": 0,
+      "j": 0,
+      "x": 5.7,
+      "y": 5.1,
+      "z": 2,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_0_1",
+      "name": "N_1_2",
+      "i": 0,
+      "j": 1,
+      "x": 5.7,
+      "y": 10.1,
+      "z": 2,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_0_2",
+      "name": "N_1_3",
+      "i": 0,
+      "j": 2,
+      "x": 5.7,
+      "y": 14.4,
+      "z": 2,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_0_3",
+      "name": "N_1_4",
+      "i": 0,
+      "j": 3,
+      "x": 5.7,
+      "y": 19.4,
+      "z": 2,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_1_0",
+      "name": "N_2_1",
+      "i": 1,
+      "j": 0,
+      "x": 14.3,
+      "y": 5.1,
+      "z": 2,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_1_1",
+      "name": "N_2_2",
+      "i": 1,
+      "j": 1,
+      "x": 14.3,
+      "y": 10.1,
+      "z": 2,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_1_2",
+      "name": "N_2_3",
+      "i": 1,
+      "j": 2,
+      "x": 14.3,
+      "y": 14.4,
+      "z": 2,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_1_3",
+      "name": "N_2_4",
+      "i": 1,
+      "j": 3,
+      "x": 14.3,
+      "y": 19.4,
+      "z": 2,
+      "is_king_post": true
+     }
+    ],
+    "primary_axis": "x",
+    "waler_connection": "rigid",
+    "intersection_connection": "rigid",
+    "corner_connection": "rigid",
+    "brace_strut_connection": "rigid",
+    "brace_waler_connection": "rigid",
+    "joint_v1": true,
+    "strut_x_profile": "H400x400",
+    "strut_x_orient": "dung",
+    "strut_x_spacing_mode": "custom",
+    "strut_x_spacing": 5,
+    "strut_x_s_end": 5.1,
+    "strut_x_num_intervals": 3,
+    "strut_x_custom": "5.1, 5.0, 4.3, 5.0",
+    "has_strut_y": true,
+    "strut_y_profile": "H400x400",
+    "strut_y_orient": "dung",
+    "strut_y_spacing_mode": "custom",
+    "strut_y_spacing": 8.6,
+    "strut_y_s_end": 5.7,
+    "strut_y_num_intervals": 1,
+    "strut_y_custom": "5.7, 8.6",
+    "waler_profile": "H400x400",
+    "waler_orient": "nam",
+    "bracket_spacing": 2,
+    "corner_support_type": "self_eq",
+    "bc_v14": true
+   },
+   "L0": 20,
+   "fem_nodes": [
+    {
+     "id": "kp_0_0",
+     "name": "KP_1_1",
+     "node_id": "kp_0_0",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_0_3",
+     "name": "KP_1_4",
+     "node_id": "kp_0_3",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_0",
+     "name": "KP_2_1",
+     "node_id": "kp_1_0",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_3",
+     "name": "KP_2_4",
+     "node_id": "kp_1_3",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "T2",
+   "el": -1,
+   "profile": "H400x400",
+   "spacing_l": 5.1,
+   "unbraced_L0": 20,
+   "plan_config": {
+    "corner_brace_mode": "none",
+    "corner_brace_count": 1,
+    "corner_brace_lx": 2.5,
+    "corner_brace_ly": 2.5,
+    "corner_brace_profile": "H400x400",
+    "corner_brace_orient": "nam",
+    "has_knee_braces": true,
+    "knee_brace_lx": 2.54,
+    "knee_brace_ly": 2.54,
+    "knee_brace_profile": "H400x400",
+    "knee_brace_orient": "nam",
+    "knee_x_at": "5.1, 19.4",
+    "knee_y_at": "5.7, 14.3",
+    "king_post_profile": "H300x300",
+    "single_kp_mode": "none",
+    "selected_king_posts": [
+     "kp_0_0",
+     "kp_1_0",
+     "kp_0_3",
+     "kp_1_3"
+    ],
+    "king_post_nodes": [
+     {
+      "id": "kp_0_0",
+      "name": "KP_1_1",
+      "node_id": "kp_0_0",
+      "i": 0,
+      "j": 0,
+      "x": 5.7,
+      "y": 5.1,
+      "z": -1,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_0_3",
+      "name": "KP_1_4",
+      "node_id": "kp_0_3",
+      "i": 0,
+      "j": 3,
+      "x": 5.7,
+      "y": 19.4,
+      "z": -1,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_1_0",
+      "name": "KP_2_1",
+      "node_id": "kp_1_0",
+      "i": 1,
+      "j": 0,
+      "x": 14.3,
+      "y": 5.1,
+      "z": -1,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_1_3",
+      "name": "KP_2_4",
+      "node_id": "kp_1_3",
+      "i": 1,
+      "j": 3,
+      "x": 14.3,
+      "y": 19.4,
+      "z": -1,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     }
+    ],
+    "all_grid_nodes": [
+     {
+      "id": "kp_0_0",
+      "name": "N_1_1",
+      "i": 0,
+      "j": 0,
+      "x": 5.7,
+      "y": 5.1,
+      "z": -1,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_0_1",
+      "name": "N_1_2",
+      "i": 0,
+      "j": 1,
+      "x": 5.7,
+      "y": 10.1,
+      "z": -1,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_0_2",
+      "name": "N_1_3",
+      "i": 0,
+      "j": 2,
+      "x": 5.7,
+      "y": 14.4,
+      "z": -1,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_0_3",
+      "name": "N_1_4",
+      "i": 0,
+      "j": 3,
+      "x": 5.7,
+      "y": 19.4,
+      "z": -1,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_1_0",
+      "name": "N_2_1",
+      "i": 1,
+      "j": 0,
+      "x": 14.3,
+      "y": 5.1,
+      "z": -1,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_1_1",
+      "name": "N_2_2",
+      "i": 1,
+      "j": 1,
+      "x": 14.3,
+      "y": 10.1,
+      "z": -1,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_1_2",
+      "name": "N_2_3",
+      "i": 1,
+      "j": 2,
+      "x": 14.3,
+      "y": 14.4,
+      "z": -1,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_1_3",
+      "name": "N_2_4",
+      "i": 1,
+      "j": 3,
+      "x": 14.3,
+      "y": 19.4,
+      "z": -1,
+      "is_king_post": true
+     }
+    ],
+    "primary_axis": "x",
+    "waler_connection": "rigid",
+    "intersection_connection": "rigid",
+    "corner_connection": "rigid",
+    "brace_strut_connection": "rigid",
+    "brace_waler_connection": "rigid",
+    "joint_v1": true,
+    "strut_x_profile": "H400x400",
+    "strut_x_orient": "dung",
+    "strut_x_spacing_mode": "custom",
+    "strut_x_spacing": 5,
+    "strut_x_s_end": 5.1,
+    "strut_x_num_intervals": 3,
+    "strut_x_custom": "5.1, 5.0, 4.3, 5.0",
+    "has_strut_y": true,
+    "strut_y_profile": "H400x400",
+    "strut_y_orient": "dung",
+    "strut_y_spacing_mode": "custom",
+    "strut_y_spacing": 8.6,
+    "strut_y_s_end": 5.7,
+    "strut_y_num_intervals": 1,
+    "strut_y_custom": "5.7, 8.6",
+    "waler_profile": "H400x400",
+    "waler_orient": "nam",
+    "bracket_spacing": 2,
+    "corner_support_type": "self_eq",
+    "bc_v14": true
+   },
+   "L0": 20,
+   "fem_nodes": [
+    {
+     "id": "kp_0_0",
+     "name": "KP_1_1",
+     "node_id": "kp_0_0",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_0_3",
+     "name": "KP_1_4",
+     "node_id": "kp_0_3",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_0",
+     "name": "KP_2_1",
+     "node_id": "kp_1_0",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_3",
+     "name": "KP_2_4",
+     "node_id": "kp_1_3",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "T3",
+   "el": -4,
+   "profile": "H400x400",
+   "spacing_l": 5.1,
+   "unbraced_L0": 20,
+   "plan_config": {
+    "corner_brace_mode": "none",
+    "corner_brace_count": 1,
+    "corner_brace_lx": 2.5,
+    "corner_brace_ly": 2.5,
+    "corner_brace_profile": "H400x400",
+    "corner_brace_orient": "nam",
+    "has_knee_braces": true,
+    "knee_brace_lx": 2.54,
+    "knee_brace_ly": 2.54,
+    "knee_brace_profile": "H400x400",
+    "knee_brace_orient": "nam",
+    "knee_x_at": "5.1, 19.4",
+    "knee_y_at": "5.7, 14.3",
+    "king_post_profile": "H300x300",
+    "single_kp_mode": "none",
+    "selected_king_posts": [
+     "kp_0_0",
+     "kp_1_0",
+     "kp_0_3",
+     "kp_1_3"
+    ],
+    "king_post_nodes": [
+     {
+      "id": "kp_0_0",
+      "name": "KP_1_1",
+      "node_id": "kp_0_0",
+      "i": 0,
+      "j": 0,
+      "x": 5.7,
+      "y": 5.1,
+      "z": -4,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_0_3",
+      "name": "KP_1_4",
+      "node_id": "kp_0_3",
+      "i": 0,
+      "j": 3,
+      "x": 5.7,
+      "y": 19.4,
+      "z": -4,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_1_0",
+      "name": "KP_2_1",
+      "node_id": "kp_1_0",
+      "i": 1,
+      "j": 0,
+      "x": 14.3,
+      "y": 5.1,
+      "z": -4,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     },
+     {
+      "id": "kp_1_3",
+      "name": "KP_2_4",
+      "node_id": "kp_1_3",
+      "i": 1,
+      "j": 3,
+      "x": 14.3,
+      "y": 19.4,
+      "z": -4,
+      "profile": "H300x300",
+      "type": "king_post",
+      "boundary_condition": "vertical_support",
+      "dof_restraints": {
+       "dx": false,
+       "dy": false,
+       "dz": true,
+       "rx": false,
+       "ry": false,
+       "rz": false
+      }
+     }
+    ],
+    "all_grid_nodes": [
+     {
+      "id": "kp_0_0",
+      "name": "N_1_1",
+      "i": 0,
+      "j": 0,
+      "x": 5.7,
+      "y": 5.1,
+      "z": -4,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_0_1",
+      "name": "N_1_2",
+      "i": 0,
+      "j": 1,
+      "x": 5.7,
+      "y": 10.1,
+      "z": -4,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_0_2",
+      "name": "N_1_3",
+      "i": 0,
+      "j": 2,
+      "x": 5.7,
+      "y": 14.4,
+      "z": -4,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_0_3",
+      "name": "N_1_4",
+      "i": 0,
+      "j": 3,
+      "x": 5.7,
+      "y": 19.4,
+      "z": -4,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_1_0",
+      "name": "N_2_1",
+      "i": 1,
+      "j": 0,
+      "x": 14.3,
+      "y": 5.1,
+      "z": -4,
+      "is_king_post": true
+     },
+     {
+      "id": "kp_1_1",
+      "name": "N_2_2",
+      "i": 1,
+      "j": 1,
+      "x": 14.3,
+      "y": 10.1,
+      "z": -4,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_1_2",
+      "name": "N_2_3",
+      "i": 1,
+      "j": 2,
+      "x": 14.3,
+      "y": 14.4,
+      "z": -4,
+      "is_king_post": false
+     },
+     {
+      "id": "kp_1_3",
+      "name": "N_2_4",
+      "i": 1,
+      "j": 3,
+      "x": 14.3,
+      "y": 19.4,
+      "z": -4,
+      "is_king_post": true
+     }
+    ],
+    "primary_axis": "x",
+    "waler_connection": "rigid",
+    "intersection_connection": "rigid",
+    "corner_connection": "rigid",
+    "brace_strut_connection": "rigid",
+    "brace_waler_connection": "rigid",
+    "joint_v1": true,
+    "strut_x_profile": "H400x400",
+    "strut_x_orient": "dung",
+    "strut_x_spacing_mode": "custom",
+    "strut_x_spacing": 5,
+    "strut_x_s_end": 5.1,
+    "strut_x_num_intervals": 3,
+    "strut_x_custom": "5.1, 5.0, 4.3, 5.0",
+    "has_strut_y": true,
+    "strut_y_profile": "H400x400",
+    "strut_y_orient": "dung",
+    "strut_y_spacing_mode": "custom",
+    "strut_y_spacing": 8.6,
+    "strut_y_s_end": 5.7,
+    "strut_y_num_intervals": 1,
+    "strut_y_custom": "5.7, 8.6",
+    "waler_profile": "H400x400",
+    "waler_orient": "nam",
+    "bracket_spacing": 2,
+    "corner_support_type": "self_eq",
+    "bc_v14": true
+   },
+   "L0": 20,
+   "fem_nodes": [
+    {
+     "id": "kp_0_0",
+     "name": "KP_1_1",
+     "node_id": "kp_0_0",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_0_3",
+     "name": "KP_1_4",
+     "node_id": "kp_0_3",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_0",
+     "name": "KP_2_1",
+     "node_id": "kp_1_0",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_3",
+     "name": "KP_2_4",
+     "node_id": "kp_1_3",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    }
+   ]
+  }
+ ],
+ "soils": [
+  {
+   "name": "Lớp 3: Sét dẻo",
+   "top": -4.37,
+   "bot": -12.07,
+   "gamma": 1.77,
+   "gamma_dn": 0.793,
+   "phi": 6.233,
+   "c": 0.73,
+   "type_group": "cohesive",
+   "sand_class": "silty",
+   "t_min_2m": true,
+   "is_weak": false
+  },
+  {
+   "name": "Lớp 4: Á sét",
+   "top": -12.07,
+   "bot": -14.87,
+   "gamma": 1.88,
+   "gamma_dn": 0.935,
+   "phi": 11.85,
+   "c": 0.9,
+   "type_group": "cohesive",
+   "sand_class": "silty",
+   "t_min_2m": true,
+   "is_weak": false
+  },
+  {
+   "name": "Lớp 5: Sét dẻo",
+   "top": -14.87,
+   "bot": -20,
+   "gamma": 1.72,
+   "gamma_dn": 0.742,
+   "phi": 6.5,
+   "c": 0.77,
+   "type_group": "cohesive",
+   "sand_class": "silty",
+   "t_min_2m": true,
+   "is_weak": false
+  }
+ ],
+ "load_factors": {
+  "na": 1.2,
+  "nb": 0.8,
+  "nw": 1,
+  "nd": 1.2,
+  "ng": 1.1
+ },
+ "analysis_mode": "AUTO_FEM",
+ "midas_override": {},
+ "schema_version": 2,
+ "coords": {
+  "N0": null,
+  "E0": null,
+  "azimuth_deg": 0,
+  "station": ""
+ },
+ "king_post": {
+  "profile": "H300x300",
+  "el_toe": null,
+  "f_i": []
+ },
+ "surcharges": [],
+ "stages_mode": "auto",
+ "stages_custom": [],
+ "fem_state": {
+  "king_posts": {
+   "T1": [
+    {
+     "id": "kp_0_0",
+     "name": "KP_1_1",
+     "node_id": "kp_0_0",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_0_3",
+     "name": "KP_1_4",
+     "node_id": "kp_0_3",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_0",
+     "name": "KP_2_1",
+     "node_id": "kp_1_0",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_3",
+     "name": "KP_2_4",
+     "node_id": "kp_1_3",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": 2,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    }
+   ],
+   "T2": [
+    {
+     "id": "kp_0_0",
+     "name": "KP_1_1",
+     "node_id": "kp_0_0",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_0_3",
+     "name": "KP_1_4",
+     "node_id": "kp_0_3",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_0",
+     "name": "KP_2_1",
+     "node_id": "kp_1_0",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_3",
+     "name": "KP_2_4",
+     "node_id": "kp_1_3",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": -1,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    }
+   ],
+   "T3": [
+    {
+     "id": "kp_0_0",
+     "name": "KP_1_1",
+     "node_id": "kp_0_0",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_0_3",
+     "name": "KP_1_4",
+     "node_id": "kp_0_3",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_0",
+     "name": "KP_2_1",
+     "node_id": "kp_1_0",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    },
+    {
+     "id": "kp_1_3",
+     "name": "KP_2_4",
+     "node_id": "kp_1_3",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": -4,
+     "profile": "H300x300",
+     "type": "king_post",
+     "boundary_condition": "vertical_support",
+     "dof_restraints": {
+      "dx": false,
+      "dy": false,
+      "dz": true,
+      "rx": false,
+      "ry": false,
+      "rz": false
+     }
+    }
+   ]
+  },
+  "all_grid_nodes": {
+   "T1": [
+    {
+     "id": "kp_0_0",
+     "name": "N_1_1",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": 2,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_0_1",
+     "name": "N_1_2",
+     "i": 0,
+     "j": 1,
+     "x": 5.7,
+     "y": 10.1,
+     "z": 2,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_0_2",
+     "name": "N_1_3",
+     "i": 0,
+     "j": 2,
+     "x": 5.7,
+     "y": 14.4,
+     "z": 2,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_0_3",
+     "name": "N_1_4",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": 2,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_1_0",
+     "name": "N_2_1",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": 2,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_1_1",
+     "name": "N_2_2",
+     "i": 1,
+     "j": 1,
+     "x": 14.3,
+     "y": 10.1,
+     "z": 2,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_1_2",
+     "name": "N_2_3",
+     "i": 1,
+     "j": 2,
+     "x": 14.3,
+     "y": 14.4,
+     "z": 2,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_1_3",
+     "name": "N_2_4",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": 2,
+     "is_king_post": true
+    }
+   ],
+   "T2": [
+    {
+     "id": "kp_0_0",
+     "name": "N_1_1",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": -1,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_0_1",
+     "name": "N_1_2",
+     "i": 0,
+     "j": 1,
+     "x": 5.7,
+     "y": 10.1,
+     "z": -1,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_0_2",
+     "name": "N_1_3",
+     "i": 0,
+     "j": 2,
+     "x": 5.7,
+     "y": 14.4,
+     "z": -1,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_0_3",
+     "name": "N_1_4",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": -1,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_1_0",
+     "name": "N_2_1",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": -1,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_1_1",
+     "name": "N_2_2",
+     "i": 1,
+     "j": 1,
+     "x": 14.3,
+     "y": 10.1,
+     "z": -1,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_1_2",
+     "name": "N_2_3",
+     "i": 1,
+     "j": 2,
+     "x": 14.3,
+     "y": 14.4,
+     "z": -1,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_1_3",
+     "name": "N_2_4",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": -1,
+     "is_king_post": true
+    }
+   ],
+   "T3": [
+    {
+     "id": "kp_0_0",
+     "name": "N_1_1",
+     "i": 0,
+     "j": 0,
+     "x": 5.7,
+     "y": 5.1,
+     "z": -4,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_0_1",
+     "name": "N_1_2",
+     "i": 0,
+     "j": 1,
+     "x": 5.7,
+     "y": 10.1,
+     "z": -4,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_0_2",
+     "name": "N_1_3",
+     "i": 0,
+     "j": 2,
+     "x": 5.7,
+     "y": 14.4,
+     "z": -4,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_0_3",
+     "name": "N_1_4",
+     "i": 0,
+     "j": 3,
+     "x": 5.7,
+     "y": 19.4,
+     "z": -4,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_1_0",
+     "name": "N_2_1",
+     "i": 1,
+     "j": 0,
+     "x": 14.3,
+     "y": 5.1,
+     "z": -4,
+     "is_king_post": true
+    },
+    {
+     "id": "kp_1_1",
+     "name": "N_2_2",
+     "i": 1,
+     "j": 1,
+     "x": 14.3,
+     "y": 10.1,
+     "z": -4,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_1_2",
+     "name": "N_2_3",
+     "i": 1,
+     "j": 2,
+     "x": 14.3,
+     "y": 14.4,
+     "z": -4,
+     "is_king_post": false
+    },
+    {
+     "id": "kp_1_3",
+     "name": "N_2_4",
+     "i": 1,
+     "j": 3,
+     "x": 14.3,
+     "y": 19.4,
+     "z": -4,
+     "is_king_post": true
+    }
+   ]
+  }
+ },
+ "input_sources": {}
+}

@@ -1,0 +1,112 @@
+;---------------------------------------------------------------------------
+;  MIDAS/Civil Text(MCT) File.
+;  Date : 2026/11/11
+;---------------------------------------------------------------------------
+;  DON VI: luc TONF, chieu dai M (khai bao ngay dau tep o *UNIT). Muc dich: kiem tra lai tren Midas Civil mo hinh ma chuong trinh da giai.
+;  Xuat tu chuong trinh Kiem toan vong vay coc van thep (PKTTC): dam cung dai 1 m, Do be, chen khe be - cu den -4.50 m, thao tang chong T2 (GD7).
+;  Cong trinh: Cau X, Km12+300; Tru T5, T6 "moi". Nut doc theo truc Z (cao do), X = Y = 0. Chieu duong cua tai va chuyen vi: +X (phia ho dao).
+;  Do cung uon EI = 8106 T.m2 (dai 1 m, E = 21000000 T/m2, I = 38600 cm4). Tiet dien vuong tuong duong a = 0.26088081 m (a^4/12 = I), chi EI co nghia.
+;  Goi:  T1. Cao do dinh cu 3 m; day cu -15 m.
+;  Chi dat nut tai dinh, mui cu, vi tri goi va cho tai doi (11 nut, tu 102 nut cua luoi giai); tai khai hinh thang tren tung phan tu.
+;  Tai tach hai truong hop: nuoc p_w (_N) va dat p_a - p_p (_D); to hop (7-14) M = 1 x _N + 0,75 x _D va to hop tong tai 1 x _N + 1 x _D.
+;  Trinh tu khai bao: don vi -> nut -> phan tu -> vat lieu, tiet dien -> truong hop tai -> lien ket (goi, lo xo, khop) -> tai trong.
+
+*VERSION
+   8.7.5
+
+*UNIT    ; Unit System
+; FORCE, LENGTH, HEAT, TEMPER
+   TONF , M, KJ, C
+
+*PROJINFO    ; Project Information
+   USER=PKTTC
+   ADDRESS=Cau X Km12+300 Tru T5 T6 moi
+
+*STRUCTYPE    ; Structure Type
+; iSTYP, iMASS, iSMAS, bMASSOFFSET, bSELFWEIGHT, GRAV, TEMPER, bALIGNBEAM, bALIGNSLAB, bROTRIGID
+     0, 1, 1, NO, NO, 9.806, 0, NO, NO, NO
+
+*NODE    ; Nodes
+; iNO, X, Y, Z
+     1, 0, 0, 3
+     2, 0, 0, 2
+     3, 0, 0, 1.866
+     4, 0, 0, 1.74
+     5, 0, 0, -0.528
+     6, 0, 0, -0.654
+     7, 0, 0, -3.93
+     8, 0, 0, -4.5
+     9, 0, 0, -7.332
+    10, 0, 0, -7.584
+    11, 0, 0, -9.6
+
+*ELEMENT    ; Elements
+; iEL, TYPE, iMAT, iPRO, iN1, iN2, ANGLE, iSUB, EXVAL, iOPT(EXVAL2) ; Frame  Element
+     1, BEAM  ,    1,     1,     1,     2,     0,   0
+     2, BEAM  ,    1,     1,     2,     3,     0,   0
+     3, BEAM  ,    1,     1,     3,     4,     0,   0
+     4, BEAM  ,    1,     1,     4,     5,     0,   0
+     5, BEAM  ,    1,     1,     5,     6,     0,   0
+     6, BEAM  ,    1,     1,     6,     7,     0,   0
+     7, BEAM  ,    1,     1,     7,     8,     0,   0
+     8, BEAM  ,    1,     1,     8,     9,     0,   0
+     9, BEAM  ,    1,     1,     9,    10,     0,   0
+    10, BEAM  ,    1,     1,    10,    11,     0,   0
+
+*MATERIAL    ; Material
+; iMAT, TYPE, MNAME, SPHEAT, HEATCO, PLAST, TUNIT, bMASS, DAMPRATIO, [DATA1]           ; STEEL, CONC, USER
+; [DATA1] : 2, ELAST, POISN, THERMAL, DEN, MASS
+    1, STEEL, Thep              , 0, 0, , C, NO, 0.02, 2, 2.1000e+007,   0.3, 1.1700e-005, 7.85, 0
+
+*SECTION    ; Section
+; iSEC, TYPE, SNAME, [OFFSET], bSD, bWE, SHAPE, [DATA1], [DATA2]                    ; 1st line - DB/USER
+; [DATA1] : 1, DB, NAME or 2, D1, D2, D3, D4, D5, D6, D7, D8, D9, D10
+    1, DBUSER    , CUVUONG           , CC, 0, 0, 0, 0, 0, 0, NO, NO, SB , 2, 0.26088081, 0.26088081, 0, 0, 0, 0, 0, 0, 0, 0
+;   SB (chu nhat dac) a x a = 0.26088081 x 0.26088081 m, I = 38600 cm4 [CAN KIEM TRA ten dang SB tren Midas]
+
+*STLDCASE    ; Static Load Cases
+; LCNAME, LCTYPE, DESC
+   GD7_N , D , Ap luc nuoc p_w
+   GD7_D , D , Ap luc dat p_a - p_p
+
+*CONSTRAINT    ; Supports
+; NODE_LIST, CONST(Dx,Dy,Dz,Rx,Ry,Rz), GROUP
+   8 11, 110101, 
+   2, 111101, 
+;  Chi khoa tai cac nut goi cua so do tinh: goi chot 111101 (nut tren cung, co khoa Dz) va 110101 (Dx, Dy, Rx, Rz co dinh, Ry tu do); ngam 111111. Cac nut khac tu do.
+
+*USE-STLD, GD7_N
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+     3, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 0, 1, 0.0399999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     4, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 0.0400001, 1, 2.3079999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     5, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.3080001, 1, 2.4339999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     6, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 2.4340001, 1, 5.7099999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     7, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 5.7100001, 1, 6.2799999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     8, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 6.2800001, 1, 9.1119999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+     9, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 9.1120001, 1, 9.3639999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+    10, LINE   , UNILOAD, GX, NO , NO, aDir[1], , , , 0, 9.3640001, 1, 11.3799999, 0, 0, 0, 0, , NO, 0, 0, NO, 
+
+*USE-STLD, GD7_D
+
+*BEAMLOAD    ; Element Beam Loads
+; ELEM_LIST, CMD, TYPE, DIR, bPROJ, [ECCEN], [VALUE], GROUP
+; ELEM_LIST, CMD, TYPE, TYPE, DIR, VX, VY, VZ, bPROJ, [ECCEN], [VALUE], GROUP
+; [VALUE]       : D1, P1, D2, P2, D3, P3, D4, P4
+; [ECCEN]       : bECCEN, ECCDIR, I-END, J-END, bJ-END
+; [ADDITIONAL]  : bADDITIONAL, ADDITIONAL_I-END, ADDITIONAL_J-END, bADDITIONAL_J-END
+
+*LOADCOMB    ; Combinations
+; NAME=NAME, KIND, ACTIVE, bES, iTYPE, DESC, iSERV-TYPE, nLCOMTYPE   ; line 1
+;      ANAL1, LCNAME1, FACT1, ...                                    ; from line 2
+   NAME=GD7_7-14, GEN, ACTIVE, 0, 0, , 0, 0
+        ST, GD7_N, 1, ST, GD7_D, 0.75
+   NAME=GD7_TongTai, GEN, ACTIVE, 0, 0, , 0, 0
+        ST, GD7_N, 1, ST, GD7_D, 1
+
+*ENDDATA

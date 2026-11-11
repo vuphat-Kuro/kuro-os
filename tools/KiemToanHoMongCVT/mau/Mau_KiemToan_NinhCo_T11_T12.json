@@ -1,0 +1,128 @@
+{
+  "project": {
+    "name": "Cầu Ninh Cơ - Trụ T11, T12",
+    "engineer": "Phòng KT-TC Phương Thành",
+    "reviewer": "Kiều Linh Nghĩa - Phó phòng KT-TC",
+    "date": "2026-10-27",
+    "description": "Kiểm toán vòng vây cọc ván thép Larsen IV và kết cấu phụ trợ hố móng mố trụ cầu Ninh Cơ (Chuẩn đối chiếu TCVN 11815:2017)"
+  },
+  "hydrology": {
+    "mntc": 1.78,
+    "mnn": 1.78,
+    "mn_gd1": 1.00,
+    "gamma_w": 1.00,
+    "qtc": 2.00,
+    "beta": 0.80
+  },
+  "geometry": {
+    "el_top": 3.00,
+    "el_toe": -15.00,
+    "el_seal_top": -9.10,
+    "el_seal_bot": -12.10,
+    "seal_thick": 3.00,
+    "gamma_bt": 2.35,
+    "pit_a": 20.69,
+    "pit_b": 26.00,
+    "n_sheet": 228,
+    "n_bored": 20,
+    "d_bored": 2.00,
+    "f1_bored": 5.50,
+    "f2_sheet": 5.50
+  },
+  "sheet_pile": {
+    "type": "Larsen_IV",
+    "Wx": 2270,
+    "Ix": 38600,
+    "area": 242.5,
+    "weight": 190,
+    "eta_w": 0.85,
+    "steel_grade": "SY295",
+    "R": 2950,
+    "k": 1.10,
+    "m_work": 0.95
+  },
+  "load_factors": {
+    "na": 1.20,
+    "nb": 0.80,
+    "nd": 1.20,
+    "nw": 1.00
+  },
+  "struts": [
+    {
+      "name": "T1",
+      "el": 2.00,
+      "wale": "2xH300x300",
+      "strut": "H300x300",
+      "l": 4.50,
+      "L0": 12.00,
+      "A_strut": 119.8,
+      "W_strut": 1360,
+      "I_strut": 20400,
+      "i_strut": 13.05,
+      "q_self": 94.0
+    },
+    {
+      "name": "T2",
+      "el": -1.00,
+      "wale": "2xH350x350",
+      "strut": "H350x350",
+      "l": 4.50,
+      "L0": 12.00,
+      "A_strut": 173.9,
+      "W_strut": 2300,
+      "I_strut": 40300,
+      "i_strut": 15.22,
+      "q_self": 137.0
+    },
+    {
+      "name": "T3",
+      "el": -4.00,
+      "wale": "2xH400x400",
+      "strut": "H400x400",
+      "l": 4.50,
+      "L0": 12.00,
+      "A_strut": 218.7,
+      "W_strut": 3330,
+      "I_strut": 66600,
+      "i_strut": 17.45,
+      "q_self": 172.0
+    }
+  ],
+  "soils": [
+    {
+      "name": "Lớp 3 (Sét dẻo)",
+      "top": -4.37,
+      "bot": -12.07,
+      "gamma": 1.77,
+      "gamma_dn": 0.793,
+      "phi": 6.23,
+      "c": 0.73,
+      "type_group": "cohesive"
+    },
+    {
+      "name": "Lớp 4 (Cát sét)",
+      "top": -12.07,
+      "bot": -14.87,
+      "gamma": 1.88,
+      "gamma_dn": 0.935,
+      "phi": 11.85,
+      "c": 0.90,
+      "type_group": "granular_fine"
+    },
+    {
+      "name": "Lớp 5 (Sét dẻo)",
+      "top": -14.87,
+      "bot": -20.00,
+      "gamma": 1.72,
+      "gamma_dn": 0.742,
+      "phi": 6.50,
+      "c": 0.77,
+      "type_group": "cohesive"
+    }
+  ],
+  "midas_override": {
+    "stage2": { "M_max": 33.30, "V1": 8.20, "V4": 15.10 },
+    "stage3": { "M_max": 31.00, "V1": 6.50, "V2": 26.50, "V4": 18.20 },
+    "stage4": { "M_max": 21.40, "V1": 4.80, "V2": 19.30, "V3": 25.60, "V4": 22.40 }
+  }
+}
