@@ -75,6 +75,22 @@ class DesktopApi:
             return False
 
 
+def free_port(port: int = 7788):
+    """Giải phóng cổng nếu có tiến trình zombie cũ chiếm giữ."""
+    try:
+        import subprocess
+        cmd = f'netstat -ano | findstr /r /c:":{port} .*LISTENING"'
+        out = subprocess.check_output(cmd, shell=True, text=True, errors="ignore")
+        for line in out.strip().splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 5:
+                pid = int(parts[-1])
+                if pid > 0 and pid != os.getpid():
+                    os.system(f"taskkill /PID {pid} /F >nul 2>&1")
+    except Exception:
+        pass
+
+
 def is_server_running(url: str = "http://127.0.0.1:7788/health") -> bool:
     try:
         req = urllib.request.urlopen(url, timeout=0.8)
@@ -95,16 +111,18 @@ def run_fastapi_server():
 
 
 def main():
-    # 1. Đảm bảo server Kuro OS đang chạy
-    if not is_server_running():
-        print("[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ...")
-        server_thread = threading.Thread(target=run_fastapi_server, daemon=True)
-        server_thread.start()
-        # Đợi tối đa 5 giây cho server sẵn sàng
-        for _ in range(25):
-            time.sleep(0.2)
-            if is_server_running():
-                break
+    # 0. Giải phóng cổng 7788 nếu có tiến trình zombie từ phiên trước
+    free_port(7788)
+    time.sleep(0.3)
+
+    # 1. Đảm bảo server Kuro OS đang chạy với code mới nhất
+    print("[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ...")
+    server_thread = threading.Thread(target=run_fastapi_server, daemon=True)
+    server_thread.start()
+    for _ in range(30):
+        time.sleep(0.2)
+        if is_server_running():
+            break
 
     # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
     api = DesktopApi()
@@ -123,11 +141,18 @@ def main():
     )
     api.set_window(window)
 
+    def on_closed():
+        # Thoát dứt khoát khi tắt cửa sổ để không để lại tiến trình ma
+        os._exit(0)
+
+    window.events.closed += on_closed
+
     # 3. Khởi chạy cửa sổ ứng dụng Windows Native (Edge WebView2)
     webview.start(
         debug=False,
         icon=icon_str
     )
+    os._exit(0)
 
 
 if __name__ == "__main__":
