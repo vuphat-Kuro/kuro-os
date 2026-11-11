@@ -979,14 +979,112 @@
   }
   .ip-pill:hover { background:rgba(34,211,238,.25); border-color:var(--cyan); }
 
-  @media (max-width:768px) {
-    #agents-sidebar { position:absolute; left:0; top:0; bottom:0; box-shadow:8px 0 24px rgba(0,0,0,.6); }
-    #agents-sidebar.collapsed { transform:translateX(-100%); }
-    #btn-menu-agents, #gear2 { display:inline-flex; }
+  /* Backdrop che phủ toàn màn hình khi mở ngăn kéo Drawer trên Mobile */
+  .sidebar-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(3,8,14,.75);
+    backdrop-filter: blur(4px); z-index: 90; opacity: 0; pointer-events: none;
+    transition: opacity .22s ease;
+  }
+  .sidebar-backdrop.active { display: block; opacity: 1; pointer-events: auto; }
+
+  .mobile-sidebar-close {
+    display: none; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 4px;
+    background: rgba(255,255,255,.06); border: 1px solid var(--line);
+    color: var(--muted); cursor: pointer; font-size: 14px; margin-left: auto;
+  }
+  .mobile-sidebar-close:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  @media (max-width: 768px) {
+    /* MẶC ĐỊNH ẨN HOÀN TOÀN 2 PANEL TRÊN MOBILE */
+    #agents-sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0;
+      width: min(320px, 86vw); max-width: 86vw;
+      box-shadow: 12px 0 36px rgba(0,0,0,.9);
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform .25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #agents-sidebar.open {
+      transform: translateX(0);
+    }
+
+    #history-sidebar {
+      position: fixed; right: 0; top: 0; bottom: 0;
+      width: min(320px, 86vw); max-width: 86vw;
+      box-shadow: -12px 0 36px rgba(0,0,0,.9);
+      z-index: 100;
+      margin-right: 0 !important;
+      transform: translateX(100%);
+      transition: transform .25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #history-sidebar.open {
+      transform: translateX(0);
+    }
+
+    /* Hiển thị nút đóng ngăn kéo */
+    .mobile-sidebar-close { display: inline-flex !important; }
+    #btn-menu-agents { display: inline-flex !important; }
+    #gear2 { display: inline-flex !important; }
+
+    /* Thanh tiêu đề siêu gọn trên Mobile */
+    header {
+      padding: 6px 10px;
+      gap: 6px;
+    }
+    .header-agent-zone {
+      gap: 8px; min-width: 0; flex: 1;
+    }
+    .header-avatar {
+      width: 28px; height: 28px;
+    }
+    .header-agent-title {
+      font-size: 13px;
+    }
+    .header-agent-role {
+      display: none !important;
+    }
+    .header-controls {
+      gap: 4px;
+    }
+    .btn-hdr {
+      height: 30px; min-width: 30px; padding: 0 6px !important;
+    }
+    .btn-hdr .btn-text {
+      display: none !important;
+    }
+    .state-indicator .state-text {
+      display: none !important;
+    }
+    #btn-version-header, #btn-context-header {
+      display: none !important;
+    }
+
+    /* Khung chat tràn viền tập trung trên Mobile */
+    form {
+      padding: 6px 8px 10px !important;
+    }
+    textarea {
+      font-size: 15px !important;
+      min-height: 46px !important;
+      padding: 9px 44px 9px 24px !important;
+    }
+    .input::before {
+      top: 9px; font-size: 15px; left: 8px;
+    }
+    .btn-send {
+      padding: 5px 9px; font-size: 10.5px; right: 5px; bottom: 7px;
+    }
+    .form-hint-row {
+      display: none !important;
+    }
   }
 </style>
 </head>
 <body>
+
+<!-- LỚP MỜ BACKDROP KHI MỞ DRAWER TRÊN MOBILE -->
+<div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
 <!-- CỘT 1: DANH SÁCH CỘNG SỰ & CÂY THƯ MỤC -->
 <aside id="agents-sidebar">
@@ -999,6 +1097,7 @@
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
+    <button type="button" class="mobile-sidebar-close" id="btn-close-agents-mobile" title="Đóng danh sách">✕</button>
   </div>
 
   <div class="sidebar-header-tabs">
@@ -1785,6 +1884,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=24"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

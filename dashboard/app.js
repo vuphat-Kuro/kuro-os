@@ -585,7 +585,10 @@ async function confirmDeleteAgent(slug, name) {
 
 // Khi người dùng bấm chọn một Agent
 async function selectAgent(slug) {
-  if (selectedAgent === slug && session) return;
+  if (selectedAgent === slug && session) {
+    if (window.innerWidth <= 768) closeAllDrawers();
+    return;
+  }
   selectedAgent = slug;
   localStorage.setItem("kuro_active_agent", slug);
 
@@ -606,6 +609,11 @@ async function selectAgent(slug) {
 
   // Mở phiên mới cho Agent này
   newSession();
+
+  // Trên Mobile: tự động đóng ngăn kéo lại để tập trung vào khung chat
+  if (window.innerWidth <= 768) {
+    closeAllDrawers();
+  }
 }
 
 function updateActiveAgentUI() {
@@ -772,6 +780,9 @@ async function openSession(id) {
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(id);
+  if (window.innerWidth <= 768) {
+    closeAllDrawers();
+  }
 
   try {
     const res = await fetch(`/api/sessions/${id}`);
@@ -801,16 +812,73 @@ function newSession() {
 $("new").onclick = newSession;
 $("btn-new-conv").onclick = newSession;
 
-// Đóng mở cột Lịch sử & Ngữ cảnh
-$("btn-toggle-history").onclick = () => {
-  $("history-sidebar").classList.toggle("collapsed");
-  if (!$("history-sidebar").classList.contains("collapsed") && currentInspectorTab === "context") {
+// ========================================================
+// QUẢN LÝ NGĂN KÉO DRAWER TRÊN MOBILE & DESKTOP
+// ========================================================
+function openAgentsSidebar() {
+  if (window.innerWidth <= 768) {
+    $("agents-sidebar").classList.add("open");
+    $("history-sidebar").classList.remove("open");
+    const backdrop = $("sidebar-backdrop");
+    if (backdrop) backdrop.classList.add("active");
+  } else {
+    $("agents-sidebar").classList.toggle("collapsed");
+  }
+}
+
+function closeAgentsSidebar() {
+  $("agents-sidebar").classList.remove("open");
+  if (window.innerWidth <= 768 && !$("history-sidebar").classList.contains("open")) {
+    const backdrop = $("sidebar-backdrop");
+    if (backdrop) backdrop.classList.remove("active");
+  }
+}
+
+function openHistorySidebar() {
+  if (window.innerWidth <= 768) {
+    $("history-sidebar").classList.add("open");
+    $("agents-sidebar").classList.remove("open");
+    const backdrop = $("sidebar-backdrop");
+    if (backdrop) backdrop.classList.add("active");
+  } else {
+    $("history-sidebar").classList.toggle("collapsed");
+  }
+  if (currentInspectorTab === "context") {
     loadSessionContext(session);
   }
+}
+
+function closeHistorySidebar() {
+  $("history-sidebar").classList.remove("open");
+  if (window.innerWidth <= 768 && !$("agents-sidebar").classList.contains("open")) {
+    const backdrop = $("sidebar-backdrop");
+    if (backdrop) backdrop.classList.remove("active");
+  }
+}
+
+function closeAllDrawers() {
+  closeAgentsSidebar();
+  closeHistorySidebar();
+  const backdrop = $("sidebar-backdrop");
+  if (backdrop) backdrop.classList.remove("active");
+}
+
+$("btn-toggle-history").onclick = () => {
+  if ($("history-sidebar").classList.contains("open")) {
+    closeHistorySidebar();
+  } else {
+    openHistorySidebar();
+  }
 };
-$("btn-close-history").onclick = () => {
-  $("history-sidebar").classList.add("collapsed");
-};
+$("btn-close-history").onclick = closeHistorySidebar;
+
+if ($("btn-close-agents-mobile")) {
+  $("btn-close-agents-mobile").onclick = closeAgentsSidebar;
+}
+
+if ($("sidebar-backdrop")) {
+  $("sidebar-backdrop").onclick = closeAllDrawers;
+}
 
 // ===================== THỐNG KÊ NGỮ CẢNH (CONTEXT INSPECTOR) =====================
 let currentInspectorTab = "history";
@@ -1007,7 +1075,11 @@ $("btn-trigger-compact") && ($("btn-trigger-compact").onclick = compactCurrentSe
 
 // Đóng mở danh sách Agent trên điện thoại/màn hình nhỏ
 $("btn-menu-agents").onclick = () => {
-  $("agents-sidebar").classList.toggle("collapsed");
+  if ($("agents-sidebar").classList.contains("open")) {
+    closeAgentsSidebar();
+  } else {
+    openAgentsSidebar();
+  }
 };
 
 // Kết nối WebSocket
