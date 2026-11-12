@@ -995,6 +995,12 @@ function switchInspectorTab(tab) {
   }
 }
 
+function toggleContextAccordion(accId) {
+  const el = $(accId);
+  if (!el) return;
+  el.classList.toggle("open");
+}
+
 function formatTokens(num) {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
   if (num >= 1000) return (num / 1000).toFixed(1) + "k";
@@ -1077,12 +1083,110 @@ async function loadSessionContext(sid) {
       list.appendChild(row);
     });
 
-    // 5. Cập nhật các bộ đếm
+    // 5. Cập nhật các bộ đếm và danh sách chi tiết (Accordion Details)
     const counts = data.counts || {};
-    $("ctx-count-mcp").textContent = counts.mcp_tools_count || 0;
-    $("ctx-count-mem").textContent = counts.memory_files_count || 0;
-    $("ctx-count-skills").textContent = counts.skills_count || 0;
-    $("ctx-count-agents").textContent = counts.custom_agents_count || 0;
+    const details = data.details || {};
+
+    // 5.1 MCP Tools
+    const mcpTools = details.mcp_tools || [];
+    $("ctx-count-mcp").textContent = mcpTools.length || counts.mcp_tools_count || 0;
+    const mcpList = $("ctx-list-mcp");
+    if (mcpList) {
+      mcpList.innerHTML = "";
+      if (!mcpTools.length) {
+        mcpList.innerHTML = `<div class="ctx-sub-row" style="color:var(--muted); padding:4px 6px;">Chưa có công cụ MCP</div>`;
+      } else {
+        mcpTools.forEach(t => {
+          const row = document.createElement("div");
+          row.className = "ctx-sub-row";
+          row.title = t.desc || t.name;
+          row.innerHTML = `
+            <div class="ctx-sub-left">
+              <span>🔧</span>
+              <span class="ctx-sub-name">${esc(t.name)}</span>
+            </div>
+            <span class="ctx-sub-tok">${formatTokens(t.tokens)}</span>
+          `;
+          mcpList.appendChild(row);
+        });
+      }
+    }
+
+    // 5.2 Memory Files
+    const memFiles = details.memory_files || [];
+    $("ctx-count-mem").textContent = memFiles.length || counts.memory_files_count || 0;
+    const memList = $("ctx-list-mem");
+    if (memList) {
+      memList.innerHTML = "";
+      if (!memFiles.length) {
+        memList.innerHTML = `<div class="ctx-sub-row" style="color:var(--muted); padding:4px 6px;">Chưa có tệp bộ nhớ</div>`;
+      } else {
+        memFiles.forEach(f => {
+          const row = document.createElement("div");
+          row.className = "ctx-sub-row clickable";
+          row.title = `Xem tệp: ${f.path || f.name}`;
+          row.innerHTML = `
+            <div class="ctx-sub-left">
+              <span>📝</span>
+              <span class="ctx-sub-name">${esc(f.path || f.name)}</span>
+            </div>
+            <span class="ctx-sub-tok">${formatTokens(f.tokens)}</span>
+          `;
+          row.onclick = () => previewFile(f.path || f.name, f.name);
+          memList.appendChild(row);
+        });
+      }
+    }
+
+    // 5.3 Skills
+    const skillsList = details.skills || [];
+    $("ctx-count-skills").textContent = skillsList.length || counts.skills_count || 0;
+    const skillsCont = $("ctx-list-skills");
+    if (skillsCont) {
+      skillsCont.innerHTML = "";
+      if (!skillsList.length) {
+        skillsCont.innerHTML = `<div class="ctx-sub-row" style="color:var(--muted); padding:4px 6px;">Chưa có kỹ năng chuyên môn</div>`;
+      } else {
+        skillsList.forEach(s => {
+          const row = document.createElement("div");
+          row.className = "ctx-sub-row";
+          row.title = s.desc || s.name;
+          row.innerHTML = `
+            <div class="ctx-sub-left">
+              <span>⚡</span>
+              <span class="ctx-sub-name">${esc(s.name)}</span>
+            </div>
+            <span class="ctx-sub-tok">${formatTokens(s.tokens)}</span>
+          `;
+          skillsCont.appendChild(row);
+        });
+      }
+    }
+
+    // 5.4 Custom Agents
+    const agentsList = details.custom_agents || [];
+    $("ctx-count-agents").textContent = agentsList.length || counts.custom_agents_count || 0;
+    const agentsCont = $("ctx-list-agents");
+    if (agentsCont) {
+      agentsCont.innerHTML = "";
+      if (!agentsList.length) {
+        agentsCont.innerHTML = `<div class="ctx-sub-row" style="color:var(--muted); padding:4px 6px;">Chưa có tác nhân</div>`;
+      } else {
+        agentsList.forEach(a => {
+          const row = document.createElement("div");
+          row.className = "ctx-sub-row";
+          row.title = a.role ? `${a.name}: ${a.role}` : a.name;
+          row.innerHTML = `
+            <div class="ctx-sub-left">
+              <span>🤖</span>
+              <span class="ctx-sub-name">${esc(a.name)}</span>
+            </div>
+            <span class="ctx-sub-tok">${formatTokens(a.tokens)}</span>
+          `;
+          agentsCont.appendChild(row);
+        });
+      }
+    }
 
     // 6. Cảnh báo nén phiên
     const untilCompact = usage.tokens_until_compact || 0;

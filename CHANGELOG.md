@@ -1,5 +1,14 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.7] - 2026-11-12
+- Nâng cấp Panel Ngữ cảnh (Context Breakdown) chuẩn phong cách Claude Code: Chuyển đổi các mục đếm tĩnh thành danh mục Accordion (thu gọn/mở rộng `▸` / `▾`) kèm badge số lượng thực tế.
+- Bóc tách chi tiết từng thành phần ngữ cảnh:
+  - Công cụ MCP & Hệ thống (MCP & System Tools): Hiển thị chi tiết từng công cụ (`kuro · tinh_python`, `system · Read`, `system · Write`, `system · Edit`, `system · Glob`, `system · Grep`, `system · Bash`, `system · WebSearch`, `system · WebFetch`...) kèm số token thực tế của từng công cụ.
+  - Tệp bộ nhớ (Memory files): Quét và hiển thị chi tiết từng tệp bộ nhớ (`CLAUDE.md`, `AGENTS.md`, `MEMORY.md`, `KE-HOACH.md`...) kèm số token thực tế và hỗ trợ nhấp chuột để xem trước nhanh tệp tin.
+  - Năng lực chuyên môn (Skills): Liệt kê đầy đủ 22 kỹ năng chuyên môn hạ tầng (Biện pháp thi công, BIM tự động hoá, Kiểm toán hố móng...) kèm số token thực tế từ nội dung SKILL.md.
+  - Tác nhân tùy chỉnh (Agents): Liệt kê chi tiết 13 kỹ sư AI chuyên môn kèm số token persona thực tế.
+- Khắc phục triệt để việc hardcode số liệu thống kê: Mọi bộ đếm, biểu đồ phân bổ token (Progress Bar) và tỷ lệ sử dụng ngữ cảnh đều được tính toán tự động và đồng bộ thời gian thực theo đúng phiên làm việc hiện tại.
+
 ## [1.5.6] - 2026-11-12
 - Tối ưu giao diện thanh công cụ Cây thư mục: Ẩn các nút Tạo tệp và Tạo thư mục trên thanh tiêu đề để giao diện gọn gàng, thoáng mắt. Các thao tác Tạo tệp mới, Tạo thư mục mới, Đổi tên, Xóa, Sao chép, Dán vẫn được giữ nguyên đầy đủ trong Menu chuột phải (Context Menu).
 

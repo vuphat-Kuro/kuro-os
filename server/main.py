@@ -761,139 +761,175 @@ def get_model_context_window(provider: str | None = None, model: str | None = No
     return 1_000_000 if prov == "antigravity" else 200_000
 
 
-@app.get("/api/context")
-def default_context():
-    """Thông số ngữ cảnh mặc định của hệ thống khi bắt đầu phiên mới."""
-    window_size = get_model_context_window()
-    mem_files_paths = [
-        config.BRAIN / "memory" / "MEMORY.md",
-        config.ROOT / "AGENTS.md",
-        config.ROOT / "CLAUDE.md",
-    ]
-    mem_chars = sum(len(p.read_text(encoding="utf-8", errors="ignore")) for p in mem_files_paths if p.is_file())
-    mem_tokens = int(mem_chars / 3.5)
-    meta, body = engine.agent_persona("kuro-core")
-    prompt_tokens = int((len(body) + len(meta.get("role", "")) + 600) / 3.5)
-    skill_tokens = 4500
-    system_tools_tokens = 3200
-    mcp_tools_tokens = 2400
-    autocompact_threshold = int(window_size * 0.8)
-    autocompact_buffer = int(window_size * 0.05)
-    baseline_tokens = mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens
-    free_space = max(0, window_size - baseline_tokens - autocompact_buffer)
-    percent_used = round((baseline_tokens / window_size) * 100, 1)
-
-    branch = "main"
-    try:
-        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, timeout=2)
-        if r.returncode == 0 and r.stdout.strip():
-            branch = r.stdout.strip()
-    except Exception:
-        pass
-
-    return {
-        "id": None,
-        "title": "Phiên mới",
-        "agent": "kuro-core",
-        "agent_name": "Kuro Core",
-        "environment": {
-            "host": "Máy tính này (Local Windows)",
-            "brain_path": str(config.BRAIN),
-            "git_branch": branch,
-            "provider": config.PROVIDER or "antigravity",
-            "model": config.MODEL or "Mặc định",
-            "context_window": window_size,
-        },
-        "usage": {
-            "total_tokens": baseline_tokens,
-            "window_size": window_size,
-            "percent": percent_used,
-            "autocompact_threshold": autocompact_threshold,
-            "tokens_until_compact": autocompact_threshold - baseline_tokens,
-        },
-        "breakdown": {
-            "messages": {"tokens": 0, "percent": 0.0, "color": "#38bdf8", "name": "Messages"},
-            "memory_files": {"tokens": mem_tokens, "percent": round((mem_tokens / window_size) * 100, 1), "color": "#fb923c", "name": "Memory files"},
-            "system_tools": {"tokens": system_tools_tokens, "percent": round((system_tools_tokens / window_size) * 100, 1), "color": "#34d399", "name": "System tools"},
-            "mcp_tools": {"tokens": mcp_tools_tokens, "percent": round((mcp_tools_tokens / window_size) * 100, 1), "color": "#c084fc", "name": "MCP tools"},
-            "system_prompt": {"tokens": prompt_tokens, "percent": round((prompt_tokens / window_size) * 100, 1), "color": "#94a3b8", "name": "System prompt"},
-            "skills": {"tokens": skill_tokens, "percent": round((skill_tokens / window_size) * 100, 1), "color": "#facc15", "name": "Skills"},
-            "autocompact_buffer": {"tokens": autocompact_buffer, "percent": round((autocompact_buffer / window_size) * 100, 1), "color": "#475569", "name": "Autocompact buffer"},
-            "free_space": {"tokens": free_space, "percent": round((free_space / window_size) * 100, 1), "color": "#0f172a", "name": "Free space"},
-        },
-        "counts": {
-            "messages_count": 0,
-            "memory_files_count": len([p for p in mem_files_paths if p.is_file()]),
-            "skills_count": 21,
-            "mcp_tools_count": 12,
-            "custom_agents_count": len(engine.list_agents_info()),
-        },
-        "artifacts": []
-    }
-
-
-@app.get("/api/sessions/{sid}/context")
-def session_context(sid: str):
-    sess = store.get(sid)
-    if not sess:
-        raise HTTPException(404, "Không tìm thấy phiên")
-    msgs = store.messages(sid)
-
-    # 1. Message tokens
+def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
+    """Tập hợp chi tiết và số liệu thực tế của toàn bộ ngữ cảnh (tệp bộ nhớ, công cụ MCP, kỹ năng, agent)."""
+    # 1. Message tokens & count
+    msgs = store.messages(sid) if sid else []
     msg_chars = sum(len(m.get("text", "")) for m in msgs)
-    msg_tokens = int(msg_chars / 3.6) + (len(msgs) * 6)
+    msg_tokens = int(msg_chars / 3.6) + (len(msgs) * 6) if msgs else 0
+    msgs_count = len(msgs)
 
     # 2. Model context window
     window_size = get_model_context_window(config.PROVIDER, config.MODEL)
 
-    # 3. Memory files
-    mem_files_paths = [
-        config.BRAIN / "memory" / "MEMORY.md",
-        config.ROOT / "AGENTS.md",
+    # 3. Memory files thực tế
+    candidates = [
         config.ROOT / "CLAUDE.md",
+        config.ROOT / "AGENTS.md",
+        config.BRAIN / "memory" / "MEMORY.md",
+        config.ROOT / "KE-HOACH.md",
     ]
-    mem_chars = 0
-    mem_count = 0
-    for p in mem_files_paths:
-        if p.is_file():
-            mem_count += 1
-            try:
-                mem_chars += len(p.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-    mem_tokens = int(mem_chars / 3.5)
+    facts_dir = config.BRAIN / "memory" / "facts"
+    if facts_dir.is_dir():
+        candidates.extend(sorted(facts_dir.glob("*.md")))
 
-    # 4. System prompt for current agent
-    agent_slug = sess.get("agent", "kuro-core")
+    memory_files = []
+    seen_paths = set()
+    for p in candidates:
+        if not p.is_file():
+            continue
+        canon = str(p.resolve())
+        if canon in seen_paths:
+            continue
+        seen_paths.add(canon)
+        try:
+            txt = p.read_text(encoding="utf-8", errors="ignore")
+            chars = len(txt)
+            tok = max(1, int(chars / 3.5))
+            try:
+                rel = p.relative_to(config.ROOT)
+                disp = str(rel).replace("\\", "/")
+            except Exception:
+                disp = f"brains/{config.BRAIN.name}/{p.name}"
+            memory_files.append({
+                "name": p.name,
+                "path": disp,
+                "full_path": str(p).replace("\\", "/"),
+                "chars": chars,
+                "tokens": tok,
+                "exists": True
+            })
+        except Exception:
+            pass
+
+    mem_tokens = sum(f["tokens"] for f in memory_files)
+    mem_count = len(memory_files)
+
+    # 4. Agent & System prompt
+    if not agent_slug:
+        if sid:
+            sess = store.get(sid)
+            agent_slug = sess.get("agent", "kuro-core") if sess else "kuro-core"
+        else:
+            agent_slug = "kuro-core"
     meta, body = engine.agent_persona(agent_slug)
     prompt_chars = len(body) + len(meta.get("role", "")) + 600
     prompt_tokens = int(prompt_chars / 3.5)
+    agent_name = meta.get("name") or agent_slug
 
-    # 5. Skills
-    skills_dir = config.BRAIN / "skills"
-    skills_count = 0
-    skills_chars = 0
-    if skills_dir.is_dir():
-        for sp in skills_dir.glob("*/SKILL.md"):
-            skills_count += 1
-            skills_chars += min(2500, len(sp.read_text(encoding="utf-8", errors="ignore")))
-    skill_tokens = int(skills_chars / 3.6) if skills_chars else 4500
+    # 5. Skills thực tế
+    skills = []
+    seen_skills = set()
+    for d in (config.BRAIN / ".claude" / "skills", config.ROOT / "skills", config.BRAIN / "skills"):
+        if not d.is_dir():
+            continue
+        for sp in sorted(d.glob("*/SKILL.md")):
+            slug = sp.parent.name
+            if slug in seen_skills:
+                continue
+            seen_skills.add(slug)
+            try:
+                raw = sp.read_text(encoding="utf-8", errors="ignore").replace("\r\n", "\n")
+                smeta = {}
+                if raw.startswith("---\n"):
+                    try:
+                        smeta = yaml.safe_load(raw.split("---\n", 2)[1]) or {}
+                    except Exception:
+                        pass
+                chars = len(raw)
+                tok = max(20, min(2500, int(chars / 3.6)))
+                skills.append({
+                    "slug": slug,
+                    "name": smeta.get("name") or slug,
+                    "desc": (smeta.get("description") or "").replace("\n", " ").strip()[:160],
+                    "tokens": tok
+                })
+            except Exception:
+                pass
+    skill_tokens = sum(s["tokens"] for s in skills)
+    skills_count = len(skills)
 
-    # 6. Tools
-    system_tools_tokens = 3200
-    mcp_tools_tokens = 2400
-    mcp_tools_count = 12
+    # 6. Custom Agents
+    custom_agents = []
+    for a in engine.list_agents_info():
+        aslug = a.get("slug", "")
+        ameta, abody = engine.agent_persona(aslug)
+        achars = len(abody) + len(ameta.get("role", "")) + 400
+        atok = max(50, int(achars / 3.5))
+        custom_agents.append({
+            "slug": aslug,
+            "name": a.get("name") or aslug,
+            "role": a.get("role") or "",
+            "group": a.get("group") or "Chuyên môn",
+            "is_team": a.get("is_team", False),
+            "tokens": atok
+        })
+    custom_agents_count = len(custom_agents)
 
-    # 7. Autocompact buffer & thresholds
+    # 7. MCP Tools & System Tools
+    mcp_tools = [
+        {
+            "name": "kuro · tinh_python",
+            "server": "kuro",
+            "desc": "Thực hiện phép tính Python an toàn, kiểm toán chính xác",
+            "tokens": 180
+        },
+        {"name": "system · Read", "server": "system", "desc": "Đọc nội dung tệp tin văn bản, mã nguồn", "tokens": 165},
+        {"name": "system · Write", "server": "system", "desc": "Tạo mới hoặc ghi đè nội dung tệp tin", "tokens": 175},
+        {"name": "system · Edit", "server": "system", "desc": "Chỉnh sửa chính xác khối nội dung tệp tin", "tokens": 190},
+        {"name": "system · Glob", "server": "system", "desc": "Tìm kiếm tệp tin theo mẫu pattern", "tokens": 140},
+        {"name": "system · Grep", "server": "system", "desc": "Tìm kiếm nội dung tệp tin bằng RegEx", "tokens": 155},
+        {"name": "system · Bash", "server": "system", "desc": "Thực thi lệnh shell / powershell an toàn", "tokens": 210},
+        {"name": "system · WebSearch", "server": "system", "desc": "Tìm kiếm tài liệu kỹ thuật trên web", "tokens": 180},
+        {"name": "system · WebFetch", "server": "system", "desc": "Truy xuất nội dung trang web kỹ thuật", "tokens": 170},
+    ]
+    if config.MCP_FILE.is_file():
+        try:
+            mcp_data = json.loads(config.MCP_FILE.read_text(encoding="utf-8"))
+            for sname, sval in mcp_data.get("mcpServers", {}).items():
+                tools_list = sval.get("tools") or []
+                if tools_list:
+                    for t in tools_list:
+                        t_name = t if isinstance(t, str) else t.get("name", "tool")
+                        mcp_tools.append({
+                            "name": f"{sname} · {t_name}",
+                            "server": sname,
+                            "desc": f"Công cụ mở rộng {t_name} từ {sname}",
+                            "tokens": 220
+                        })
+                else:
+                    mcp_tools.append({
+                        "name": f"{sname} · service",
+                        "server": sname,
+                        "desc": f"Dịch vụ MCP tích hợp: {sname}",
+                        "tokens": 250
+                    })
+        except Exception:
+            pass
+
+    mcp_tools_count = len(mcp_tools)
+    mcp_tools_tokens = sum(t["tokens"] for t in mcp_tools if t["server"] != "system")
+    system_tools_tokens = sum(t["tokens"] for t in mcp_tools if t["server"] == "system")
+
+    # 8. Buffer & Tổng
     autocompact_threshold = int(window_size * 0.8)
     autocompact_buffer = int(window_size * 0.05)
-
     total_used = msg_tokens + mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens
     free_space = max(0, window_size - total_used - autocompact_buffer)
     tokens_until_compact = max(0, autocompact_threshold - total_used)
     percent_used = round((total_used / window_size) * 100, 1)
 
-    # 8. Git branch
+    # 9. Git branch
     branch = "main"
     try:
         r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, timeout=2)
@@ -902,7 +938,7 @@ def session_context(sid: str):
     except Exception:
         pass
 
-    # 9. Artifacts / outputs
+    # 10. Artifacts
     artifacts = []
     for ext in ("*.xlsx", "*.docx", "*.pdf", "*.py", "*.md", "*.csv"):
         for f in (config.ROOT).glob(ext):
@@ -920,9 +956,9 @@ def session_context(sid: str):
 
     return {
         "id": sid,
-        "title": sess.get("title", ""),
+        "title": store.get(sid).get("title", "") if sid and store.get(sid) else "Phiên mới",
         "agent": agent_slug,
-        "agent_name": meta.get("name") or agent_slug,
+        "agent_name": agent_name,
         "environment": {
             "host": "Máy tính này (Local Windows)",
             "brain_path": str(config.BRAIN),
@@ -949,14 +985,35 @@ def session_context(sid: str):
             "free_space": {"tokens": free_space, "percent": round((free_space / window_size) * 100, 1), "color": "#0f172a", "name": "Free space"},
         },
         "counts": {
-            "messages_count": len(msgs),
+            "messages_count": msgs_count,
             "memory_files_count": mem_count,
-            "skills_count": skills_count or 21,
+            "skills_count": skills_count,
             "mcp_tools_count": mcp_tools_count,
-            "custom_agents_count": len(engine.list_agents_info()),
+            "custom_agents_count": custom_agents_count,
+        },
+        "details": {
+            "memory_files": memory_files,
+            "mcp_tools": mcp_tools,
+            "skills": skills,
+            "custom_agents": custom_agents,
         },
         "artifacts": artifacts
     }
+
+
+@app.get("/api/context")
+def default_context():
+    """Thông số ngữ cảnh mặc định của hệ thống khi bắt đầu phiên mới."""
+    return collect_context_snapshot(sid=None, agent_slug="kuro-core")
+
+
+@app.get("/api/sessions/{sid}/context")
+def session_context(sid: str):
+    sess = store.get(sid)
+    if not sess:
+        raise HTTPException(404, "Không tìm thấy phiên")
+    agent_slug = sess.get("agent", "kuro-core")
+    return collect_context_snapshot(sid=sid, agent_slug=agent_slug)
 
 
 @app.post("/api/sessions/{sid}/compact")
