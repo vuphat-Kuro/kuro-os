@@ -1,11 +1,22 @@
 ' Mo Kuro tu bieu tuong tren man hinh chinh, khong hien cua so den.
-' Kuro dang chay thi chi mo trinh duyet; chua chay thi bat server chay an roi mo.
-' shortcut: cong co dinh 7788, doi KURO_PORT trong .env thi sua ca dong url duoi day.
+' Uu tien khoi chay ung dung Desktop native (WebView2).
 Option Explicit
-Dim sh, fso, dir, url, i
+Dim sh, fso, dir, pythonw, desktopPy, url, i
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
+pythonw = dir & "\.venv\Scripts\pythonw.exe"
+desktopPy = dir & "\app_desktop.py"
+
+sh.CurrentDirectory = dir
+
+' 1. Uu tien tuyet doi: Mo app Desktop native (Edge WebView2)
+If fso.FileExists(pythonw) And fso.FileExists(desktopPy) Then
+  sh.Run """" & pythonw & """ """ & desktopPy & """", 0, False
+  WScript.Quit
+End If
+
+' 2. Fallback sang che do Web neu khong tim thay app_desktop.py
 url = "http://127.0.0.1:7788"
 
 Function Up()
@@ -26,8 +37,6 @@ If Not Up() Then
     WScript.Quit
   End If
   If Not fso.FolderExists(dir & "\state") Then fso.CreateFolder dir & "\state"
-  sh.CurrentDirectory = dir
-  ' PYTHONUTF8: log ghi ra file, khong co no thi chu tieng Viet lam server dung ngay luc khoi dong
   sh.Run "cmd /c ""set PYTHONUTF8=1&& .venv\Scripts\python.exe server\main.py > state\kuro.log 2>&1""", 0, False
   For i = 1 To 60
     WScript.Sleep 500

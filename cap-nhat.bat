@@ -13,8 +13,12 @@ cd /d "%~dp0"
   echo [4/4] Lam moi bieu tuong tren man hinh chinh...
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tao-loi-tat.ps1"
   echo.
-  echo Xong. Dang mo lai Kuro...
-  start "" wscript "%~dp0kuro.vbs"
+  echo Xong. Dang mo lai Kuro Desktop...
+  if exist "%~dp0app_desktop.py" (
+    start "" "%~dp0.venv\Scripts\pythonw.exe" "%~dp0app_desktop.py"
+  ) else (
+    start "" wscript "%~dp0kuro.vbs"
+  )
   timeout /t 3 >nul
   exit /b 0
 )

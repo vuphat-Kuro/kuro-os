@@ -1,5 +1,9 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.2] - 2026-11-12
+- Chuẩn hóa luồng khởi động lại sau khi cập nhật: Luôn tự động mở lại ứng dụng Desktop native (`app_desktop.py`), khắc phục triệt để việc mở nhầm sang trình duyệt web (`127.0.0.1:7788`).
+- Cập nhật kuro.vbs và cap-nhat.bat ưu tiên chạy ứng dụng Desktop native qua `pythonw.exe`.
+
 ## [1.5.1] - 2026-11-12
 - Tích hợp Agent Xác nhận thanh quyết toán thầu phụ và đội thi công (nhóm Quản lý & Hồ sơ).
 - Bổ sung công cụ kiểm tra sản phẩm đầu ra `tools/kiem_tra_san_pham.py`.
