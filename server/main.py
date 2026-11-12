@@ -546,7 +546,7 @@ def get_tailscale_info() -> dict:
         return {"installed": False, "running": False}
 
     try:
-        res = subprocess.run([ts_bin, "status", "--json"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run([ts_bin, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
         if res.returncode != 0 or not res.stdout.strip():
             return {"installed": True, "running": False}
         data = json.loads(res.stdout)

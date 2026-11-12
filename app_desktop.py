@@ -7,6 +7,11 @@ thao tác tệp tin không bị hạn chế bởi cơ chế sandbox của trình
 
 import sys
 import os
+
+# Thiết lập UTF-8 toàn cục cho Windows tránh lỗi UnicodeDecodeError cp1252
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
 from pathlib import Path
 
 # Thư mục gốc Kuro và thư mục server
@@ -103,7 +108,7 @@ def free_port(port: int = 7788):
     try:
         import subprocess
         cmd = f'netstat -ano | findstr /r /c:":{port} .*LISTENING"'
-        out = subprocess.check_output(cmd, shell=True, text=True, errors="ignore")
+        out = subprocess.check_output(cmd, shell=True, text=True, encoding="utf-8", errors="ignore")
         for line in out.strip().splitlines():
             parts = line.strip().split()
             if len(parts) >= 5:
