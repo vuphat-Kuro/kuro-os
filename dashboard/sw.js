@@ -1,5 +1,5 @@
 // Kuro OS Service Worker (PWA)
-const CACHE_NAME = "kuro-os-v19";
+const CACHE_NAME = "kuro-os-v20";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();

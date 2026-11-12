@@ -1,5 +1,8 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.6] - 2026-11-12
+- Tối ưu giao diện thanh công cụ Cây thư mục: Ẩn các nút Tạo tệp và Tạo thư mục trên thanh tiêu đề để giao diện gọn gàng, thoáng mắt. Các thao tác Tạo tệp mới, Tạo thư mục mới, Đổi tên, Xóa, Sao chép, Dán vẫn được giữ nguyên đầy đủ trong Menu chuột phải (Context Menu).
+
 ## [1.5.5] - 2026-11-12
 - Tìm kiếm đệ quy toàn bộ cây thư mục dự án (Recursive File Search): Nâng cấp ô tìm kiếm trong tab Cây thư mục để quét sâu vào mọi thư mục con, hiển thị danh sách kết quả trực quan kèm đường dẫn chi tiết và đánh dấu từ khóa khớp.
 - Mở tệp tin bằng phần mềm chuyên dụng trên Windows: Double-click vào bất kỳ tệp tin nào (hoặc bấm nút "Mở trên Windows") để tự động khởi chạy bằng phần mềm mặc định trên máy tính (Microsoft Excel cho .xlsx, Word cho .docx, AutoCAD cho .dwg/.dxf, Adobe Acrobat cho .pdf...).
