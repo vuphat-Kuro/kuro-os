@@ -1352,12 +1352,45 @@ BINARY_FILE_EXTENSIONS = {
 }
 
 
+def resolve_fs_target(path: str) -> Path:
+    """Xác định đường dẫn an toàn trong workspace, root dự án hoặc brain."""
+    p = Path(path)
+    base = engine.active_workspace_dir().resolve()
+    root_base = config.ROOT.resolve()
+    brain_base = config.BRAIN.resolve()
+
+    if p.is_absolute():
+        target = p.resolve()
+    else:
+        t1 = (base / path).resolve()
+        if t1.exists():
+            target = t1
+        else:
+            t2 = (root_base / path).resolve()
+            if t2.exists():
+                target = t2
+            else:
+                t3 = (brain_base / path).resolve()
+                if t3.exists():
+                    target = t3
+                else:
+                    target = t1
+
+    allowed = (
+        str(target).startswith(str(base)) or
+        str(target).startswith(str(root_base)) or
+        str(target).startswith(str(brain_base))
+    )
+    if not allowed or not target.exists():
+        raise HTTPException(404, "Không tìm thấy tệp hoặc thư mục")
+    return target
+
+
 @app.get("/api/fs/file")
 def get_fs_file(path: str):
-    base = engine.active_workspace_dir()
-    target = (base / path).resolve()
-    if not str(target).startswith(str(base.resolve())) or not target.is_file():
-        raise HTTPException(404, "Không tìm thấy file")
+    target = resolve_fs_target(path)
+    if not target.is_file():
+        raise HTTPException(400, "Đường dẫn không phải là tệp tin")
     ext = target.suffix.lower()
     sz = target.stat().st_size
     if ext in BINARY_FILE_EXTENSIONS:
@@ -1441,10 +1474,7 @@ def search_fs(q: str = ""):
 @app.post("/api/fs/open")
 def open_fs_item(body: dict):
     path = (body.get("path") or "").strip()
-    base = engine.active_workspace_dir()
-    target = (base / path).resolve() if path else base.resolve()
-    if not str(target).startswith(str(base.resolve())) or not target.exists():
-        raise HTTPException(404, "Không tìm thấy tệp hoặc thư mục")
+    target = resolve_fs_target(path) if path else engine.active_workspace_dir().resolve()
     try:
         os.startfile(str(target))
         return {"ok": True, "path": str(target)}
@@ -1455,10 +1485,7 @@ def open_fs_item(body: dict):
 @app.post("/api/fs/reveal")
 def reveal_fs_item(body: dict):
     path = (body.get("path") or "").strip()
-    base = engine.active_workspace_dir()
-    target = (base / path).resolve() if path else base.resolve()
-    if not str(target).startswith(str(base.resolve())) or not target.exists():
-        raise HTTPException(404, "Không tìm thấy tệp hoặc thư mục")
+    target = resolve_fs_target(path) if path else engine.active_workspace_dir().resolve()
     try:
         if target.is_dir():
             subprocess.run(["explorer.exe", str(target)], check=False)

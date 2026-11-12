@@ -1,5 +1,13 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.8] - 2026-11-12
+- Kích hoạt tính năng xem trước trực tiếp toàn bộ các tệp và tài nguyên trong Panel Ngữ cảnh:
+  - Tệp bộ nhớ (Memory files): Nhấp chuột trực tiếp vào bất kỳ tệp bộ nhớ nào (`CLAUDE.md`, `AGENTS.md`, `MEMORY.md`, `KE-HOACH.md`...) để mở ngay hộp thoại Modal xem trước nội dung tài liệu định dạng Markdown hoàn chỉnh.
+  - Kỹ năng chuyên môn (Skills): Nhấp chuột vào từng kỹ năng để mở tệp hướng dẫn nghiệp vụ chuẩn (`SKILL.md`).
+  - Tác nhân AI (Agents): Nhấp chuột vào từng kỹ sư chuyên môn để xem nhanh tệp định nghĩa vai trò và persona (`agents/*.md`).
+  - Kết quả đầu ra (Artifacts): Nhấp chuột để xem trước tệp văn bản hoặc thẻ thông tin mở tệp bằng phần mềm chuyên dụng (Excel, Word, AutoCAD, PDF...).
+- Mở rộng phạm vi tìm nạp tệp tin an toàn (`resolve_fs_target`): Cho phép API `/api/fs/file`, `/api/fs/open`, `/api/fs/reveal` truy xuất liền mạch cả thư mục dự án (workspace), thư mục gốc hệ thống (ROOT) và kho tri thức bộ não (BRAIN).
+
 ## [1.5.7] - 2026-11-12
 - Nâng cấp Panel Ngữ cảnh (Context Breakdown) chuẩn phong cách Claude Code: Chuyển đổi các mục đếm tĩnh thành danh mục Accordion (thu gọn/mở rộng `▸` / `▾`) kèm badge số lượng thực tế.
 - Bóc tách chi tiết từng thành phần ngữ cảnh:

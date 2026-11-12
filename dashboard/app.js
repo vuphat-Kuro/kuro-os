@@ -1124,15 +1124,18 @@ async function loadSessionContext(sid) {
         memFiles.forEach(f => {
           const row = document.createElement("div");
           row.className = "ctx-sub-row clickable";
-          row.title = `Xem tệp: ${f.path || f.name}`;
+          const filePath = f.path || f.name;
+          const fileName = f.name || filePath.split("/").pop();
+          const ext = "." + (fileName.split(".").pop() || "").toLowerCase();
+          row.title = `Nhấp để xem tệp: ${filePath}`;
           row.innerHTML = `
             <div class="ctx-sub-left">
               <span>📝</span>
-              <span class="ctx-sub-name">${esc(f.path || f.name)}</span>
+              <span class="ctx-sub-name">${esc(filePath)}</span>
             </div>
             <span class="ctx-sub-tok">${formatTokens(f.tokens)}</span>
           `;
-          row.onclick = () => previewFile(f.path || f.name, f.name);
+          row.onclick = () => openFilePreview(filePath, fileName, ext);
           memList.appendChild(row);
         });
       }
@@ -1149,8 +1152,9 @@ async function loadSessionContext(sid) {
       } else {
         skillsList.forEach(s => {
           const row = document.createElement("div");
-          row.className = "ctx-sub-row";
-          row.title = s.desc || s.name;
+          row.className = "ctx-sub-row clickable";
+          row.title = `Nhấp để xem hướng dẫn SKILL.md: ${s.name}`;
+          const skillPath = `.claude/skills/${s.slug}/SKILL.md`;
           row.innerHTML = `
             <div class="ctx-sub-left">
               <span>⚡</span>
@@ -1158,6 +1162,7 @@ async function loadSessionContext(sid) {
             </div>
             <span class="ctx-sub-tok">${formatTokens(s.tokens)}</span>
           `;
+          row.onclick = () => openFilePreview(skillPath, `${s.name} (SKILL.md)`, ".md");
           skillsCont.appendChild(row);
         });
       }
@@ -1174,8 +1179,9 @@ async function loadSessionContext(sid) {
       } else {
         agentsList.forEach(a => {
           const row = document.createElement("div");
-          row.className = "ctx-sub-row";
-          row.title = a.role ? `${a.name}: ${a.role}` : a.name;
+          row.className = "ctx-sub-row clickable";
+          row.title = a.role ? `Nhấp để xem vai trò: ${a.name} (${a.role})` : `Nhấp để xem vai trò: ${a.name}`;
+          const agentPath = `agents/${a.slug}.md`;
           row.innerHTML = `
             <div class="ctx-sub-left">
               <span>🤖</span>
@@ -1183,6 +1189,7 @@ async function loadSessionContext(sid) {
             </div>
             <span class="ctx-sub-tok">${formatTokens(a.tokens)}</span>
           `;
+          row.onclick = () => openFilePreview(agentPath, `${a.name} (${a.slug}.md)`, ".md");
           agentsCont.appendChild(row);
         });
       }
@@ -1209,15 +1216,16 @@ async function loadSessionContext(sid) {
         const item = document.createElement("div");
         item.className = "ctx-artifact-item";
         item.title = `Xem tệp: ${art.path}`;
-        const ext = art.name.split(".").pop().toUpperCase();
+        const rawExt = art.name.split(".").pop() || "";
+        const ext = "." + rawExt.toLowerCase();
         item.innerHTML = `
           <div style="display:flex; align-items:center; gap:6px;">
             <span>📄</span>
             <span class="ctx-art-name">${esc(art.name)}</span>
           </div>
-          <span class="ctx-art-ext">${esc(ext)}</span>
+          <span class="ctx-art-ext">${esc(rawExt.toUpperCase())}</span>
         `;
-        item.onclick = () => previewFile(art.path, art.name);
+        item.onclick = () => openFilePreview(art.path, art.name, ext);
         artList.appendChild(item);
       });
     }
@@ -3653,6 +3661,12 @@ if ($("btn-fs-brain")) {
 }
 
 // Mở modal xem trước tệp tin
+window.previewFile = function(filePath, fileName) {
+  const name = fileName || (filePath || "").split("/").pop() || "file";
+  const ext = "." + (name.split(".").pop() || "").toLowerCase();
+  openFilePreview(filePath, name, ext);
+};
+
 async function openFilePreview(filePath, fileName, ext) {
   currentPreviewPath = filePath;
   $("fp-icon").innerHTML = getFileBadge(ext);
