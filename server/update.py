@@ -102,6 +102,37 @@ def _fetch_raw_github_version() -> str | None:
     return None
 
 
+def _parse_changelog_text(text: str, version: str) -> list[str]:
+    """Trích xuất các dòng mô tả của phiên bản từ nội dung CHANGELOG.md."""
+    lines = []
+    in_ver = False
+    v_clean = version.strip().lstrip("vV")
+    for line in text.splitlines():
+        if re.match(rf"^##\s*\[?v?{re.escape(v_clean)}\]?", line, re.IGNORECASE):
+            in_ver = True
+            continue
+        elif in_ver and line.startswith("## "):
+            break
+        elif in_ver:
+            stripped = line.strip()
+            if stripped.startswith("- ") or stripped.startswith("* "):
+                lines.append(stripped[2:].strip())
+    return lines
+
+
+def _fetch_raw_github_changelog(version: str) -> list[str]:
+    """Hỏi raw GitHub để lấy nội dung mô tả của phiên bản trong CHANGELOG.md."""
+    try:
+        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/CHANGELOG.md"
+        req = urllib.request.Request(url, headers={"User-Agent": "Kuro-OS"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            if resp.status == 200:
+                return _parse_changelog_text(resp.read().decode("utf-8"), version)
+    except Exception:
+        pass
+    return []
+
+
 def read_state() -> dict:
     try:
         if STATE_FILE.exists():
@@ -161,6 +192,21 @@ def check(force: bool = False) -> dict:
             latest = raw_v
 
     avail = (behind > 0) or ver_newer(latest, cur)
+
+    # 3. Lấy mô tả chi tiết nếu có bản mới mà notes còn rỗng
+    if avail and not notes:
+        if (config.ROOT / ".git").exists():
+            try:
+                ch_text = _git("show", "@{u}:CHANGELOG.md")
+                notes = _parse_changelog_text(ch_text, latest)
+            except Exception:
+                pass
+        if not notes:
+            ch_file = config.ROOT / "CHANGELOG.md"
+            if ch_file.exists():
+                notes = _parse_changelog_text(ch_file.read_text(encoding="utf-8"), latest)
+        if not notes:
+            notes = _fetch_raw_github_changelog(latest)
 
     STATUS.update(
         current=cur,

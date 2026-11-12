@@ -116,6 +116,17 @@ def is_server_healthy(port: int | str) -> bool:
 def start_kuro_server(port: int | str) -> None:
     log("Đang khởi động lại Kuro...")
     if os.name == "nt":
+        desktop_py = ROOT / "app_desktop.py"
+        pythonw = ROOT / ".venv" / "Scripts" / "pythonw.exe"
+        if desktop_py.exists():
+            exe = str(pythonw) if pythonw.exists() else venv_python()
+            subprocess.Popen(
+                [exe, str(desktop_py)],
+                cwd=str(ROOT),
+                creationflags=0x00000008 | 0x00000200,
+            )
+            return
+
         vbs = ROOT / "kuro.vbs"
         if vbs.exists():
             subprocess.Popen(["wscript.exe", "//nologo", str(vbs)], cwd=str(ROOT), creationflags=0x00000008)
