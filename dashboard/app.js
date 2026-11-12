@@ -2953,6 +2953,23 @@ async function refreshFsTree() {
   }
 }
 
+let selectedFsItem = null;
+let fsClipboard = null; // { action: "copy", path: string, is_dir: boolean, name: string }
+let fsSearchTimer = null;
+
+function getParentPath(p) {
+  if (!p) return "";
+  const parts = p.replace(/\\/g, "/").split("/").filter(Boolean);
+  parts.pop();
+  return parts.join("/");
+}
+
+function getTargetParent(item) {
+  if (!item || !item.path) return "";
+  if (item.is_dir) return item.path;
+  return getParentPath(item.path);
+}
+
 function renderFsRoot() {
   const container = $("fs-tree");
   container.innerHTML = "";
@@ -2967,7 +2984,7 @@ function renderFsRoot() {
 
   const rootItem = document.createElement("div");
   rootItem.className = "tree-item";
-  rootItem.title = `Thư mục làm việc: ${wsPath}\nBấm để mở/thu gọn`;
+  rootItem.title = `Thư mục làm việc: ${wsPath}\nBấm chuột phải để thao tác tệp/thư mục`;
   rootItem.innerHTML = `
     <span class="tree-caret open">▶</span>
     <span class="tree-icon">💼</span>
@@ -2980,25 +2997,39 @@ function renderFsRoot() {
   renderFsItems(fsRootData.items, rootChildren);
 
   rootItem.onclick = () => {
+    document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
+    rootItem.classList.add("active");
+    selectedFsItem = { path: "", is_dir: true, name: wsName };
     const isOpen = rootChildren.style.display !== "none";
     rootChildren.style.display = isOpen ? "none" : "flex";
     rootItem.querySelector(".tree-caret").className = "tree-caret " + (isOpen ? "" : "open");
   };
 
+  rootItem.oncontextmenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
+    rootItem.classList.add("active");
+    selectedFsItem = { path: "", is_dir: true, name: wsName };
+    showFsContextMenu(e.clientX, e.clientY);
+  };
+
   rootNode.appendChild(rootItem);
   rootNode.appendChild(rootChildren);
   container.appendChild(rootNode);
+
+  container.oncontextmenu = (e) => {
+    if (e.target === container) {
+      e.preventDefault();
+      selectedFsItem = { path: "", is_dir: true, name: wsName };
+      showFsContextMenu(e.clientX, e.clientY);
+    }
+  };
 }
 
 function renderFsItems(items, containerEl) {
   containerEl.innerHTML = "";
-  const filter = ($("fs-search").value || "").trim().toLowerCase();
-
-  const filtered = items.filter((it) => {
-    return !filter || it.name.toLowerCase().includes(filter);
-  });
-
-  filtered.forEach((it) => {
+  items.forEach((it) => {
     const node = document.createElement("div");
     node.className = "tree-node";
 
@@ -3019,6 +3050,10 @@ function renderFsItems(items, containerEl) {
       childrenEl.style.display = isExpanded ? "flex" : "none";
 
       itemEl.onclick = async () => {
+        document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
+        itemEl.classList.add("active");
+        selectedFsItem = it;
+
         const currentlyExpanded = fsExpanded.has(it.path);
         if (currentlyExpanded) {
           fsExpanded.delete(it.path);
@@ -3044,6 +3079,20 @@ function renderFsItems(items, containerEl) {
         }
       };
 
+      itemEl.ondblclick = (e) => {
+        e.stopPropagation();
+        revealFileNative(it.path);
+      };
+
+      itemEl.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
+        itemEl.classList.add("active");
+        selectedFsItem = it;
+        showFsContextMenu(e.clientX, e.clientY);
+      };
+
       node.appendChild(itemEl);
       node.appendChild(childrenEl);
 
@@ -3066,7 +3115,22 @@ function renderFsItems(items, containerEl) {
       itemEl.onclick = () => {
         document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
         itemEl.classList.add("active");
+        selectedFsItem = it;
         openFilePreview(it.path, it.name, it.ext);
+      };
+
+      itemEl.ondblclick = (e) => {
+        e.stopPropagation();
+        openFileNative(it.path);
+      };
+
+      itemEl.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        document.querySelectorAll(".tree-item.active").forEach((el) => el.classList.remove("active"));
+        itemEl.classList.add("active");
+        selectedFsItem = it;
+        showFsContextMenu(e.clientX, e.clientY);
       };
 
       node.appendChild(itemEl);
@@ -3076,12 +3140,313 @@ function renderFsItems(items, containerEl) {
   });
 }
 
-// Tìm kiếm tệp trong cây
-$("fs-search").oninput = () => {
-  if (fsRootData) renderFsRoot();
+// Tìm kiếm tệp trong toàn bộ thư mục dự án (Recursive Search)
+$("fs-search").oninput = (e) => {
+  clearTimeout(fsSearchTimer);
+  const q = e.target.value.trim();
+  if (!q) {
+    if (fsRootData) renderFsRoot();
+    $("fs-status").textContent = "Sẵn sàng";
+    return;
+  }
+  fsSearchTimer = setTimeout(async () => {
+    $("fs-status").textContent = "Đang tìm kiếm...";
+    try {
+      const res = await fetch(`/api/fs/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderFsSearchResults(q, data.items || []);
+      $("fs-status").textContent = `Tìm thấy ${(data.items || []).length} kết quả`;
+    } catch (err) {
+      $("fs-status").textContent = "Lỗi tìm kiếm";
+    }
+  }, 220);
 };
 
-// Toolbar Explorer & Workspace Manager
+function renderFsSearchResults(query, items) {
+  const container = $("fs-tree");
+  container.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "fs-search-header";
+  header.innerHTML = `
+    <span>KẾT QUẢ TÌM KIẾM (${items.length})</span>
+    <button type="button" class="btn-link" id="btn-close-fs-search" style="font-size:11px; color:var(--cyan-soft);">✕ Đóng</button>
+  `;
+  container.appendChild(header);
+
+  const btnClose = header.querySelector("#btn-close-fs-search");
+  if (btnClose) {
+    btnClose.onclick = () => {
+      $("fs-search").value = "";
+      renderFsRoot();
+      $("fs-status").textContent = "Sẵn sàng";
+    };
+  }
+
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.style.padding = "24px 16px";
+    empty.style.textAlign = "center";
+    empty.style.color = "var(--muted)";
+    empty.style.fontSize = "12px";
+    empty.innerHTML = `Không tìm thấy tệp hoặc thư mục nào khớp với <b>"${escapeHtml(query)}"</b>`;
+    container.appendChild(empty);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "fs-search-list";
+
+  items.forEach(it => {
+    const itemEl = document.createElement("div");
+    itemEl.className = "fs-search-item";
+    itemEl.title = `${it.path}\nDouble-click để mở bằng Windows`;
+    
+    const icon = it.is_dir ? "📁" : getFileBadge(it.ext);
+    itemEl.innerHTML = `
+      <span class="tree-icon" style="flex:none;">${icon}</span>
+      <div class="fs-search-main">
+        <div class="fs-search-name">${highlightMatch(it.name, query)}</div>
+        <div class="fs-search-path">${escapeHtml(it.path)}</div>
+      </div>
+      <div class="fs-search-size">${it.size ? formatBytes(it.size) : ''}</div>
+    `;
+
+    itemEl.onclick = () => {
+      document.querySelectorAll(".fs-search-item.active").forEach(el => el.classList.remove("active"));
+      itemEl.classList.add("active");
+      selectedFsItem = it;
+      if (!it.is_dir) {
+        openFilePreview(it.path, it.name, it.ext);
+      }
+    };
+
+    itemEl.ondblclick = () => {
+      if (it.is_dir) {
+        revealFileNative(it.path);
+      } else {
+        openFileNative(it.path);
+      }
+    };
+
+    itemEl.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll(".fs-search-item.active").forEach(el => el.classList.remove("active"));
+      itemEl.classList.add("active");
+      selectedFsItem = it;
+      showFsContextMenu(e.clientX, e.clientY);
+    };
+
+    list.appendChild(itemEl);
+  });
+
+  container.appendChild(list);
+}
+
+function highlightMatch(text, query) {
+  if (!query) return escapeHtml(text);
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
+  return escapeHtml(text).replace(regex, '<span style="color:var(--amber); font-weight:bold;">$1</span>');
+}
+
+// Context Menu Chuột phải trên cây thư mục
+function showFsContextMenu(x, y) {
+  const menu = $("fs-context-menu");
+  if (!menu) return;
+
+  const isDir = selectedFsItem && selectedFsItem.is_dir;
+  const pasteBtn = $("ctx-fs-paste");
+  if (pasteBtn) {
+    pasteBtn.style.display = fsClipboard ? "flex" : "none";
+  }
+
+  menu.style.display = "block";
+  const w = menu.offsetWidth || 210;
+  const h = menu.offsetHeight || 260;
+  const left = Math.min(x, window.innerWidth - w - 10);
+  const top = Math.min(y, window.innerHeight - h - 10);
+  menu.style.left = `${Math.max(10, left)}px`;
+  menu.style.top = `${Math.max(10, top)}px`;
+}
+
+function hideFsContextMenu() {
+  const menu = $("fs-context-menu");
+  if (menu) menu.style.display = "none";
+}
+
+document.addEventListener("click", (e) => {
+  const menu = $("fs-context-menu");
+  if (menu && menu.style.display !== "none" && !menu.contains(e.target)) {
+    hideFsContextMenu();
+  }
+});
+
+// Thao tác tệp / thư mục (File Operations)
+async function promptNewFile(item) {
+  const parent = getTargetParent(item);
+  const name = prompt(parent ? `Tạo tệp tin mới trong thư mục "${parent}":` : "Tạo tệp tin mới tại thư mục gốc:", "tai_lieu.txt");
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch("/api/fs/new-file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parent, name: name.trim() })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      $("fs-status").textContent = `Đã tạo tệp: ${data.name}`;
+      if (parent) fsExpanded.add(parent);
+      await refreshFsTree();
+    } else {
+      alert("Lỗi: " + (data.detail || "Không thể tạo tệp"));
+    }
+  } catch (err) {
+    alert("Lỗi tạo tệp: " + err.message);
+  }
+}
+
+async function promptNewFolder(item) {
+  const parent = getTargetParent(item);
+  const name = prompt(parent ? `Tạo thư mục mới trong "${parent}":` : "Tạo thư mục mới tại thư mục gốc:", "Thu_muc_moi");
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch("/api/fs/new-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parent, name: name.trim() })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      $("fs-status").textContent = `Đã tạo thư mục: ${data.name}`;
+      if (parent) fsExpanded.add(parent);
+      await refreshFsTree();
+    } else {
+      alert("Lỗi: " + (data.detail || "Không thể tạo thư mục"));
+    }
+  } catch (err) {
+    alert("Lỗi tạo thư mục: " + err.message);
+  }
+}
+
+async function promptRename(item) {
+  if (!item || !item.path) return;
+  const newName = prompt(`Đổi tên "${item.name}" thành:`, item.name);
+  if (!newName || !newName.trim() || newName.trim() === item.name) return;
+  try {
+    const res = await fetch("/api/fs/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: item.path, new_name: newName.trim() })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      $("fs-status").textContent = `Đã đổi tên thành: ${data.new_name}`;
+      await refreshFsTree();
+    } else {
+      alert("Lỗi: " + (data.detail || "Không thể đổi tên"));
+    }
+  } catch (err) {
+    alert("Lỗi đổi tên: " + err.message);
+  }
+}
+
+async function confirmDelete(item) {
+  if (!item || !item.path) return;
+  const isDir = item.is_dir;
+  const msg = isDir 
+    ? `Bạn có chắc chắn muốn xóa thư mục "${item.name}" và toàn bộ tệp bên trong không?`
+    : `Bạn có chắc chắn muốn xóa tệp tin "${item.name}" không?`;
+  if (!confirm(msg)) return;
+  try {
+    const res = await fetch("/api/fs/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: item.path })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      $("fs-status").textContent = `Đã xóa: ${item.name}`;
+      await refreshFsTree();
+    } else {
+      alert("Lỗi: " + (data.detail || "Không thể xóa"));
+    }
+  } catch (err) {
+    alert("Lỗi xóa: " + err.message);
+  }
+}
+
+function copyFsItem(item) {
+  if (!item || !item.path) return;
+  fsClipboard = { action: "copy", path: item.path, is_dir: item.is_dir, name: item.name };
+  if ($("btn-fs-paste")) $("btn-fs-paste").style.display = "inline-block";
+  $("fs-status").textContent = `Đã sao chép: ${item.name}`;
+}
+
+async function pasteFsItem(item) {
+  if (!fsClipboard || !fsClipboard.path) return;
+  const targetDir = item && item.is_dir ? item.path : getTargetParent(item);
+  try {
+    const res = await fetch("/api/fs/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ src: fsClipboard.path, dest: targetDir })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      $("fs-status").textContent = `Đã dán: ${data.new_name}`;
+      if (targetDir) fsExpanded.add(targetDir);
+      await refreshFsTree();
+    } else {
+      alert("Lỗi dán: " + (data.detail || "Không thể sao chép tệp"));
+    }
+  } catch (err) {
+    alert("Lỗi sao chép: " + err.message);
+  }
+}
+
+async function openFileNative(path) {
+  try {
+    const res = await fetch("/api/fs/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: path || "" })
+    });
+    if (res.ok) {
+      $("fs-status").textContent = "Đã mở bằng Windows";
+      setTimeout(() => { $("fs-status").textContent = "Sẵn sàng"; }, 2000);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert("Không thể mở: " + (err.detail || "Lỗi máy chủ"));
+    }
+  } catch (e) {
+    alert("Lỗi mở bằng Windows: " + e.message);
+  }
+}
+
+async function revealFileNative(path) {
+  try {
+    const res = await fetch("/api/fs/reveal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: path || "" })
+    });
+    if (res.ok) {
+      $("fs-status").textContent = "Đã mở thư mục trong Explorer";
+      setTimeout(() => { $("fs-status").textContent = "Sẵn sàng"; }, 2000);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert("Không thể mở Explorer: " + (err.detail || "Lỗi máy chủ"));
+    }
+  } catch (e) {
+    alert("Lỗi mở Explorer: " + e.message);
+  }
+}
+
+// Bắt sự kiện Toolbar Explorer & Workspace Manager
+$("btn-fs-new-file") && ($("btn-fs-new-file").onclick = () => promptNewFile(selectedFsItem || { path: "", is_dir: true }));
+$("btn-fs-new-folder") && ($("btn-fs-new-folder").onclick = () => promptNewFolder(selectedFsItem || { path: "", is_dir: true }));
+$("btn-fs-paste") && ($("btn-fs-paste").onclick = () => pasteFsItem(selectedFsItem || { path: "", is_dir: true }));
 $("btn-fs-refresh").onclick = refreshFsTree;
 $("btn-fs-collapse").onclick = () => {
   fsExpanded.clear();
@@ -3092,6 +3457,43 @@ $("btn-fs-hidden").onclick = () => {
   $("btn-fs-hidden").style.color = fsShowHidden ? "var(--cyan)" : "var(--muted)";
   refreshFsTree();
 };
+
+// Bắt sự kiện Context Menu items
+$("ctx-fs-open") && ($("ctx-fs-open").onclick = () => { if (selectedFsItem) openFileNative(selectedFsItem.path); hideFsContextMenu(); });
+$("ctx-fs-reveal") && ($("ctx-fs-reveal").onclick = () => { if (selectedFsItem) revealFileNative(selectedFsItem.path); hideFsContextMenu(); });
+$("ctx-fs-new-file") && ($("ctx-fs-new-file").onclick = () => { promptNewFile(selectedFsItem); hideFsContextMenu(); });
+$("ctx-fs-new-folder") && ($("ctx-fs-new-folder").onclick = () => { promptNewFolder(selectedFsItem); hideFsContextMenu(); });
+$("ctx-fs-copy") && ($("ctx-fs-copy").onclick = () => { copyFsItem(selectedFsItem); hideFsContextMenu(); });
+$("ctx-fs-paste") && ($("ctx-fs-paste").onclick = () => { pasteFsItem(selectedFsItem); hideFsContextMenu(); });
+$("ctx-fs-rename") && ($("ctx-fs-rename").onclick = () => { promptRename(selectedFsItem); hideFsContextMenu(); });
+$("ctx-fs-delete") && ($("ctx-fs-delete").onclick = () => { confirmDelete(selectedFsItem); hideFsContextMenu(); });
+
+// Phím tắt bàn phím khi chọn tệp trong cây thư mục
+document.addEventListener("keydown", (e) => {
+  // Chỉ nhận phím tắt file manager nếu không gõ trong ô input/textarea
+  const active = document.activeElement;
+  if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+  if (!selectedFsItem) return;
+
+  if (e.key === "F2") {
+    e.preventDefault();
+    promptRename(selectedFsItem);
+  } else if (e.key === "Delete") {
+    e.preventDefault();
+    confirmDelete(selectedFsItem);
+  } else if (e.ctrlKey && e.key.toLowerCase() === "c") {
+    e.preventDefault();
+    copyFsItem(selectedFsItem);
+  } else if (e.ctrlKey && e.key.toLowerCase() === "v" && fsClipboard) {
+    e.preventDefault();
+    pasteFsItem(selectedFsItem);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (!selectedFsItem.is_dir) {
+      openFileNative(selectedFsItem.path);
+    }
+  }
+});
 
 if ($("btn-toggle-recent-ws")) {
   $("btn-toggle-recent-ws").onclick = () => {
@@ -3155,6 +3557,22 @@ async function openFilePreview(filePath, fileName, ext) {
   $("fp-body").innerHTML = `<div style="color:var(--muted); padding:20px; text-align:center;">Đang đọc nội dung...</div>`;
   $("file-preview-dialog").showModal();
 
+  const BINARY_EXTS = [
+    ".xlsx", ".xls", ".xlsm", ".xlsb", ".xltx",
+    ".docx", ".doc", ".docm", ".dotx",
+    ".pptx", ".ppt", ".pptm",
+    ".pdf",
+    ".dwg", ".dxf", ".dgn",
+    ".zip", ".rar", ".7z", ".tar", ".gz",
+    ".exe", ".dll", ".bin", ".iso", ".msi",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"
+  ];
+
+  if (BINARY_EXTS.includes((ext || "").toLowerCase())) {
+    renderBinaryFilePreview(filePath, fileName, ext);
+    return;
+  }
+
   try {
     const res = await fetch(`/api/fs/file?path=${encodeURIComponent(filePath)}`);
     if (!res.ok) {
@@ -3163,6 +3581,10 @@ async function openFilePreview(filePath, fileName, ext) {
       return;
     }
     const data = await res.json();
+    if (data.is_binary) {
+      renderBinaryFilePreview(filePath, fileName, ext, data.size);
+      return;
+    }
     const content = data.content;
 
     if (ext === ".md") {
@@ -3175,8 +3597,69 @@ async function openFilePreview(filePath, fileName, ext) {
   }
 }
 
+function renderBinaryFilePreview(filePath, fileName, ext, size) {
+  let appHint = "phần mềm chuyên dụng";
+  let icon = "📄";
+  const e = (ext || "").toLowerCase();
+  if (e.includes("xls")) {
+    appHint = "Microsoft Excel";
+    icon = "📊";
+  } else if (e.includes("doc")) {
+    appHint = "Microsoft Word";
+    icon = "📝";
+  } else if (e.includes("ppt")) {
+    appHint = "Microsoft PowerPoint";
+    icon = "📑";
+  } else if (e === ".pdf") {
+    appHint = "Trình đọc PDF / Adobe Acrobat";
+    icon = "📕";
+  } else if (e === ".dwg" || e === ".dxf") {
+    appHint = "AutoCAD";
+    icon = "📐";
+  } else if (e === ".zip" || e === ".rar" || e === ".7z") {
+    appHint = "WinRAR / 7-Zip";
+    icon = "📦";
+  }
+
+  $("fp-body").innerHTML = `
+    <div class="binary-file-card">
+      <div class="bfc-icon">${icon}</div>
+      <h2 class="bfc-name">${DOMPurify.sanitize(fileName)}</h2>
+      <div class="bfc-meta">Định dạng: <b>${(ext || "").toUpperCase()}</b> ${size ? '· Dung lượng: ' + formatBytes(size) : ''}</div>
+      <p class="bfc-desc">
+        Đây là tệp tin chuyên dụng. Bạn có thể mở trực tiếp bằng <b>${appHint}</b> cài trên máy tính Windows để làm việc, kiểm tra công thức tính và bảng biểu đầy đủ.
+      </p>
+      <div class="bfc-btns">
+        <button type="button" class="btn main" id="btn-bfc-open" style="font-size:13px; padding:10px 18px;">
+          🚀 Mở bằng ${appHint} trên Windows
+        </button>
+        <button type="button" class="btn" id="btn-bfc-reveal" style="font-size:13px; padding:10px 18px;">
+          📂 Mở thư mục trong Explorer
+        </button>
+      </div>
+    </div>
+  `;
+
+  const btnOpen = $("btn-bfc-open");
+  const btnRev = $("btn-bfc-reveal");
+  if (btnOpen) btnOpen.onclick = () => openFileNative(filePath);
+  if (btnRev) btnRev.onclick = () => revealFileNative(filePath);
+}
+
 // Đóng modal xem trước
 $("btn-fp-close").onclick = () => $("file-preview-dialog").close();
+
+// Nút mở file và thư mục trong modal
+if ($("btn-fp-open-native")) {
+  $("btn-fp-open-native").onclick = () => {
+    if (currentPreviewPath) openFileNative(currentPreviewPath);
+  };
+}
+if ($("btn-fp-reveal")) {
+  $("btn-fp-reveal").onclick = () => {
+    if (currentPreviewPath) revealFileNative(currentPreviewPath);
+  };
+}
 
 // Nút "Hỏi Kuro về file này": Chèn đường dẫn file vào ô chat
 $("btn-fp-chat").onclick = () => {

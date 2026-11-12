@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.5] - 2026-11-12
+- Tìm kiếm đệ quy toàn bộ cây thư mục dự án (Recursive File Search): Nâng cấp ô tìm kiếm trong tab Cây thư mục để quét sâu vào mọi thư mục con, hiển thị danh sách kết quả trực quan kèm đường dẫn chi tiết và đánh dấu từ khóa khớp.
+- Mở tệp tin bằng phần mềm chuyên dụng trên Windows: Double-click vào bất kỳ tệp tin nào (hoặc bấm nút "Mở trên Windows") để tự động khởi chạy bằng phần mềm mặc định trên máy tính (Microsoft Excel cho .xlsx, Word cho .docx, AutoCAD cho .dwg/.dxf, Adobe Acrobat cho .pdf...).
+- Thẻ thông tin tệp chuyên dụng (Binary File Card): Khắc phục triệt để hiện tượng hiển thị ký tự mã nhị phân khi xem trước tệp Excel/Word/CAD. Thay thế bằng giao diện thẻ đẹp mắt kèm nút mở trực tiếp và mở thư mục trong Explorer.
+- Bộ công cụ quản lý tệp tin chuẩn Windows ngay trên giao diện: Hỗ trợ tạo tệp mới, tạo thư mục mới, sao chép (Copy), dán (Paste), đổi tên (Rename - F2), xóa tệp/thư mục (Delete) qua cả Menu chuột phải (Context Menu) và thanh công cụ tiện ích.
+
 ## [1.5.4] - 2026-11-12
 - Thanh vạch điều hướng câu hỏi (Message Ticks Rail): Hiển thị các vạch tick trên mép phải thanh cuộn đánh dấu câu hỏi của người dùng. Rê chuột vào sẽ hiện popover danh sách 15 câu hỏi xung quanh vị trí xem, bấm vào để cuộn nhanh và nháy sáng câu hỏi (theo phong cách Javis OS).
 - Nút cuộn nhanh xuống cuối (Scroll to Bottom): Tự động hiển thị nút tròn khi người dùng cuộn lên xem lịch sử trao đổi, bấm vào để lướt ngay xuống tin nhắn mới nhất.

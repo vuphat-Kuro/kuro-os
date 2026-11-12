@@ -1283,19 +1283,249 @@ def get_fs_tree(sub: str = "", show_hidden: bool = False):
     }
 
 
+BINARY_FILE_EXTENSIONS = {
+    ".xlsx", ".xls", ".xlsm", ".xlsb", ".xltx",
+    ".docx", ".doc", ".docm", ".dotx",
+    ".pptx", ".ppt", ".pptm",
+    ".pdf",
+    ".dwg", ".dxf", ".dgn",
+    ".zip", ".rar", ".7z", ".tar", ".gz",
+    ".exe", ".dll", ".bin", ".iso", ".msi",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"
+}
+
+
 @app.get("/api/fs/file")
 def get_fs_file(path: str):
     base = engine.active_workspace_dir()
     target = (base / path).resolve()
     if not str(target).startswith(str(base.resolve())) or not target.is_file():
         raise HTTPException(404, "Không tìm thấy file")
-    if target.stat().st_size > 3 * 1024 * 1024:
+    ext = target.suffix.lower()
+    sz = target.stat().st_size
+    if ext in BINARY_FILE_EXTENSIONS:
+        return {
+            "path": path,
+            "name": target.name,
+            "is_binary": True,
+            "ext": ext,
+            "size": sz
+        }
+    if sz > 3 * 1024 * 1024:
         raise HTTPException(400, "File quá lớn để xem trực tiếp (> 3MB)")
     try:
         content = target.read_text(encoding="utf-8", errors="replace")
-        return {"path": path, "name": target.name, "content": content, "size": target.stat().st_size}
+        return {
+            "path": path,
+            "name": target.name,
+            "is_binary": False,
+            "ext": ext,
+            "content": content,
+            "size": sz
+        }
     except Exception as e:
         raise HTTPException(500, f"Lỗi đọc file: {e}")
+
+
+@app.get("/api/fs/search")
+def search_fs(q: str = ""):
+    q = (q or "").strip().lower()
+    if not q:
+        return {"query": "", "items": []}
+    base = engine.active_workspace_dir()
+    results = []
+    ignore_names = {".git", ".venv", "__pycache__", ".pytest_cache", "node_modules", ".attachments"}
+    
+    try:
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ignore_names and not d.startswith(".")]
+            rel_dir = os.path.relpath(root, base)
+            rel_dir = "" if rel_dir == "." else rel_dir.replace("\\", "/")
+            
+            for d in dirs:
+                if q in d.lower():
+                    rel_p = f"{rel_dir}/{d}" if rel_dir else d
+                    results.append({
+                        "name": d,
+                        "path": rel_p,
+                        "is_dir": True,
+                        "ext": "",
+                        "size": None
+                    })
+                    if len(results) >= 150:
+                        break
+            if len(results) >= 150:
+                break
+                
+            for f in files:
+                if q in f.lower():
+                    rel_p = f"{rel_dir}/{f}" if rel_dir else f
+                    full_p = os.path.join(root, f)
+                    try:
+                        sz = os.path.getsize(full_p)
+                    except Exception:
+                        sz = 0
+                    results.append({
+                        "name": f,
+                        "path": rel_p,
+                        "is_dir": False,
+                        "ext": Path(f).suffix.lower(),
+                        "size": sz
+                    })
+                    if len(results) >= 150:
+                        break
+            if len(results) >= 150:
+                break
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi tìm kiếm: {e}")
+    return {"query": q, "items": results}
+
+
+@app.post("/api/fs/open")
+def open_fs_item(body: dict):
+    path = (body.get("path") or "").strip()
+    base = engine.active_workspace_dir()
+    target = (base / path).resolve() if path else base.resolve()
+    if not str(target).startswith(str(base.resolve())) or not target.exists():
+        raise HTTPException(404, "Không tìm thấy tệp hoặc thư mục")
+    try:
+        os.startfile(str(target))
+        return {"ok": True, "path": str(target)}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi mở bằng Windows: {e}")
+
+
+@app.post("/api/fs/reveal")
+def reveal_fs_item(body: dict):
+    path = (body.get("path") or "").strip()
+    base = engine.active_workspace_dir()
+    target = (base / path).resolve() if path else base.resolve()
+    if not str(target).startswith(str(base.resolve())) or not target.exists():
+        raise HTTPException(404, "Không tìm thấy tệp hoặc thư mục")
+    try:
+        if target.is_dir():
+            subprocess.run(["explorer.exe", str(target)], check=False)
+        else:
+            subprocess.run(["explorer.exe", f"/select,{str(target)}"], check=False)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi mở thư mục trong Explorer: {e}")
+
+
+@app.post("/api/fs/new-folder")
+def create_fs_folder(body: dict):
+    parent = (body.get("parent") or "").strip()
+    name = (body.get("name") or "").strip()
+    if not name or any(c in name for c in r'<>:"/\|?*'):
+        raise HTTPException(400, "Tên thư mục không hợp lệ")
+    base = engine.active_workspace_dir()
+    parent_dir = (base / parent).resolve() if parent else base.resolve()
+    if not str(parent_dir).startswith(str(base.resolve())) or not parent_dir.is_dir():
+        raise HTTPException(400, "Thư mục cha không hợp lệ")
+    new_dir = parent_dir / name
+    if new_dir.exists():
+        raise HTTPException(400, "Thư mục đã tồn tại")
+    try:
+        new_dir.mkdir(parents=True, exist_ok=False)
+        return {"ok": True, "path": new_dir.relative_to(base).as_posix(), "name": name}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi tạo thư mục: {e}")
+
+
+@app.post("/api/fs/new-file")
+def create_fs_file(body: dict):
+    parent = (body.get("parent") or "").strip()
+    name = (body.get("name") or "").strip()
+    if not name or any(c in name for c in r'<>:"/\|?*'):
+        raise HTTPException(400, "Tên tệp tin không hợp lệ")
+    base = engine.active_workspace_dir()
+    parent_dir = (base / parent).resolve() if parent else base.resolve()
+    if not str(parent_dir).startswith(str(base.resolve())) or not parent_dir.is_dir():
+        raise HTTPException(400, "Thư mục cha không hợp lệ")
+    new_file = parent_dir / name
+    if new_file.exists():
+        raise HTTPException(400, "Tệp tin đã tồn tại")
+    try:
+        new_file.touch()
+        return {"ok": True, "path": new_file.relative_to(base).as_posix(), "name": name}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi tạo tệp tin: {e}")
+
+
+@app.post("/api/fs/delete")
+def delete_fs_item(body: dict):
+    path = (body.get("path") or "").strip()
+    if not path:
+        raise HTTPException(400, "Không thể xóa thư mục gốc của dự án")
+    base = engine.active_workspace_dir()
+    target = (base / path).resolve()
+    if not str(target).startswith(str(base.resolve())) or target == base.resolve() or not target.exists():
+        raise HTTPException(400, "Đường dẫn không hợp lệ hoặc không tồn tại")
+    try:
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+        return {"ok": True, "path": path}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi xóa: {e}")
+
+
+@app.post("/api/fs/rename")
+def rename_fs_item(body: dict):
+    path = (body.get("path") or "").strip()
+    new_name = (body.get("new_name") or "").strip()
+    if not path:
+        raise HTTPException(400, "Không thể đổi tên thư mục gốc")
+    if not new_name or any(c in new_name for c in r'<>:"/\|?*'):
+        raise HTTPException(400, "Tên mới không hợp lệ")
+    base = engine.active_workspace_dir()
+    target = (base / path).resolve()
+    if not str(target).startswith(str(base.resolve())) or target == base.resolve() or not target.exists():
+        raise HTTPException(400, "Đường dẫn không hợp lệ hoặc không tồn tại")
+    new_target = target.parent / new_name
+    if new_target.exists():
+        raise HTTPException(400, f"Tên '{new_name}' đã tồn tại")
+    try:
+        target.rename(new_target)
+        return {"ok": True, "old_path": path, "new_path": new_target.relative_to(base).as_posix(), "new_name": new_name}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi đổi tên: {e}")
+
+
+@app.post("/api/fs/copy")
+def copy_fs_item(body: dict):
+    src_path = (body.get("src") or "").strip()
+    dest_dir_path = (body.get("dest") or "").strip()
+    if not src_path:
+        raise HTTPException(400, "Đường dẫn nguồn không hợp lệ")
+    base = engine.active_workspace_dir()
+    src = (base / src_path).resolve()
+    dest_dir = (base / dest_dir_path).resolve() if dest_dir_path else base.resolve()
+    
+    if not str(src).startswith(str(base.resolve())) or not src.exists():
+        raise HTTPException(400, "Tệp nguồn không tồn tại")
+    if not str(dest_dir).startswith(str(base.resolve())) or not dest_dir.is_dir():
+        raise HTTPException(400, "Thư mục đích không tồn tại")
+    
+    name = src.name
+    dest = dest_dir / name
+    if dest.exists():
+        stem = src.stem if src.is_file() else src.name
+        suffix = src.suffix if src.is_file() else ""
+        count = 1
+        while dest.exists():
+            dest = dest_dir / f"{stem} - Copy ({count}){suffix}" if count > 1 else dest_dir / f"{stem} - Copy{suffix}"
+            count += 1
+            
+    try:
+        if src.is_dir():
+            shutil.copytree(src, dest)
+        else:
+            shutil.copy2(src, dest)
+        return {"ok": True, "new_path": dest.relative_to(base).as_posix(), "new_name": dest.name}
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi sao chép: {e}")
 
 
 @app.websocket("/ws")
