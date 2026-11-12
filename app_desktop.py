@@ -88,6 +88,15 @@ class DesktopApi:
             print(f"[DesktopApi] Lỗi mở Explorer: {e}")
             return False
 
+    def get_clipboard_files(self) -> list[str]:
+        """Lấy danh sách đường dẫn file từ Clipboard Windows khi người dùng copy file."""
+        try:
+            from system_clipboard import get_clipboard_files
+            return get_clipboard_files()
+        except Exception as e:
+            print(f"[DesktopApi] Lỗi đọc clipboard: {e}")
+            return []
+
 
 def free_port(port: int = 7788):
     """Giải phóng cổng nếu có tiến trình zombie cũ chiếm giữ."""

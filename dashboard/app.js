@@ -1438,6 +1438,109 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// ===================== DÁN & KÉO THẢ TỆP TIN VÀO KHUNG CHAT (GIỐNG CLAUDE CODE) =====================
+function insertTextAtCursor(textarea, text) {
+  if (!textarea) return;
+  const start = textarea.selectionStart ?? textarea.value.length;
+  const end = textarea.selectionEnd ?? textarea.value.length;
+  const val = textarea.value;
+
+  const needLeadingSpace = start > 0 && !/\s$/.test(val.slice(0, start));
+  const needTrailingSpace = end < val.length && !/^\s/.test(val.slice(end));
+
+  const insert = (needLeadingSpace ? " " : "") + text + (needTrailingSpace ? " " : " ");
+  textarea.value = val.slice(0, start) + insert + val.slice(end);
+
+  const newPos = start + insert.length;
+  textarea.selectionStart = textarea.selectionEnd = newPos;
+  textarea.style.height = "auto";
+  textarea.style.height = Math.min(textarea.scrollHeight, 200) + "px";
+  textarea.focus();
+}
+
+function formatFilePaths(files) {
+  if (!files || !files.length) return "";
+  return files.map((f) => (/\s/.test(f) ? `"${f}"` : f)).join(" ");
+}
+
+async function fetchClipboardFiles() {
+  if (window.pywebview?.api?.get_clipboard_files) {
+    try {
+      const files = await window.pywebview.api.get_clipboard_files();
+      if (files && files.length) return files;
+    } catch (_) {}
+  }
+  try {
+    const res = await fetch("/api/clipboard/files");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.files && data.files.length) return data.files;
+    }
+  } catch (_) {}
+  return [];
+}
+
+const chatInput = $("q");
+if (chatInput) {
+  chatInput.addEventListener("paste", async function (e) {
+    const plainText = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
+    const hasFiles = e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0;
+
+    // Khi copy file trong Windows Explorer, plainText thường rỗng hoặc là danh sách file
+    if (!plainText || hasFiles) {
+      const files = await fetchClipboardFiles();
+      if (files && files.length > 0) {
+        e.preventDefault();
+        insertTextAtCursor(this, formatFilePaths(files));
+      }
+    }
+  });
+
+  // Hỗ trợ kéo thả file từ Windows Explorer vào ô chat
+  chatInput.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+
+  chatInput.addEventListener("drop", async function (e) {
+    e.preventDefault();
+    if (e.dataTransfer?.files?.length) {
+      const paths = Array.from(e.dataTransfer.files)
+        .map((f) => f.path || f.name)
+        .filter(Boolean);
+      const fullPaths = paths.filter((p) => /^[a-zA-Z]:\\|^\\\\/.test(p));
+      if (fullPaths.length > 0) {
+        insertTextAtCursor(this, formatFilePaths(fullPaths));
+        return;
+      }
+    }
+    const files = await fetchClipboardFiles();
+    if (files && files.length > 0) {
+      insertTextAtCursor(this, formatFilePaths(files));
+    }
+  });
+}
+
+// Bắt phím Ctrl+V khi người dùng vừa chuyển từ Explorer sang cửa sổ Kuro (chưa kịp click vào ô chat)
+document.addEventListener("paste", async (e) => {
+  const active = document.activeElement;
+  const isInput = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+  if (isInput && active.id !== "q") {
+    return;
+  }
+  if (!isInput && chatInput) {
+    const plainText = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
+    const hasFiles = e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0;
+    if (!plainText || hasFiles) {
+      const files = await fetchClipboardFiles();
+      if (files && files.length > 0) {
+        e.preventDefault();
+        insertTextAtCursor(chatInput, formatFilePaths(files));
+      }
+    }
+  }
+});
+
 // Xử lý gửi tin nhắn và lệnh slash
 $("f").onsubmit = async (e) => {
   e.preventDefault();

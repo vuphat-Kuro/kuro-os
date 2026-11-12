@@ -188,6 +188,16 @@ async def test_ai():
     return await engine.ping()
 
 
+@app.get("/api/clipboard/files")
+def api_get_clipboard_files():
+    """Lấy danh sách đường dẫn file hiện có trong Clipboard Windows khi người dùng copy file."""
+    try:
+        from system_clipboard import get_clipboard_files
+        return {"files": get_clipboard_files()}
+    except Exception as e:
+        return {"files": [], "error": str(e)}
+
+
 @app.get("/api/update")
 @app.get("/api/version")
 async def get_version(check: bool = False):
