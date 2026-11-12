@@ -152,6 +152,15 @@ function setBusy(b) {
   $("state").textContent = b ? "Đang xử lý" : "Sẵn sàng";
 }
 
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function addMessage(role, html, senderName) {
   const d = document.createElement("div");
   d.className = "msg " + (role === "user" ? "user" : "bot");
@@ -161,6 +170,9 @@ function addMessage(role, html, senderName) {
   d.innerHTML = html;
   $("log").append(d);
   $("log").scrollTop = $("log").scrollHeight;
+  if (typeof updateChatNavTicks === "function") {
+    setTimeout(updateChatNavTicks, 50);
+  }
   return d;
 }
 
@@ -813,6 +825,18 @@ async function openSession(id) {
   renderSessionList();
   loadSessionContext(id);
 
+  // Cập nhật model riêng của session
+  const sessObj = currentSessions.find(s => s.id === id);
+  if (sessObj && sessObj.model !== undefined && $("model-pick")) {
+    $("model-pick").value = sessObj.model || "";
+  } else if ($("model-pick")) {
+    fetch(`/api/sessions/${id}/info`).then(r => r.ok ? r.json() : null).then(info => {
+      if (info && $("model-pick")) {
+        $("model-pick").value = info.model || "";
+      }
+    }).catch(() => {});
+  }
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({
       type: "sync_active",
@@ -832,10 +856,29 @@ async function openSession(id) {
     const a = currentAgent();
     for (const m of msgs) {
       if (m.role === "user") {
-        addMessage("user", "").textContent = m.text;
+        const uEl = addMessage("user", "");
+        if (m.text && (m.text.includes("/api/attachments/") || m.text.includes("[Hình ảnh đính kèm:"))) {
+          let cleanText = m.text;
+          const imgMatches = cleanText.match(/\[Hình ảnh đính kèm:\s*([^\]]+)\]/g);
+          let extraImgHtml = "";
+          if (imgMatches) {
+            imgMatches.forEach(tag => {
+              cleanText = cleanText.replace(tag, "").trim();
+              const p = tag.replace(/\[Hình ảnh đính kèm:\s*/, "").replace(/\]$/, "").trim();
+              const filename = p.split(/[\\/]/).pop();
+              extraImgHtml += `<div class="msg-image-wrap"><img src="/api/attachments/${encodeURIComponent(filename)}" alt="${filename}" onclick="window.open(this.src,'_blank')" title="Bấm để xem ảnh phóng to"></div>`;
+            });
+          }
+          uEl.innerHTML = extraImgHtml + (cleanText ? `<div>${escapeHtml(cleanText)}</div>` : "");
+        } else {
+          uEl.textContent = m.text;
+        }
       } else {
         addMessage("bot", md(m.text), a.name.toUpperCase());
       }
+    }
+    if (typeof updateChatNavTicks === "function") {
+      setTimeout(updateChatNavTicks, 80);
     }
   } catch (e) {
     console.error("Lỗi mở phiên:", e);
@@ -848,6 +891,9 @@ function newSession() {
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(null);
+  if (typeof updateChatNavTicks === "function") {
+    updateChatNavTicks();
+  }
   $("q").focus();
 }
 
@@ -1480,9 +1526,109 @@ async function fetchClipboardFiles() {
   return [];
 }
 
+let pendingAttachments = [];
+
+function renderAttachmentChips() {
+  const bar = $("chat-attachments-bar");
+  if (!bar) return;
+  if (!pendingAttachments.length) {
+    bar.innerHTML = "";
+    bar.style.display = "none";
+    return;
+  }
+  bar.style.display = "flex";
+  bar.innerHTML = pendingAttachments.map((att, idx) => `
+    <div class="chat-attachment-chip ${att.uploading ? 'uploading' : ''}">
+      <img src="${att.previewUrl || att.url}" alt="${att.filename}">
+      <span>${escapeHtml(att.filename)} ${att.uploading ? '(đang tải...)' : (att.error ? `<span style="color:#ef4444">${escapeHtml(att.error)}</span>` : '✓')}</span>
+      <button type="button" class="btn-remove-attach" data-idx="${idx}" title="Xóa ảnh">✕</button>
+    </div>
+  `).join("");
+
+  bar.querySelectorAll(".btn-remove-attach").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      pendingAttachments.splice(idx, 1);
+      renderAttachmentChips();
+    };
+  });
+}
+
+async function uploadImageFile(file) {
+  const previewUrl = URL.createObjectURL(file);
+  const att = {
+    file,
+    filename: file.name || "image.png",
+    previewUrl,
+    url: "",
+    path: "",
+    uploading: true,
+    error: null
+  };
+  pendingAttachments.push(att);
+  renderAttachmentChips();
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    const res = await fetch("/api/upload-image", {
+      method: "POST",
+      body: fd
+    });
+    if (!res.ok) {
+      throw new Error(`Lỗi máy chủ (${res.status})`);
+    }
+    const data = await res.json();
+    if (data.ok) {
+      att.uploading = false;
+      att.url = data.url;
+      att.path = data.path;
+      att.filename = data.filename;
+      renderAttachmentChips();
+    } else {
+      throw new Error(data.error || "Tải lên thất bại");
+    }
+  } catch (err) {
+    console.error("Lỗi upload ảnh:", err);
+    att.uploading = false;
+    att.error = err.message || "Lỗi tải";
+    renderAttachmentChips();
+  }
+}
+
+function extractImageFromClipboard(e) {
+  if (!e.clipboardData) return null;
+  const items = e.clipboardData.items;
+  if (items) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.startsWith("image/")) {
+        return items[i].getAsFile();
+      }
+    }
+  }
+  if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+    for (let f of e.clipboardData.files) {
+      if (f.type && f.type.startsWith("image/")) {
+        return f;
+      }
+    }
+  }
+  return null;
+}
+
 const chatInput = $("q");
 if (chatInput) {
   chatInput.addEventListener("paste", async function (e) {
+    // 1. Kiểm tra nếu trong clipboard có ảnh (ví dụ chụp màn hình Snipping Tool, Ctrl+C ảnh)
+    const imgFile = extractImageFromClipboard(e);
+    if (imgFile) {
+      e.preventDefault();
+      uploadImageFile(imgFile);
+      return;
+    }
+
     const plainText = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
     const hasFiles = e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0;
 
@@ -1505,6 +1651,14 @@ if (chatInput) {
   chatInput.addEventListener("drop", async function (e) {
     e.preventDefault();
     if (e.dataTransfer?.files?.length) {
+      // Ưu tiên nếu kéo thả ảnh trực tiếp
+      for (const f of e.dataTransfer.files) {
+        if (f.type && f.type.startsWith("image/")) {
+          uploadImageFile(f);
+          return;
+        }
+      }
+
       const paths = Array.from(e.dataTransfer.files)
         .map((f) => f.path || f.name)
         .filter(Boolean);
@@ -1529,6 +1683,13 @@ document.addEventListener("paste", async (e) => {
     return;
   }
   if (!isInput && chatInput) {
+    const imgFile = extractImageFromClipboard(e);
+    if (imgFile) {
+      e.preventDefault();
+      uploadImageFile(imgFile);
+      return;
+    }
+
     const plainText = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
     const hasFiles = e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0;
     if (!plainText || hasFiles) {
@@ -1676,16 +1837,46 @@ function sendChatMessage(displayText, promptToSend) {
     return;
   }
   setBusy(true);
-  addMessage("user", "").textContent = displayText;
+
+  // Xử lý ảnh đính kèm nếu có
+  let attHtml = "";
+  let attPrompt = "";
+  if (pendingAttachments.length > 0) {
+    attHtml = pendingAttachments.map(a => `
+      <div class="msg-image-wrap">
+        <img src="${a.url || a.previewUrl}" alt="${a.filename}" onclick="window.open(this.src,'_blank')" title="Bấm để xem ảnh phóng to">
+      </div>
+    `).join("");
+    attPrompt = pendingAttachments.map(a => `\n[Hình ảnh đính kèm: ${a.path || a.filename}]`).join("");
+  }
+
+  const uMsg = addMessage("user", "");
+  if (attHtml) {
+    uMsg.innerHTML = attHtml + (displayText ? `<div>${escapeHtml(displayText)}</div>` : "");
+  } else {
+    uMsg.textContent = displayText;
+  }
+
+  const sentAttachments = [...pendingAttachments];
+  pendingAttachments = [];
+  renderAttachmentChips();
+
   $("q").value = "";
   $("q").style.height = "auto";
   const wsPath = currentWorkspace && currentWorkspace.path ? currentWorkspace.path : "";
+  const chosenModel = (session ? ($("model-pick") ? $("model-pick").value : "") : pendingSessionModel) || "";
   ws.send(JSON.stringify({
     session: session,
-    text: promptToSend || displayText,
+    text: (promptToSend || displayText) + attPrompt,
     agent: selectedAgent,
-    workspace: wsPath
+    workspace: wsPath,
+    model: chosenModel,
+    attachments: sentAttachments
   }));
+
+  if (typeof updateChatNavTicks === "function") {
+    setTimeout(updateChatNavTicks, 80);
+  }
 }
 
 // Modal Tạo Agent mới
@@ -1955,7 +2146,9 @@ $("sf").addEventListener("click", (e) => {
 $("gear").onclick = $("gear2").onclick = openSettings;
 $("s-close").onclick = () => $("settings").close();
 
-// Đổi model nhanh trên thanh điều khiển
+let pendingSessionModel = "";
+
+// Đổi model riêng cho từng cuộc hội thoại (hoặc phiên mới)
 async function loadModels() {
   const r = await (await fetch("/api/models")).json();
   const sel = $("model-pick");
@@ -1965,17 +2158,37 @@ async function loadModels() {
   if (!r.models.some((m) => m.id === "")) opts.unshift(new Option("Model mặc định", ""));
   sel.replaceChildren(...opts);
   if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
-  sel.value = r.current;
+  
+  // Ưu tiên model của session đang mở nếu có
+  const sessObj = currentSessions.find(s => s.id === session);
+  if (sessObj && sessObj.model) {
+    sel.value = sessObj.model;
+  } else {
+    sel.value = r.current || "";
+  }
 }
 
 $("model-pick").onchange = async (e) => {
-  const r = await fetch("/api/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ KURO_MODEL: e.target.value })
-  });
-  $("state").textContent = r.ok ? "Đã đổi model" : "Đổi model lỗi";
-  setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
+  const chosen = e.target.value;
+  if (session) {
+    try {
+      const r = await fetch(`/api/sessions/${session}/model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: chosen })
+      });
+      const sessObj = currentSessions.find(s => s.id === session);
+      if (sessObj) sessObj.model = chosen;
+      $("state").textContent = r.ok ? "Đã lưu model cho phiên" : "Lỗi lưu model";
+      setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
+    } catch (err) {
+      console.error("Lỗi cập nhật model session:", err);
+    }
+  } else {
+    pendingSessionModel = chosen;
+    $("state").textContent = "Đã chọn model phiên mới";
+    setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
+  }
 };
 
 // Hiển thị tên Core AI ở góc chân
@@ -3119,6 +3332,161 @@ if ("serviceWorker" in navigator) {
     });
   });
 }
+
+// ========================================================
+// THANH VẠCH ĐIỀU HƯỚNG CÂU HỎI & NÚT CUỘN XUỐNG ĐÁY (THEO UI JAVIS)
+// ========================================================
+let navPopoverTimer = null;
+
+function updateChatNavTicks() {
+  const rail = $("chat-nav-rail");
+  const log = $("log");
+  const popover = $("chat-nav-popover");
+  if (!rail || !log) return;
+
+  const userMsgs = Array.from(log.querySelectorAll(".msg.user"));
+  if (userMsgs.length <= 1) {
+    rail.style.display = "none";
+    if (popover) popover.style.display = "none";
+    return;
+  }
+
+  rail.style.display = "block";
+  rail.innerHTML = "";
+
+  const logHeight = Math.max(log.scrollHeight, 1);
+
+  userMsgs.forEach((msgEl, idx) => {
+    const tick = document.createElement("div");
+    tick.className = "chat-nav-tick";
+    tick.dataset.idx = idx;
+
+    const pct = Math.min(Math.max((msgEl.offsetTop / logHeight) * 100, 2), 97);
+    tick.style.top = `${pct}%`;
+
+    const rawSnippet = (msgEl.textContent || "").trim().replace(/^BẠN \(KỸ SƯ\)\s*/i, "").replace(/\s+/g, " ");
+    tick.title = `Câu hỏi #${idx + 1}: ${rawSnippet.slice(0, 50)}`;
+
+    tick.addEventListener("mouseenter", () => {
+      showChatNavPopover(idx, userMsgs, tick);
+    });
+
+    tick.addEventListener("click", (e) => {
+      e.stopPropagation();
+      msgEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      msgEl.classList.add("highlight-flash");
+      setTimeout(() => msgEl.classList.remove("highlight-flash"), 1200);
+      hideChatNavPopover();
+    });
+
+    rail.appendChild(tick);
+  });
+}
+
+function showChatNavPopover(centerIdx, userMsgs, targetTick) {
+  clearTimeout(navPopoverTimer);
+  const popover = $("chat-nav-popover");
+  const rail = $("chat-nav-rail");
+  if (!popover || !rail) return;
+
+  const maxItems = 15;
+  const total = userMsgs.length;
+  let start = Math.max(0, centerIdx - Math.floor(maxItems / 2));
+  let end = Math.min(total, start + maxItems);
+  if (end - start < maxItems) {
+    start = Math.max(0, end - maxItems);
+  }
+
+  const itemsHtml = [];
+  for (let i = start; i < end; i++) {
+    const el = userMsgs[i];
+    const text = (el.textContent || "").trim().replace(/^BẠN \(KỸ SƯ\)\s*/i, "").replace(/\s+/g, " ");
+    const isCenter = (i === centerIdx);
+    itemsHtml.push(`
+      <div class="chat-nav-item ${isCenter ? 'highlighted' : ''}" data-idx="${i}" title="${escapeHtml(text)}">
+        ${i + 1}. ${escapeHtml(text.slice(0, 50))}${text.length > 50 ? '...' : ''}
+      </div>
+    `);
+  }
+
+  popover.innerHTML = `
+    <div class="chat-nav-popover-header">
+      <span>CÂU HỎI TRONG ĐOẠN NÀY (${start + 1}-${end}/${total})</span>
+      <span style="font-size:10px; color:var(--muted); font-family:var(--body);">Bấm để nhảy</span>
+    </div>
+    <div class="chat-nav-list">${itemsHtml.join("")}</div>
+  `;
+
+  const tickRect = targetTick.getBoundingClientRect();
+  const popTop = Math.max(10, Math.min(tickRect.top - 60, window.innerHeight - 420));
+  popover.style.top = `${popTop}px`;
+  popover.style.display = "flex";
+
+  popover.querySelectorAll(".chat-nav-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const idx = parseInt(item.dataset.idx, 10);
+      const targetEl = userMsgs[idx];
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        targetEl.classList.add("highlight-flash");
+        setTimeout(() => targetEl.classList.remove("highlight-flash"), 1200);
+      }
+      hideChatNavPopover();
+    });
+  });
+
+  popover.onmouseenter = () => clearTimeout(navPopoverTimer);
+  popover.onmouseleave = () => scheduleHideChatNavPopover();
+}
+
+function scheduleHideChatNavPopover() {
+  clearTimeout(navPopoverTimer);
+  navPopoverTimer = setTimeout(() => {
+    hideChatNavPopover();
+  }, 220);
+}
+
+function hideChatNavPopover() {
+  const popover = $("chat-nav-popover");
+  if (popover) popover.style.display = "none";
+}
+
+if ($("chat-nav-rail")) {
+  $("chat-nav-rail").onmouseleave = scheduleHideChatNavPopover;
+}
+
+document.addEventListener("click", (e) => {
+  const popover = $("chat-nav-popover");
+  const rail = $("chat-nav-rail");
+  if (popover && popover.style.display !== "none") {
+    if (!popover.contains(e.target) && (!rail || !rail.contains(e.target))) {
+      hideChatNavPopover();
+    }
+  }
+});
+
+const scrollBottomBtn = $("btn-scroll-bottom");
+const logContainer = $("log");
+if (scrollBottomBtn && logContainer) {
+  logContainer.addEventListener("scroll", () => {
+    const distFromBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight;
+    if (distFromBottom > 130) {
+      scrollBottomBtn.style.display = "flex";
+    } else {
+      scrollBottomBtn.style.display = "none";
+    }
+  });
+
+  scrollBottomBtn.addEventListener("click", () => {
+    logContainer.scrollTo({ top: logContainer.scrollHeight, behavior: "smooth" });
+  });
+}
+
+window.addEventListener("resize", () => {
+  if (typeof updateChatNavTicks === "function") {
+    updateChatNavTicks();
+  }
+});
 
 // Khởi chạy
 connect();

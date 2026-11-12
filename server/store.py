@@ -38,6 +38,10 @@ def init() -> None:
     except Exception:
         pass
     try:
+        _q("ALTER TABLE sessions ADD COLUMN model TEXT DEFAULT ''")
+    except Exception:
+        pass
+    try:
         from pathlib import Path
         import config
         def_ws = normalize_workspace(str(config.ROOT / "projects" / "DuAn_KhoiTao"))
@@ -56,13 +60,13 @@ def normalize_workspace(ws: str | None) -> str:
         return ws.strip().replace("\\", "/").lower()
 
 
-def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core", workspace: str = "") -> str:
+def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core", workspace: str = "", model: str = "") -> str:
     sid = sid or uuid.uuid4().hex[:12]
     now = time.time()
     agent = agent or "kuro-core"
     workspace = normalize_workspace(workspace)
-    _q("INSERT OR IGNORE INTO sessions(id,title,agent,workspace,created,updated) VALUES(?,?,?,?,?,?)",
-       (sid, title[:80], agent, workspace, now, now))
+    _q("INSERT OR IGNORE INTO sessions(id,title,agent,workspace,model,created,updated) VALUES(?,?,?,?,?,?,?)",
+       (sid, title[:80], agent, workspace, model or "", now, now))
     return sid
 
 
@@ -77,6 +81,10 @@ def set_claude_id(sid: str, claude_id: str | None) -> None:
 
 def set_agent(sid: str, agent: str) -> None:
     _q("UPDATE sessions SET agent=?, updated=? WHERE id=?", (agent, time.time(), sid))
+
+
+def set_model(sid: str, model: str) -> None:
+    _q("UPDATE sessions SET model=?, updated=? WHERE id=?", (model or "", time.time(), sid))
 
 
 def delete_session(sid: str) -> None:
@@ -109,7 +117,7 @@ def sessions(limit: int = 100, agent: str | None = None, workspace: str | None =
         args.append(norm_ws)
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = f"SELECT id,title,updated,agent,workspace FROM sessions {where} ORDER BY updated DESC LIMIT ?"
+    sql = f"SELECT id,title,updated,agent,workspace,model FROM sessions {where} ORDER BY updated DESC LIMIT ?"
     args.append(limit)
     return _q(sql, tuple(args))
 

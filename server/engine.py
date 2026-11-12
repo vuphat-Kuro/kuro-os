@@ -251,14 +251,15 @@ def system_append() -> str:
     return "\n\n".join(parts)
 
 
-def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None) -> ClaudeAgentOptions:
+def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None) -> ClaudeAgentOptions:
     extra = agent_prompt_block(agent)
     ws_path = cwd or str(active_workspace_dir())
     ws_note = f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\nĐường dẫn thư mục dự án: `{ws_path}`.\nKhi cần đọc, tạo hoặc kiểm toán hồ sơ kỹ thuật, bản vẽ, bảng tính hay script, hãy thực hiện trong thư mục này."
+    chosen_model = model or config.MODEL or None
     return ClaudeAgentOptions(
         system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note},
         cwd=ws_path,
-        model=config.MODEL or None,
+        model=chosen_model,
         env=config.provider_env(),
         resume=claude_id,
         skills="all",
@@ -377,14 +378,14 @@ def loi_tieng_viet(err: str) -> str:
     return err
 
 
-async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None):
+async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None):
     """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
     cur = config.PROVIDER or "claude"
     owner, conv = split_conv(claude_id)
     if owner and owner != cur:   # mỗi hãng giữ hội thoại riêng: AI mới không nối được mạch cũ (specs/001 FR-007)
         yield {"type": "text", "text": f"_(Đã đổi sang {config.PROVIDERS.get(cur, {}).get('ten', cur)}: "
                                        "AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
-    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur, agent=agent, cwd=cwd):
+    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur, agent=agent, cwd=cwd, model=model):
         if ev["type"] == "error":
             ev = {**ev, "text": loi_tieng_viet(ev["text"])}
         elif ev["type"] == "final" and ev.get("claude_id"):
@@ -392,14 +393,14 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
         yield ev
 
 
-async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core", cwd: str | None = None):
+async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None):
     ws_path = cwd or str(active_workspace_dir())
     if kind := cli_kind():
-        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path), resume, cwd=ws_path):
+        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path), resume, cwd=ws_path, model=model):
             yield ev
         return
     try:
-        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path)):
+        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path, model=model)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
@@ -418,13 +419,15 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
         yield {"type": "error", "text": f"{type(e).__name__}: {e}"}
 
 
-async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None) -> str:
+async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None, model: str | None = None) -> str:
     """Một lượt hoàn chỉnh: lưu câu hỏi, chạy, đẩy sự kiện qua emit (nếu có), lưu câu trả lời."""
     ws_path = workspace or str(active_workspace_dir())
-    store.ensure(sid, title=text, agent=agent, workspace=ws_path)
+    sess = store.get(sid) or {}
+    chosen_model = model or sess.get("model") or ""
+    store.ensure(sid, title=text, agent=agent, workspace=ws_path, model=chosen_model)
     store.add(sid, "user", text)
     shown, final = [], ""
-    async for ev in run_turn(text, (store.get(sid) or {}).get("claude_id"), agent=agent, cwd=ws_path):
+    async for ev in run_turn(text, sess.get("claude_id"), agent=agent, cwd=ws_path, model=chosen_model):
         if ev["type"] == "text":
             shown.append(ev["text"])
         elif ev["type"] == "error":

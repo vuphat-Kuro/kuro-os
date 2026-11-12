@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.4] - 2026-11-12
+- Thanh vạch điều hướng câu hỏi (Message Ticks Rail): Hiển thị các vạch tick trên mép phải thanh cuộn đánh dấu câu hỏi của người dùng. Rê chuột vào sẽ hiện popover danh sách 15 câu hỏi xung quanh vị trí xem, bấm vào để cuộn nhanh và nháy sáng câu hỏi (theo phong cách Javis OS).
+- Nút cuộn nhanh xuống cuối (Scroll to Bottom): Tự động hiển thị nút tròn khi người dùng cuộn lên xem lịch sử trao đổi, bấm vào để lướt ngay xuống tin nhắn mới nhất.
+- Chọn Model AI riêng biệt cho từng cuộc hội thoại (Per-Session Model): Cho phép đổi model độc lập cho từng phiên chat mà không làm ảnh hưởng đến các phiên chat khác hay cấu hình chung toàn cục.
+- Dán ảnh trực tiếp từ bộ nhớ tạm (Clipboard Image Paste): Hỗ trợ nhấn Ctrl+V khi vừa chụp ảnh màn hình (Snipping Tool, Win+Shift+S) hoặc kéo thả ảnh vào khung chat. Tự động lưu an toàn vào thư mục `.attachments/` của dự án, hiển thị thumbnail xem trước và đính kèm đường dẫn cho AI phân tích.
+
 ## [1.5.3] - 2026-11-12
 - Bổ sung tính năng sao chép và dán (copy/paste) file vào khung chat chuẩn phong cách Claude Code: Khi copy file trong Windows Explorer (Ctrl+C), nhấn Ctrl+V vào khung chat sẽ tự động điền đường dẫn tuyệt đối của file (tự động bao nháy kép nếu tên file có khoảng trắng).
 - Hỗ trợ copy cùng lúc nhiều file và kéo thả (drag & drop) file từ Windows Explorer vào khung chat.

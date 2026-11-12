@@ -17,7 +17,8 @@ if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
 
 from contextlib import asynccontextmanager
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
+import uuid
 
 import io
 import time
@@ -26,6 +27,7 @@ from pathlib import Path
 import yaml
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import cli_engines
@@ -504,6 +506,59 @@ def delete_session(sid: str):
 @app.get("/api/sessions/{sid}")
 def get_messages(sid: str):
     return store.messages(sid)
+
+
+@app.get("/api/sessions/{sid}/info")
+def get_session_info(sid: str):
+    sess = store.get(sid)
+    if not sess:
+        raise HTTPException(404, "Không tìm thấy phiên")
+    return sess
+
+
+@app.post("/api/sessions/{sid}/model")
+def set_session_model(sid: str, body: dict):
+    model = (body.get("model") or "").strip()
+    store.set_model(sid, model)
+    return {"ok": True, "model": model}
+
+
+@app.post("/api/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    filename = file.filename or "image.png"
+    ext = Path(filename).suffix.lower()
+    if ext not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}:
+        ext = ".png"
+    safe_name = f"img_{time.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
+    
+    ws_dir = engine.active_workspace_dir()
+    attach_dir = ws_dir / ".attachments"
+    attach_dir.mkdir(parents=True, exist_ok=True)
+    target_path = attach_dir / safe_name
+    
+    content = await file.read()
+    target_path.write_bytes(content)
+    
+    return {
+        "ok": True,
+        "filename": safe_name,
+        "original_name": filename,
+        "path": str(target_path),
+        "url": f"/api/attachments/{safe_name}",
+        "size": len(content)
+    }
+
+
+@app.get("/api/attachments/{filename}")
+def get_attachment(filename: str):
+    safe_filename = Path(filename).name
+    ws_dir = engine.active_workspace_dir()
+    target = (ws_dir / ".attachments" / safe_filename).resolve()
+    if not target.is_file():
+        target = (config.ROOT / ".attachments" / safe_filename).resolve()
+        if not target.is_file():
+            raise HTTPException(404, "Không tìm thấy ảnh đính kèm")
+    return FileResponse(target)
 
 
 @app.get("/api/skills")
@@ -1281,7 +1336,8 @@ async def ws(sock: WebSocket):
                 continue
             agent = req.get("agent") or "kuro-core"
             workspace = req.get("workspace") or str(engine.active_workspace_dir())
-            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace)
+            req_model = req.get("model") or None
+            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace, model=req_model or "")
 
             # Cập nhật trạng thái active
             cur_st = get_active_state()
@@ -1289,6 +1345,8 @@ async def ws(sock: WebSocket):
             cur_st["session"] = sid
             cur_st["workspace"] = workspace
             cur_st["workspace_name"] = Path(workspace).name
+            if req_model:
+                cur_st["model"] = req_model
             save_active_state(cur_st)
 
             # Broadcast thông tin session & tin nhắn người dùng tới TẤT CẢ các thiết bị kết nối
@@ -1297,14 +1355,17 @@ async def ws(sock: WebSocket):
                 "id": sid,
                 "agent": agent,
                 "workspace": workspace,
-                "title": text
+                "title": text,
+                "model": req_model
             })
             await manager.broadcast({
                 "type": "user_message",
                 "session": sid,
                 "agent": agent,
                 "workspace": workspace,
-                "text": text
+                "text": text,
+                "attachments": req.get("attachments") or [],
+                "model": req_model
             })
 
             # Broadcast từng token streaming tới tất cả thiết bị
@@ -1315,7 +1376,7 @@ async def ws(sock: WebSocket):
                 payload["workspace"] = workspace
                 await manager.broadcast(payload)
 
-            await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace)
+            await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace, model=req_model)
 
             # Broadcast kết thúc phiên để đồng bộ lịch sử trên cả 2 màn hình
             await manager.broadcast({
