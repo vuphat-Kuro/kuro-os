@@ -1,5 +1,9 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.10] - 2026-11-13
+- Sửa lỗi cú pháp JavaScript gây treo đơ giao diện khởi động: Khắc phục triệt để lỗi Unexpected token trong tệp app.js khiến ứng dụng không tải được danh sách cộng sự, gợi ý câu hỏi nhanh và trạng thái kết nối.
+- Nâng cấp số phiên bản cache và Service Worker (v44 / kuro-os-v24) để trình duyệt và WebView2 tự động làm mới mã nguồn, không bị kẹt cache phiên bản cũ.
+
 ## [1.5.9] - 2026-11-13
 - Khắc phục triệt để lỗi không mở được ứng dụng Desktop Kuro OS trên máy mới tải về:
   - Bổ sung các thư viện Desktop cốt lõi (`pywebview`, `pywin32`, `pythonnet`, `psutil`, `qrcode`, `pillow`) vào `requirements.txt`.
