@@ -523,6 +523,62 @@ def set_session_model(sid: str, body: dict):
     return {"ok": True, "model": model}
 
 
+@app.post("/api/upload-file")
+async def upload_general_file(file: UploadFile = File(...)):
+    filename = file.filename or "file.dat"
+    ext = Path(filename).suffix.lower()
+    safe_name = f"att_{time.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}_{Path(filename).stem[:24]}{ext}"
+    
+    ws_dir = engine.active_workspace_dir()
+    attach_dir = ws_dir / ".attachments"
+    attach_dir.mkdir(parents=True, exist_ok=True)
+    target_path = attach_dir / safe_name
+    
+    content = await file.read()
+    target_path.write_bytes(content)
+    
+    return {
+        "ok": True,
+        "filename": safe_name,
+        "original_name": filename,
+        "path": str(target_path),
+        "url": f"/api/attachments/{safe_name}",
+        "size": len(content),
+        "is_image": ext in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
+    }
+
+
+@app.post("/api/fs/pick-native-file", dependencies=[Depends(local_only)])
+async def pick_native_file():
+    if sys.platform != "win32":
+        raise HTTPException(400, "Tính năng chỉ hỗ trợ trên Windows")
+    import subprocess
+    ps_script = Path(__file__).parent / "pick_file.ps1"
+    try:
+        loop = asyncio.get_event_loop()
+        def _run():
+            cmd = [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-STA",
+                "-File", str(ps_script)
+            ]
+            return subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=300
+            )
+        proc = await loop.run_in_executor(None, _run)
+        lines = [line.strip() for line in proc.stdout.decode("utf-8", errors="ignore").splitlines() if line.strip()]
+        files = [l for l in lines if Path(l).is_file()]
+        if files:
+            return {"ok": True, "files": files}
+        return {"ok": False, "cancelled": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/api/upload-image")
 async def upload_image(file: UploadFile = File(...)):
     filename = file.filename or "image.png"

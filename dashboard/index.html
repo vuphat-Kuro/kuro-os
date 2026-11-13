@@ -738,23 +738,389 @@
   .tool::before { content:"▸ "; color:var(--amber); }
   body.busy .bot:last-child::before { content:attr(data-sender) " // ĐANG XỬ LÝ..."; animation:blink 1s steps(2) infinite; }
 
-  /* Form nhập tin nhắn */
-  form { padding:10px max(20px, calc(50% - 420px)) 16px; background:rgba(5,9,15,.7); backdrop-filter:blur(6px); position:relative; }
-  .input { position:relative; }
-  body.busy .input::after { content:""; position:absolute; left:0; right:0; top:-4px; height:3px; background:var(--hazard); animation:tape .8s linear infinite; }
-  .input::before { content:"›"; position:absolute; left:14px; top:12px; font:700 20px/1 var(--hud); color:var(--cyan); }
+  /* Form nhập tin nhắn - Phong cách Claude Code & Antigravity 2.0 */
+  form {
+    padding: 10px max(20px, calc(50% - 460px)) 16px;
+    background: rgba(5, 9, 15, 0.85);
+    backdrop-filter: blur(12px);
+    position: relative;
+    z-index: 30;
+  }
+  .chat-input-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: #0d1622;
+    border: 1px solid rgba(34, 211, 238, 0.22);
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+    transition: all .2s cubic-bezier(.2,.8,.2,1);
+    overflow: visible;
+  }
+  .chat-input-card:focus-within {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 1px var(--cyan), 0 0 20px rgba(34, 211, 238, 0.25);
+  }
+  body.busy .chat-input-card::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 3px;
+    background: var(--hazard);
+    animation: tape .8s linear infinite;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .chat-textarea-wrap {
+    position: relative;
+    padding: 10px 14px 4px;
+    display: flex;
+    align-items: flex-start;
+  }
+  .chat-prompt-prefix {
+    font: 700 16px/1.4 var(--hud);
+    color: var(--cyan);
+    margin-right: 8px;
+    user-select: none;
+    margin-top: 1px;
+    flex: none;
+  }
   textarea {
-    display:block; width:100%; min-height:56px; max-height:35vh; resize:vertical; padding:13px 60px 13px 34px; font:inherit; color:var(--text);
-    background:var(--panel-solid); border:1px solid var(--line-hi); border-radius:0; transition:box-shadow .2s, border-color .2s;
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    max-height: 32vh;
+    resize: none;
+    padding: 0;
+    font: inherit;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
   }
-  textarea::placeholder { color:var(--muted); font-size:14px; }
-  textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 18px rgba(34,211,238,.2); }
-  .btn-send {
-    position:absolute; right:8px; bottom:10px; padding:7px 14px; font:700 12px/1 var(--hud); letter-spacing:.12em;
-    color:#031018; background:var(--cyan); border:none; cursor:pointer; text-transform:uppercase; transition:background .15s;
+  textarea::placeholder {
+    color: #64748b;
+    font-size: 14px;
   }
-  .btn-send:hover { background:var(--cyan-soft); }
-  .form-hint-row { display:flex; justify-content:space-between; margin-top:6px; font:500 11px/1 var(--hud); letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+
+  /* Hàng công cụ dưới đáy khung nhập (Bottom Toolbar) */
+  .chat-toolbar-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px 8px;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .chat-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .chat-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    margin-left: auto;
+  }
+
+  /* Nút cộng + thêm tệp / thư mục */
+  .btn-plus-attach {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1;
+    transition: all .16s ease;
+    flex: none;
+  }
+  .btn-plus-attach:hover {
+    background: rgba(34, 211, 238, 0.16);
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
+    transform: scale(1.05);
+  }
+
+  /* Pill chọn Model dạng Antigravity / Claude Code */
+  .model-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text);
+    font: 600 11.5px/1.2 var(--hud);
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: all .16s ease;
+    max-width: 220px;
+    white-space: nowrap;
+  }
+  .model-pill-btn:hover {
+    background: rgba(34, 211, 238, 0.14);
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
+  }
+  .model-pill-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 170px;
+  }
+  .model-pill-chevron {
+    font-size: 9px;
+    opacity: 0.7;
+    flex: none;
+  }
+
+  /* Pill chọn Chế độ thực thi (Auto / Manual / Plan / Bypass) */
+  .mode-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: var(--muted);
+    font: 600 11px/1.2 var(--hud);
+    cursor: pointer;
+    transition: all .16s ease;
+  }
+  .mode-pill-btn:hover {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  /* Nút gửi tin nhắn tròn dạng Claude Code / Antigravity */
+  .btn-send-round {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--cyan);
+    color: #031018;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 2px 10px rgba(34, 211, 238, 0.35);
+    flex: none;
+  }
+  .btn-send-round:hover {
+    background: var(--cyan-soft);
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.55);
+  }
+  .btn-send-round svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.6;
+    transition: transform .15s;
+  }
+  .btn-send-round:hover svg {
+    transform: translateX(1px);
+  }
+  body.busy .btn-send-round {
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  /* Menu Popover khi bấm nút dấu cộng (+) */
+  .attach-menu-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 8px;
+    min-width: 230px;
+    background: #0f172a;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+    z-index: 120;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    animation: rise .2s ease;
+  }
+  .attach-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background .14s, color .14s;
+  }
+  .attach-menu-item:hover {
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--cyan-soft);
+  }
+  .attach-menu-item .menu-item-icon {
+    font-size: 15px;
+    width: 18px;
+    text-align: center;
+    flex: none;
+  }
+  .attach-menu-item .menu-item-text {
+    flex: 1;
+    font-weight: 500;
+  }
+  .attach-menu-item .menu-item-shortcut {
+    font-size: 10.5px;
+    color: var(--muted);
+    font-family: var(--hud);
+    letter-spacing: .05em;
+  }
+  .attach-menu-divider {
+    height: 1px;
+    background: var(--line);
+    margin: 4px 0;
+  }
+
+  /* Menu Popover chọn Model AI */
+  .model-menu-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 42px;
+    min-width: 280px;
+    max-width: 360px;
+    max-height: 380px;
+    overflow-y: auto;
+    background: #0f172a;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+    z-index: 120;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    animation: rise .2s ease;
+  }
+  .model-menu-header {
+    padding: 7px 14px 5px;
+    font: 700 10.5px/1 var(--hud);
+    letter-spacing: .12em;
+    color: var(--cyan-soft);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+  }
+  .model-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background .14s;
+  }
+  .model-menu-item:hover {
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--cyan-soft);
+  }
+  .model-menu-item.active {
+    background: rgba(34, 211, 238, 0.16);
+    color: var(--cyan);
+    font-weight: 600;
+  }
+  .model-menu-item .model-check {
+    color: var(--cyan);
+    font-weight: bold;
+  }
+
+  /* Menu Popover chọn Mode (Quyền & Cách AI xử lý) */
+  .mode-menu-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 170px;
+    min-width: 260px;
+    background: #0f172a;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+    z-index: 120;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    animation: rise .2s ease;
+  }
+  .mode-menu-item {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 14px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background .14s;
+    border-left: 3px solid transparent;
+  }
+  .mode-menu-item:hover {
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--amber);
+  }
+  .mode-menu-item.active {
+    background: rgba(251, 191, 36, 0.15);
+    border-left-color: var(--amber);
+    color: var(--amber);
+  }
+  .mode-item-title {
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mode-item-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .form-hint-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font: 500 11px/1 var(--hud);
+    letter-spacing: .12em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
 
   /* Menu gợi ý lệnh gạch chéo / (Slash Popover) */
   .slash-popover {
@@ -1543,16 +1909,24 @@
     form {
       padding: 6px 8px 10px !important;
     }
+    .chat-input-card {
+      border-radius: 10px !important;
+    }
     textarea {
-      font-size: 15px !important;
-      min-height: 46px !important;
-      padding: 9px 44px 9px 24px !important;
+      font-size: 14.5px !important;
+      min-height: 42px !important;
     }
-    .input::before {
-      top: 9px; font-size: 15px; left: 8px;
+    .model-pill-btn {
+      max-width: 140px !important;
+      padding: 3px 8px !important;
+      font-size: 10.5px !important;
     }
-    .btn-send {
-      padding: 5px 9px; font-size: 10.5px; right: 5px; bottom: 7px;
+    .model-pill-text {
+      max-width: 100px !important;
+    }
+    .btn-send-round {
+      width: 28px !important;
+      height: 28px !important;
     }
     .form-hint-row {
       display: none !important;
@@ -1574,7 +1948,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.5.11</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.5.12</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -1728,7 +2102,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.5.11</span>
+        <span class="btn-text" id="header-version-text">v1.5.12</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -1796,10 +2170,10 @@
   </button>
 
   <form id="f">
-    <!-- Khung preview ảnh đính kèm từ clipboard -->
+    <!-- Khung preview ảnh đính kèm từ clipboard & tệp tải lên -->
     <div id="chat-attachments-bar" class="chat-attachments-bar" style="display:none;"></div>
 
-    <div class="input">
+    <div class="chat-input-card">
       <!-- Popover gợi ý lệnh gạch chéo / -->
       <div id="slash-menu" class="slash-popover" style="display:none;" role="listbox" aria-label="Gợi ý lệnh gạch chéo">
         <div class="slash-header">
@@ -1809,11 +2183,101 @@
         <div id="slash-items" class="slash-items"></div>
       </div>
 
-      <textarea id="q" placeholder="Hỏi Kuro... (Gõ / để gọi lệnh nhanh hoặc skill)" aria-label="Câu hỏi" rows="1"></textarea>
-      <button class="btn-send" type="submit" id="btn-send" title="Gửi (Enter)">Gửi ▸</button>
+      <!-- Popover Menu nút cộng (+) -->
+      <div id="attach-menu-popover" class="attach-menu-popover" style="display:none;">
+        <button type="button" class="attach-menu-item" id="menu-attach-file">
+          <span class="menu-item-icon">📎</span>
+          <span class="menu-item-text">Đính kèm tệp hoặc ảnh</span>
+          <span class="menu-item-shortcut">Ctrl+U</span>
+        </button>
+        <button type="button" class="attach-menu-item" id="menu-attach-folder">
+          <span class="menu-item-icon">📁</span>
+          <span class="menu-item-text">Thêm thư mục</span>
+        </button>
+        <button type="button" class="attach-menu-item" id="menu-attach-slash">
+          <span class="menu-item-icon">⚡</span>
+          <span class="menu-item-text">Lệnh gạch chéo</span>
+          <span class="menu-item-shortcut">/</span>
+        </button>
+        <div class="attach-menu-divider"></div>
+        <button type="button" class="attach-menu-item" id="menu-attach-context">
+          <span class="menu-item-icon">📊</span>
+          <span class="menu-item-text">Kiểm tra ngữ cảnh</span>
+        </button>
+        <button type="button" class="attach-menu-item" id="menu-attach-skills">
+          <span class="menu-item-icon">🛠️</span>
+          <span class="menu-item-text">Danh mục 22 Skill</span>
+        </button>
+      </div>
+
+      <!-- Popover Menu chọn Model AI -->
+      <div id="model-menu-popover" class="model-menu-popover" style="display:none;">
+        <div class="model-menu-header">MÔ HÌNH AI CHO PHIÊN CHAT NÀY</div>
+        <div id="model-menu-items"></div>
+      </div>
+
+      <!-- Popover Menu chọn Chế độ (Mode) -->
+      <div id="mode-menu-popover" class="mode-menu-popover" style="display:none;">
+        <button type="button" class="mode-menu-item active" data-mode="auto">
+          <div class="mode-item-title">
+            <span>Tự động (Auto)</span>
+            <span>✓</span>
+          </div>
+          <div class="mode-item-desc">Kuro tự động phân tích và kích hoạt công cụ cần thiết</div>
+        </button>
+        <button type="button" class="mode-menu-item" data-mode="plan">
+          <div class="mode-item-title">
+            <span>Kế hoạch (Plan)</span>
+          </div>
+          <div class="mode-item-desc">Lập kế hoạch chi tiết từng bước trước khi bắt tay làm</div>
+        </button>
+        <button type="button" class="mode-menu-item" data-mode="goal">
+          <div class="mode-item-title">
+            <span>Mục tiêu bền bỉ (Goal)</span>
+          </div>
+          <div class="mode-item-desc">Tập trung giải quyết triệt để bài toán đến khi hoàn tất</div>
+        </button>
+      </div>
+
+      <!-- Input ẩn cho chọn file từ trình duyệt máy tính -->
+      <input type="file" id="general-file-input" style="display:none;" multiple>
+
+      <!-- Khung nhập văn bản chính -->
+      <div class="chat-textarea-wrap">
+        <span class="chat-prompt-prefix">›</span>
+        <textarea id="q" placeholder="Hỏi Kuro... (Gõ / để gọi lệnh nhanh hoặc skill)" aria-label="Câu hỏi" rows="1"></textarea>
+      </div>
+
+      <!-- Hàng công cụ dưới đáy (Bottom Toolbar) -->
+      <div class="chat-toolbar-bottom">
+        <div class="chat-toolbar-left">
+          <!-- Nút cộng + thêm tệp/thư mục -->
+          <button type="button" class="btn-plus-attach" id="btn-chat-plus" title="Đính kèm tệp, thư mục, lệnh nhanh">+</button>
+
+          <!-- Nút chọn Model cho phiên hiện tại -->
+          <button type="button" class="model-pill-btn" id="btn-model-pill" title="Đổi mô hình AI riêng cho phiên chat này">
+            <span class="model-pill-text" id="model-pill-label">Model mặc định</span>
+            <span class="model-pill-chevron">▼</span>
+          </button>
+
+          <!-- Nút chọn Chế độ thực thi -->
+          <button type="button" class="mode-pill-btn" id="btn-mode-pill" title="Chế độ xử lý: Tự động / Kế hoạch / Mục tiêu">
+            <span id="mode-pill-label">Tự động</span>
+            <span style="font-size:8px; opacity:0.7;">▼</span>
+          </button>
+        </div>
+
+        <div class="chat-toolbar-right">
+          <!-- Nút gửi tin nhắn tròn -->
+          <button class="btn-send-round" type="submit" id="btn-send" title="Gửi (Enter)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+      </div>
     </div>
+
     <div class="form-hint-row">
-      <span>Gõ <code>/</code> để gọi lệnh & skill · Enter gửi · Shift+Enter xuống dòng</span>
+      <span>Gõ <code>/</code> gọi lệnh & skill · Enter gửi · Shift+Enter xuống dòng</span>
       <span id="typing-indicator" style="display:none; color:var(--amber);">AI đang soạn phản hồi...</span>
     </div>
   </form>
@@ -2212,12 +2676,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.5.11</div>
+        <div class="vc-val" id="vd-current-ver">v1.5.12</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.5.11</div>
+        <div class="vc-val" id="vd-latest-ver">v1.5.12</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
           <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>
@@ -2528,6 +2992,6 @@
   </div>
 </div>
 
-<script src="app.js?v=45"></script>
+<script src="app.js?v=46"></script>
 </body>
 </html>

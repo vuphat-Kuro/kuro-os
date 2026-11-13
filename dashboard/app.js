@@ -828,11 +828,17 @@ async function openSession(id) {
   // Cập nhật model riêng của session
   const sessObj = currentSessions.find(s => s.id === id);
   if (sessObj && sessObj.model !== undefined && $("model-pick")) {
-    $("model-pick").value = sessObj.model || "";
+    const val = sessObj.model || "";
+    $("model-pick").value = val;
+    updateModelPillUI(val);
+    renderModelMenuPopover(val);
   } else if ($("model-pick")) {
     fetch(`/api/sessions/${id}/info`).then(r => r.ok ? r.json() : null).then(info => {
       if (info && $("model-pick")) {
-        $("model-pick").value = info.model || "";
+        const val = info.model || "";
+        $("model-pick").value = val;
+        updateModelPillUI(val);
+        renderModelMenuPopover(val);
       }
     }).catch(() => {});
   }
@@ -891,6 +897,13 @@ function newSession() {
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(null);
+  
+  // Đồng bộ model mặc định/pending cho phiên mới
+  const defaultModelVal = pendingSessionModel || "";
+  if ($("model-pick")) $("model-pick").value = defaultModelVal;
+  updateModelPillUI(defaultModelVal);
+  renderModelMenuPopover(defaultModelVal);
+
   if (typeof updateChatNavTicks === "function") {
     updateChatNavTicks();
   }
@@ -1777,13 +1790,19 @@ function renderAttachmentChips() {
     return;
   }
   bar.style.display = "flex";
-  bar.innerHTML = pendingAttachments.map((att, idx) => `
-    <div class="chat-attachment-chip ${att.uploading ? 'uploading' : ''}">
-      <img src="${att.previewUrl || att.url}" alt="${att.filename}">
-      <span>${escapeHtml(att.filename)} ${att.uploading ? '(đang tải...)' : (att.error ? `<span style="color:#ef4444">${escapeHtml(att.error)}</span>` : '✓')}</span>
-      <button type="button" class="btn-remove-attach" data-idx="${idx}" title="Xóa ảnh">✕</button>
-    </div>
-  `).join("");
+  bar.innerHTML = pendingAttachments.map((att, idx) => {
+    const isImg = att.isImage || (att.file && att.file.type && att.file.type.startsWith("image/"));
+    const thumbHtml = isImg
+      ? `<img src="${att.previewUrl || att.url}" alt="${att.filename}">`
+      : `<span style="font-size:18px; line-height:1; flex:none;">📄</span>`;
+    return `
+      <div class="chat-attachment-chip ${att.uploading ? 'uploading' : ''}">
+        ${thumbHtml}
+        <span>${escapeHtml(att.filename)} ${att.uploading ? '(đang tải...)' : (att.error ? `<span style="color:#ef4444">${escapeHtml(att.error)}</span>` : '✓')}</span>
+        <button type="button" class="btn-remove-attach" data-idx="${idx}" title="Xóa đính kèm">✕</button>
+      </div>
+    `;
+  }).join("");
 
   bar.querySelectorAll(".btn-remove-attach").forEach(btn => {
     btn.onclick = (e) => {
@@ -1795,14 +1814,16 @@ function renderAttachmentChips() {
   });
 }
 
-async function uploadImageFile(file) {
-  const previewUrl = URL.createObjectURL(file);
+async function uploadGeneralFile(file) {
+  const isImage = file.type && file.type.startsWith("image/");
+  const previewUrl = isImage ? URL.createObjectURL(file) : "";
   const att = {
     file,
-    filename: file.name || "image.png",
+    filename: file.name || "file.dat",
     previewUrl,
     url: "",
     path: "",
+    isImage,
     uploading: true,
     error: null
   };
@@ -1813,7 +1834,8 @@ async function uploadImageFile(file) {
   fd.append("file", file);
 
   try {
-    const res = await fetch("/api/upload-image", {
+    const endpoint = isImage ? "/api/upload-image" : "/api/upload-file";
+    const res = await fetch(endpoint, {
       method: "POST",
       body: fd
     });
@@ -1826,16 +1848,21 @@ async function uploadImageFile(file) {
       att.url = data.url;
       att.path = data.path;
       att.filename = data.filename;
+      att.isImage = data.is_image !== undefined ? data.is_image : isImage;
       renderAttachmentChips();
     } else {
       throw new Error(data.error || "Tải lên thất bại");
     }
   } catch (err) {
-    console.error("Lỗi upload ảnh:", err);
+    console.error("Lỗi upload file:", err);
     att.uploading = false;
     att.error = err.message || "Lỗi tải";
     renderAttachmentChips();
   }
+}
+
+async function uploadImageFile(file) {
+  return uploadGeneralFile(file);
 }
 
 function extractImageFromClipboard(e) {
@@ -2067,8 +2094,14 @@ $("f").onsubmit = async (e) => {
     }
   }
 
-  // Tin nhắn thông thường
-  sendChatMessage(text);
+  // Tin nhắn thông thường - kèm chế độ Plan/Goal nếu người dùng chọn mode
+  let effectivePrompt = undefined;
+  if (currentChatMode === "plan") {
+    effectivePrompt = `[CHẾ ĐỘ LẬP KẾ HOẠCH - PLAN MODE]\nTrước khi bắt tay vào thực hiện, hãy lập kế hoạch chi tiết từng bước cho yêu cầu sau. Phân tích: căn cứ tiêu chuẩn, dữ liệu đầu vào cần có, các bước thực hiện, điểm kiểm soát (Hold Points) và rủi ro tiềm ẩn:\n\n${text}`;
+  } else if (currentChatMode === "goal") {
+    effectivePrompt = `[CHẾ ĐỘ MỤC TIÊU BỀN BỈ - GOAL MODE]\nHãy tập trung giải quyết triệt để và trọn vẹn mục tiêu sau đây, không dừng lại giữa chừng khi bài toán chưa hoàn tất:\n\n${text}`;
+  }
+  sendChatMessage(text, effectivePrompt);
 };
 
 function sendChatMessage(displayText, promptToSend) {
@@ -2078,16 +2111,28 @@ function sendChatMessage(displayText, promptToSend) {
   }
   setBusy(true);
 
-  // Xử lý ảnh đính kèm nếu có
+  // Xử lý tệp & ảnh đính kèm nếu có
   let attHtml = "";
   let attPrompt = "";
   if (pendingAttachments.length > 0) {
-    attHtml = pendingAttachments.map(a => `
-      <div class="msg-image-wrap">
-        <img src="${a.url || a.previewUrl}" alt="${a.filename}" onclick="window.open(this.src,'_blank')" title="Bấm để xem ảnh phóng to">
-      </div>
-    `).join("");
-    attPrompt = pendingAttachments.map(a => `\n[Hình ảnh đính kèm: ${a.path || a.filename}]`).join("");
+    attHtml = pendingAttachments.map(a => {
+      const isImg = a.isImage || (a.file && a.file.type && a.file.type.startsWith("image/"));
+      if (isImg) {
+        return `
+          <div class="msg-image-wrap">
+            <img src="${a.url || a.previewUrl}" alt="${a.filename}" onclick="window.open(this.src,'_blank')" title="Bấm để xem ảnh phóng to">
+          </div>
+        `;
+      }
+      return `
+        <div style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; margin:4px 0; background:rgba(34,211,238,0.08); border:1px solid var(--line-hi); border-radius:6px; font-size:12.5px;">
+          <span>📄</span>
+          <b>${escapeHtml(a.filename)}</b>
+          <small style="color:var(--muted)">(${escapeHtml(a.path || a.url)})</small>
+        </div>
+      `;
+    }).join("");
+    attPrompt = pendingAttachments.map(a => `\n[Tệp đính kèm: ${a.path || a.filename}]`).join("");
   }
 
   const uMsg = addMessage("user", "");
@@ -2390,28 +2435,69 @@ $("s-close").onclick = () => $("settings").close();
 
 let pendingSessionModel = "";
 
+let currentChatMode = "auto"; // auto | plan | goal
+let availableModelsList = [];
+
 // Đổi model riêng cho từng cuộc hội thoại (hoặc phiên mới)
 async function loadModels() {
   const r = await (await fetch("/api/models")).json();
   const sel = $("model-pick");
-  sel.hidden = !r.models.length;
-  if (!r.models.length) return;
-  const opts = r.models.map((m) => new Option(m.ten, m.id));
-  if (!r.models.some((m) => m.id === "")) opts.unshift(new Option("Model mặc định", ""));
-  sel.replaceChildren(...opts);
-  if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
-  
+  availableModelsList = r.models || [];
+  if (sel) {
+    sel.hidden = true;
+    if (availableModelsList.length) {
+      const opts = availableModelsList.map((m) => new Option(m.ten, m.id));
+      if (!availableModelsList.some((m) => m.id === "")) opts.unshift(new Option("Model mặc định", ""));
+      sel.replaceChildren(...opts);
+      if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
+    }
+  }
+
   // Ưu tiên model của session đang mở nếu có
   const sessObj = currentSessions.find(s => s.id === session);
-  if (sessObj && sessObj.model) {
-    sel.value = sessObj.model;
-  } else {
-    sel.value = r.current || "";
-  }
+  const activeVal = sessObj && sessObj.model !== undefined ? sessObj.model : (pendingSessionModel || r.current || "");
+  if (sel) sel.value = activeVal;
+  updateModelPillUI(activeVal);
+  renderModelMenuPopover(activeVal);
 }
 
-$("model-pick").onchange = async (e) => {
-  const chosen = e.target.value;
+function updateModelPillUI(modelId) {
+  const pillLabel = $("model-pill-label");
+  if (!pillLabel) return;
+  if (!modelId) {
+    pillLabel.textContent = "Model mặc định";
+    return;
+  }
+  const match = availableModelsList.find(m => m.id === modelId);
+  pillLabel.textContent = match ? match.ten : modelId;
+}
+
+function renderModelMenuPopover(activeVal) {
+  const container = $("model-menu-items");
+  if (!container) return;
+  const list = [{ id: "", ten: "Model mặc định" }, ...availableModelsList];
+  container.innerHTML = list.map(m => `
+    <button type="button" class="model-menu-item ${m.id === activeVal ? 'active' : ''}" data-model-id="${m.id}">
+      <span>${escapeHtml(m.ten)}</span>
+      ${m.id === activeVal ? '<span class="model-check">✓</span>' : ''}
+    </button>
+  `).join("");
+
+  container.querySelectorAll(".model-menu-item").forEach(btn => {
+    btn.onclick = async () => {
+      const chosen = btn.dataset.modelId || "";
+      await selectModelForSession(chosen);
+      hideBottomPopovers();
+    };
+  });
+}
+
+async function selectModelForSession(chosen) {
+  const sel = $("model-pick");
+  if (sel) sel.value = chosen;
+  updateModelPillUI(chosen);
+  renderModelMenuPopover(chosen);
+
   if (session) {
     try {
       const r = await fetch(`/api/sessions/${session}/model`, {
@@ -2431,7 +2517,185 @@ $("model-pick").onchange = async (e) => {
     $("state").textContent = "Đã chọn model phiên mới";
     setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
   }
-};
+}
+
+function hideBottomPopovers() {
+  const attachMenu = $("attach-menu-popover");
+  const modelMenu = $("model-menu-popover");
+  const modeMenu = $("mode-menu-popover");
+  if (attachMenu) attachMenu.style.display = "none";
+  if (modelMenu) modelMenu.style.display = "none";
+  if (modeMenu) modeMenu.style.display = "none";
+}
+
+// Bắt sự kiện click ra ngoài để đóng các popover dưới đáy
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#btn-chat-plus") && !e.target.closest("#attach-menu-popover") &&
+      !e.target.closest("#btn-model-pill") && !e.target.closest("#model-menu-popover") &&
+      !e.target.closest("#btn-mode-pill") && !e.target.closest("#mode-menu-popover")) {
+    hideBottomPopovers();
+  }
+});
+
+// Nút cộng (+) mở menu đính kèm
+const btnChatPlus = $("btn-chat-plus");
+if (btnChatPlus) {
+  btnChatPlus.onclick = (e) => {
+    e.stopPropagation();
+    const menu = $("attach-menu-popover");
+    const isVisible = menu && menu.style.display === "flex";
+    hideBottomPopovers();
+    if (menu && !isVisible) {
+      menu.style.display = "flex";
+    }
+  };
+}
+
+// Xử lý các lựa chọn trong menu dấu cộng
+if ($("menu-attach-file")) {
+  $("menu-attach-file").onclick = async () => {
+    hideBottomPopovers();
+    // Thử gọi Native Windows File Picker trước
+    try {
+      const res = await fetch("/api/fs/pick-native-file", { method: "POST" });
+      const data = await res.json();
+      if (data.ok && data.files && data.files.length) {
+        insertTextAtCursor($("q"), formatFilePaths(data.files));
+        return;
+      }
+    } catch (_) {}
+    // Fallback sang input file web chuẩn
+    const fi = $("general-file-input");
+    if (fi) {
+      fi.accept = "*/*";
+      fi.click();
+    }
+  };
+}
+
+if ($("menu-attach-folder")) {
+  $("menu-attach-folder").onclick = async () => {
+    hideBottomPopovers();
+    // Mở Native Folder Browser để chọn thư mục chèn vào chat
+    try {
+      const res = await fetch("/api/workspaces/browse-native", { method: "POST" });
+      const data = await res.json();
+      if (data.ok && data.path) {
+        insertTextAtCursor($("q"), `"${data.path}" `);
+      }
+    } catch (e) {
+      console.error("Lỗi chọn thư mục:", e);
+    }
+  };
+}
+
+if ($("menu-attach-slash")) {
+  $("menu-attach-slash").onclick = () => {
+    hideBottomPopovers();
+    const q = $("q");
+    if (q) {
+      q.value = "/" + q.value.replace(/^\/+/, "");
+      q.focus();
+      q.setSelectionRange(q.value.length, q.value.length);
+      handleSlashInput();
+    }
+  };
+}
+
+if ($("menu-attach-context")) {
+  $("menu-attach-context").onclick = () => {
+    hideBottomPopovers();
+    const q = $("q");
+    if (q) {
+      q.value = "/context";
+      $("f").requestSubmit();
+    }
+  };
+}
+
+if ($("menu-attach-skills")) {
+  $("menu-attach-skills").onclick = () => {
+    hideBottomPopovers();
+    const q = $("q");
+    if (q) {
+      q.value = "/skill ";
+      q.focus();
+      q.setSelectionRange(q.value.length, q.value.length);
+      handleSlashInput();
+    }
+  };
+}
+
+// Nút chọn Model Pill
+const btnModelPill = $("btn-model-pill");
+if (btnModelPill) {
+  btnModelPill.onclick = (e) => {
+    e.stopPropagation();
+    const menu = $("model-menu-popover");
+    const isVisible = menu && menu.style.display === "flex";
+    hideBottomPopovers();
+    if (menu && !isVisible) {
+      menu.style.display = "flex";
+    }
+  };
+}
+
+// Nút chọn Chế độ thực thi (Mode)
+const btnModePill = $("btn-mode-pill");
+if (btnModePill) {
+  btnModePill.onclick = (e) => {
+    e.stopPropagation();
+    const menu = $("mode-menu-popover");
+    const isVisible = menu && menu.style.display === "flex";
+    hideBottomPopovers();
+    if (menu && !isVisible) {
+      menu.style.display = "flex";
+    }
+  };
+}
+
+// Xử lý chọn Mode (Auto, Plan, Goal)
+const modeItems = document.querySelectorAll("#mode-menu-popover .mode-menu-item");
+modeItems.forEach(item => {
+  item.onclick = () => {
+    const mode = item.dataset.mode;
+    currentChatMode = mode;
+    modeItems.forEach(i => {
+      const isCur = i.dataset.mode === mode;
+      i.classList.toggle("active", isCur);
+      const check = i.querySelector(".mode-item-title span:last-child");
+      if (check && !check.textContent.includes("(") && !check.textContent.includes("✓")) {
+        // bỏ qua
+      }
+    });
+    const labelMap = { auto: "Tự động", plan: "Kế hoạch", goal: "Mục tiêu" };
+    const labelEl = $("mode-pill-label");
+    if (labelEl) labelEl.textContent = labelMap[mode] || "Tự động";
+    hideBottomPopovers();
+  };
+});
+
+// Xử lý input file chọn tài liệu / ảnh từ nút máy tính
+const genFileInput = $("general-file-input");
+if (genFileInput) {
+  genFileInput.onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const f of files) {
+      uploadGeneralFile(f);
+    }
+    genFileInput.value = "";
+  };
+}
+
+// Phím tắt Ctrl+U để mở nhanh chọn file
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key.toLowerCase() === "u") {
+    e.preventDefault();
+    if ($("menu-attach-file")) {
+      $("menu-attach-file").click();
+    }
+  }
+});
 
 // Hiển thị tên Core AI ở góc chân
 function showCore(r) {

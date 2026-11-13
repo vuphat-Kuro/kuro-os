@@ -1,5 +1,13 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.12] - 2026-11-13
+- Thiết kế lại hoàn toàn khung nhập nội dung chat (Chat Input Box) theo chuẩn hiện đại của Claude Code và Antigravity 2.0:
+  - Tách biệt vùng nhập văn bản và hàng công cụ đáy (Bottom Toolbar): Nút gửi tin nhắn tròn bo góc tinh tế nằm ở góc dưới cùng bên phải, không còn bị chèn hay che khuất nội dung gõ phím.
+  - Chuyển thanh chọn Model AI xuống đáy khung chat (Model Pill): Cho phép người dùng chuyển đổi mô hình AI riêng biệt cho từng cuộc hội thoại trực tiếp ngay tại vị trí soạn thảo mà không phải nhìn lên góc trên màn hình.
+  - Bổ sung nút dấu cộng (+) đa năng: Tích hợp menu đính kèm tệp tin tài liệu (.xlsx, .docx, .pdf, .dwg...), thêm thư mục dự án qua cửa sổ Windows native (`pick_file.ps1`, `pick_folder.ps1`), gọi nhanh danh mục lệnh gạch chéo (/), kiểm tra ngữ cảnh và danh mục 22 kỹ năng chuyên môn.
+  - Bổ sung thanh chọn Chế độ thực thi (Mode Pill): Tùy chọn nhanh giữa Tự động (Auto), Lập kế hoạch trước khi làm (Plan Mode) và Bám đuổi mục tiêu bền bỉ (Goal Mode).
+  - Nâng cấp bộ đính kèm tệp đa năng: Hỗ trợ đính kèm cả ảnh lẫn tài liệu kỹ thuật, tự động lưu vào `.attachments/` và gắn kèm thông tin vào ngữ cảnh câu hỏi cho AI xử lý.
+
 ## [1.5.11] - 2026-11-13
 - Khắc phục triệt để lỗi Kuro bị kẹt không phản hồi khi đang xem dở câu trả lời (phải chuyển phiên rồi mở lại mới thấy nội dung):
   - Bổ sung cơ chế phát sự kiện `turn_complete` từ backend mang trọn vẹn toàn bộ câu trả lời (`answer`) sau khi AI sinh xong và lưu vào cơ sở dữ liệu.
