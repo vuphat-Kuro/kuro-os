@@ -794,14 +794,30 @@ function formatSessionTime(ts) {
   return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
 }
 
+function getShortModelName(modelId) {
+  if (!modelId) return "";
+  const match = availableModelsList.find(m => m.id === modelId);
+  if (match && match.ten) return match.ten;
+  let s = String(modelId).trim();
+  if (s.startsWith("claude-")) s = s.replace("claude-", "Claude ");
+  else if (s.startsWith("gemini-")) s = s.replace("gemini-", "Gemini ");
+  else if (s.startsWith("gpt-")) s = s.replace("gpt-", "GPT ");
+  return s.length > 20 ? s.slice(0, 18) + "…" : s;
+}
+
 function createSessionItem(s) {
   const el = document.createElement("div");
   el.className = "session-item" + (s.id === session ? " on" : "");
   el.onclick = () => openSession(s.id);
 
+  const modelBadge = s.model ? `<span class="session-model-badge" title="Mô hình AI: ${DOMPurify.sanitize(s.model)}">${DOMPurify.sanitize(getShortModelName(s.model))}</span>` : "";
+
   el.innerHTML = `
     <div class="session-title" title="${DOMPurify.sanitize(s.title)}">${DOMPurify.sanitize(s.title)}</div>
-    <div class="session-time">${formatSessionTime(s.updated)}</div>
+    <div class="session-item-sub">
+      <span class="session-time">${formatSessionTime(s.updated)}</span>
+      ${modelBadge}
+    </div>
     <button class="btn-del-session" type="button" title="Xóa phiên này">🗑</button>
   `;
 
@@ -821,24 +837,36 @@ $("session-search").oninput = renderSessionList;
   // Mở phiên hội thoại
 async function openSession(id) {
   session = id;
+  pendingSessionModel = ""; // Reset pending model khi mở phiên cụ thể
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(id);
 
   // Cập nhật model riêng của session
-  const sessObj = currentSessions.find(s => s.id === id);
-  if (sessObj && sessObj.model !== undefined && $("model-pick")) {
-    const val = sessObj.model || "";
-    $("model-pick").value = val;
-    updateModelPillUI(val);
-    renderModelMenuPopover(val);
-  } else if ($("model-pick")) {
+  let sessObj = currentSessions.find(s => s.id === id);
+  const currentModel = (sessObj && sessObj.model !== undefined) ? (sessObj.model || "") : null;
+
+  if (currentModel !== null) {
+    if ($("model-pick")) $("model-pick").value = currentModel;
+    updateModelPillUI(currentModel);
+    renderModelMenuPopover(currentModel);
+    updateContextEnvModel(currentModel);
+  } else {
+    // Reset tạm về rỗng trước rồi fetch thông tin chi tiết
+    if ($("model-pick")) $("model-pick").value = "";
+    updateModelPillUI("");
+    renderModelMenuPopover("");
+    updateContextEnvModel("");
+
     fetch(`/api/sessions/${id}/info`).then(r => r.ok ? r.json() : null).then(info => {
-      if (info && $("model-pick")) {
+      if (info && session === id) {
         const val = info.model || "";
-        $("model-pick").value = val;
+        if (sessObj) sessObj.model = val;
+        if ($("model-pick")) $("model-pick").value = val;
         updateModelPillUI(val);
         renderModelMenuPopover(val);
+        updateContextEnvModel(val);
+        renderSessionList();
       }
     }).catch(() => {});
   }
@@ -903,6 +931,7 @@ function newSession() {
   if ($("model-pick")) $("model-pick").value = defaultModelVal;
   updateModelPillUI(defaultModelVal);
   renderModelMenuPopover(defaultModelVal);
+  updateContextEnvModel(defaultModelVal);
 
   if (typeof updateChatNavTicks === "function") {
     updateChatNavTicks();
@@ -1036,7 +1065,9 @@ async function loadSessionContext(sid) {
     $("ctx-env-path").textContent = env.brain_path ? env.brain_path.split("\\").pop() : "Brain Default";
     $("ctx-env-path").title = env.brain_path || "";
     $("ctx-env-branch").textContent = env.git_branch || "main";
-    $("ctx-env-model").textContent = env.model || $("model-pick").value || "Mặc định";
+    const curSess = sid ? currentSessions.find(s => s.id === sid) : null;
+    const activeModel = (curSess && curSess.model) || data.session_model || env.model || ($("model-pick") ? $("model-pick").value : "") || "";
+    updateContextEnvModel(activeModel);
 
     // 2. Cập nhật tỷ lệ sử dụng & Header Pill
     const usage = data.usage || {};
@@ -1447,6 +1478,7 @@ function connect() {
       // 3. Cập nhật thông tin session id
       if (m.type === "session") {
         session = m.id;
+        pendingSessionModel = ""; // Reset pending model sau khi phiên mới đã được gán id
         return;
       }
 
@@ -2455,10 +2487,22 @@ async function loadModels() {
 
   // Ưu tiên model của session đang mở nếu có
   const sessObj = currentSessions.find(s => s.id === session);
-  const activeVal = sessObj && sessObj.model !== undefined ? sessObj.model : (pendingSessionModel || r.current || "");
+  const activeVal = (sessObj && sessObj.model !== undefined) ? (sessObj.model || "") : (pendingSessionModel || "");
   if (sel) sel.value = activeVal;
   updateModelPillUI(activeVal);
   renderModelMenuPopover(activeVal);
+  updateContextEnvModel(activeVal);
+}
+
+function updateContextEnvModel(modelId) {
+  const envModel = $("ctx-env-model");
+  if (!envModel) return;
+  if (!modelId) {
+    envModel.textContent = "Mặc định";
+    return;
+  }
+  const match = availableModelsList.find(m => m.id === modelId);
+  envModel.textContent = match ? match.ten : modelId;
 }
 
 function updateModelPillUI(modelId) {
@@ -2497,6 +2541,7 @@ async function selectModelForSession(chosen) {
   if (sel) sel.value = chosen;
   updateModelPillUI(chosen);
   renderModelMenuPopover(chosen);
+  updateContextEnvModel(chosen);
 
   if (session) {
     try {
@@ -2507,6 +2552,7 @@ async function selectModelForSession(chosen) {
       });
       const sessObj = currentSessions.find(s => s.id === session);
       if (sessObj) sessObj.model = chosen;
+      renderSessionList();
       $("state").textContent = r.ok ? "Đã lưu model cho phiên" : "Lỗi lưu model";
       setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
     } catch (err) {

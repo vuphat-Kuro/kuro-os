@@ -425,6 +425,8 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
     sess = store.get(sid) or {}
     chosen_model = model or sess.get("model") or ""
     store.ensure(sid, title=text, agent=agent, workspace=ws_path, model=chosen_model)
+    if chosen_model and chosen_model != sess.get("model"):
+        store.set_model(sid, chosen_model)
     store.add(sid, "user", text)
     shown, final = [], ""
     async for ev in run_turn(text, sess.get("claude_id"), agent=agent, cwd=ws_path, model=chosen_model):

@@ -1386,7 +1386,13 @@
     background:rgba(34,211,238,.12); border-color:var(--line-hi); border-left:3px solid var(--cyan); color:var(--cyan-soft);
   }
   .session-title { font-size:13px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .session-time { font-size:10.5px; color:var(--muted); margin-top:2px; font-family:var(--hud); }
+  .session-item-sub { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:3px; }
+  .session-time { font-size:10.5px; color:var(--muted); font-family:var(--hud); }
+  .session-model-badge {
+    display:inline-flex; align-items:center; padding:1px 5px; border-radius:3px; font-size:9.5px;
+    font-family:var(--hud); background:rgba(34,211,238,.12); color:var(--cyan-soft);
+    border:1px solid rgba(34,211,238,.22); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .btn-del-session {
     position:absolute; right:6px; top:50%; transform:translateY(-50%); opacity:0; background:transparent; border:none;
     color:var(--muted); cursor:pointer; font-size:12px; padding:4px; transition:opacity .15s, color .15s;
@@ -1948,7 +1954,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.5.12</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.5.13</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -2102,7 +2108,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.5.12</span>
+        <span class="btn-text" id="header-version-text">v1.5.13</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -2676,12 +2682,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.5.12</div>
+        <div class="vc-val" id="vd-current-ver">v1.5.13</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.5.12</div>
+        <div class="vc-val" id="vd-latest-ver">v1.5.13</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
           <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>
@@ -2992,6 +2998,6 @@
   </div>
 </div>
 
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>

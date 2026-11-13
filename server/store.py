@@ -67,6 +67,8 @@ def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core
     workspace = normalize_workspace(workspace)
     _q("INSERT OR IGNORE INTO sessions(id,title,agent,workspace,model,created,updated) VALUES(?,?,?,?,?,?,?)",
        (sid, title[:80], agent, workspace, model or "", now, now))
+    if model:
+        _q("UPDATE sessions SET model=? WHERE id=? AND (model IS NULL OR model='')", (model, sid))
     return sid
 
 

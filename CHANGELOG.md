@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.13] - 2026-11-13
+- Cô lập và lưu cố định Model AI riêng biệt cho từng phiên làm việc (Session Model Isolation):
+  - Khắc phục triệt để lỗi đổi model ở một vị trí khiến các phiên khác bị đổi theo: Model được lưu cố định vào cơ sở dữ liệu SQLite theo từng phiên (`sessions.model`), loại bỏ hiện tượng ghi đè model phiên vào trạng thái toàn cục `active_state.json`.
+  - Hiển thị huy hiệu Model (Model Badge) trực quan ngay trên từng thẻ phiên trong danh sách Lịch sử hội thoại ở sidebar, giúp kỹ sư dễ dàng quan sát phiên nào đang dùng mô hình AI nào (Gemini Argon, Claude Opus 5.5, Sonnet,...).
+  - Tự động cập nhật và đồng bộ mô hình AI tương ứng giữa thanh Model Pill dưới đáy khung chat, thông tin Model trong Panel Ngữ cảnh (Context Inspector) và cơ sở dữ liệu ngay khi chuyển phiên.
+  - Xóa sạch biến model chờ (`pendingSessionModel`) khi mở phiên cũ hoặc sau khi khởi tạo phiên thành công, ngăn ngừa hoàn toàn tình trạng rò rỉ model từ phiên mới sang các phiên đã tồn tại.
+
 ## [1.5.12] - 2026-11-13
 - Thiết kế lại hoàn toàn khung nhập nội dung chat (Chat Input Box) theo chuẩn hiện đại của Claude Code và Antigravity 2.0:
   - Tách biệt vùng nhập văn bản và hàng công cụ đáy (Bottom Toolbar): Nút gửi tin nhắn tròn bo góc tinh tế nằm ở góc dưới cùng bên phải, không còn bị chèn hay che khuất nội dung gõ phím.

@@ -493,8 +493,9 @@ def create_session(body: dict):
     agent = body.get("agent") or "kuro-core"
     title = body.get("title") or "Phiên mới"
     workspace = body.get("workspace") or str(engine.active_workspace_dir())
-    sid = store.ensure(None, title=title, agent=agent, workspace=workspace)
-    return {"id": sid, "agent": agent, "title": title, "workspace": workspace}
+    model = (body.get("model") or "").strip()
+    sid = store.ensure(None, title=title, agent=agent, workspace=workspace, model=model)
+    return {"id": sid, "agent": agent, "title": title, "workspace": workspace, "model": model}
 
 
 @app.delete("/api/sessions/{sid}")
@@ -1015,12 +1016,13 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
         "title": store.get(sid).get("title", "") if sid and store.get(sid) else "Phiên mới",
         "agent": agent_slug,
         "agent_name": agent_name,
+        "session_model": (store.get(sid).get("model") if sid and store.get(sid) else "") or "",
         "environment": {
             "host": "Máy tính này (Local Windows)",
             "brain_path": str(config.BRAIN),
             "git_branch": branch,
             "provider": config.PROVIDER or "antigravity",
-            "model": config.MODEL or "Mặc định",
+            "model": (store.get(sid).get("model") if sid and store.get(sid) else None) or config.MODEL or "Mặc định",
             "context_window": window_size,
         },
         "usage": {
@@ -1710,17 +1712,17 @@ async def ws(sock: WebSocket):
                 continue
             agent = req.get("agent") or "kuro-core"
             workspace = req.get("workspace") or str(engine.active_workspace_dir())
-            req_model = req.get("model") or None
+            req_model = (req.get("model") or "").strip() or None
             sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace, model=req_model or "")
+            if req_model:
+                store.set_model(sid, req_model)
 
-            # Cập nhật trạng thái active
+            # Cập nhật trạng thái active (phiên và thư mục làm việc, model lưu riêng theo từng session)
             cur_st = get_active_state()
             cur_st["agent"] = agent
             cur_st["session"] = sid
             cur_st["workspace"] = workspace
             cur_st["workspace_name"] = Path(workspace).name
-            if req_model:
-                cur_st["model"] = req_model
             save_active_state(cur_st)
 
             # Broadcast thông tin session & tin nhắn người dùng tới TẤT CẢ các thiết bị kết nối
