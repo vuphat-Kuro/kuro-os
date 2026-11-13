@@ -1626,6 +1626,10 @@ async def ws(sock: WebSocket):
         while True:
             req = await sock.receive_json()
             req_type = req.get("type")
+            if req_type == "ping":
+                await sock.send_json({"type": "pong"})
+                continue
+
             if req_type == "sync_active":
                 st = get_active_state()
                 if req.get("agent"):
@@ -1690,7 +1694,16 @@ async def ws(sock: WebSocket):
                 payload["workspace"] = workspace
                 await manager.broadcast(payload)
 
-            await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace, model=req_model)
+            answer = await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace, model=req_model)
+
+            # Broadcast sự kiện hoàn tất lượt với toàn bộ nội dung câu trả lời hoàn chỉnh
+            await manager.broadcast({
+                "type": "turn_complete",
+                "session": sid,
+                "agent": agent,
+                "workspace": workspace,
+                "answer": answer
+            })
 
             # Broadcast kết thúc phiên để đồng bộ lịch sử trên cả 2 màn hình
             await manager.broadcast({

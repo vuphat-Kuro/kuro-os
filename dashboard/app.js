@@ -1292,6 +1292,85 @@ $("btn-menu-agents").onclick = () => {
   }
 };
 
+// Quản lý Render Throttling & Heartbeat & Auto-Recovery
+let renderPending = false;
+function scheduleBotRender() {
+  if (renderPending) return;
+  renderPending = true;
+  requestAnimationFrame(() => {
+    if (bot) {
+      try {
+        bot.innerHTML = md(botText);
+      } catch (err) {
+        bot.textContent = botText;
+      }
+      $("log").scrollTop = $("log").scrollHeight;
+    }
+    renderPending = false;
+  });
+}
+
+let wsPingInterval = null;
+function startWsPing() {
+  if (wsPingInterval) clearInterval(wsPingInterval);
+  wsPingInterval = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ type: "ping" }));
+      } catch (_) {}
+    }
+  }, 15000);
+}
+
+let autoSyncTimer = null;
+function startSessionAutoSync(targetSid) {
+  if (autoSyncTimer) clearInterval(autoSyncTimer);
+  let ticks = 0;
+  autoSyncTimer = setInterval(async () => {
+    ticks++;
+    if (!busy) {
+      clearInterval(autoSyncTimer);
+      return;
+    }
+    const curSid = session || targetSid;
+    if (!curSid) return;
+
+    if (ticks >= 2) {
+      try {
+        const r = await fetch(`/api/sessions/${encodeURIComponent(curSid)}`);
+        if (!r.ok) return;
+        const msgs = await r.json();
+        const last = msgs[msgs.length - 1];
+        if (last && last.role === "assistant" && last.text) {
+          if (curSid === session) {
+            const a = currentAgent();
+            if (!bot) {
+              bot = addMessage("bot", "", a.name.toUpperCase());
+            }
+            botText = last.text;
+            try {
+              bot.innerHTML = md(botText);
+            } catch (_) {
+              bot.textContent = botText;
+            }
+            bot = null;
+            setBusy(false);
+            clearInterval(autoSyncTimer);
+            loadSessions(selectedAgent);
+            loadSessionContext(session);
+            $("log").scrollTop = $("log").scrollHeight;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (ticks >= 45) {
+      clearInterval(autoSyncTimer);
+      if (busy) setBusy(false);
+    }
+  }, 4000);
+}
+
 // Kết nối WebSocket & Đồng bộ đa thiết bị (Máy tính & Điện thoại)
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -1304,123 +1383,172 @@ function connect() {
       return;
     }
 
-    // 1. Khởi tạo trạng thái ban đầu từ server
-    if (m.type === "init_state" && m.state) {
-      if (m.state.workspace && (!currentWorkspace.path || m.state.workspace.toLowerCase() !== (currentWorkspace.path || "").toLowerCase())) {
-        currentWorkspace.path = m.state.workspace;
-        currentWorkspace.name = m.state.workspace_name;
-        updateWorkspaceUI();
-        refreshFsTree();
+    try {
+      if (m.type === "pong") {
+        return;
       }
-      if (!session && m.state.session) {
-        if (m.state.agent && m.state.agent !== selectedAgent) {
-          selectedAgent = m.state.agent;
+
+      // 1. Khởi tạo trạng thái ban đầu từ server
+      if (m.type === "init_state" && m.state) {
+        if (m.state.workspace && (!currentWorkspace.path || m.state.workspace.toLowerCase() !== (currentWorkspace.path || "").toLowerCase())) {
+          currentWorkspace.path = m.state.workspace;
+          currentWorkspace.name = m.state.workspace_name;
+          updateWorkspaceUI();
+          refreshFsTree();
+        }
+        if (!session && m.state.session) {
+          if (m.state.agent && m.state.agent !== selectedAgent) {
+            selectedAgent = m.state.agent;
+            renderAgentList();
+            updateActiveAgentUI();
+          }
+          await openSession(m.state.session);
+        }
+        return;
+      }
+
+      // 2. Nhận tín hiệu đồng bộ chuyển Agent / Session / Workspace từ thiết bị khác
+      if (m.type === "sync_active") {
+        let changed = false;
+        if (m.workspace && (!currentWorkspace.path || m.workspace.toLowerCase() !== (currentWorkspace.path || "").toLowerCase())) {
+          currentWorkspace.path = m.workspace;
+          currentWorkspace.name = m.workspace_name;
+          updateWorkspaceUI();
+          refreshFsTree();
+          changed = true;
+        }
+        if (m.agent && m.agent !== selectedAgent) {
+          selectedAgent = m.agent;
+          renderAgentList();
+          updateActiveAgentUI();
+          changed = true;
+        }
+        if (m.session && m.session !== session) {
+          await openSession(m.session);
+        } else if (changed) {
+          await loadSessions(selectedAgent);
+        }
+        return;
+      }
+
+      // 3. Cập nhật thông tin session id
+      if (m.type === "session") {
+        session = m.id;
+        return;
+      }
+
+      // 4. Nhận tin nhắn User gửi từ thiết bị khác (PC hoặc ĐT)
+      if (m.type === "user_message") {
+        if (m.workspace && currentWorkspace.path && m.workspace.toLowerCase() !== currentWorkspace.path.toLowerCase()) {
+          currentWorkspace.path = m.workspace;
+          updateWorkspaceUI();
+          refreshFsTree();
+        }
+        if (m.agent && m.agent !== selectedAgent) {
+          selectedAgent = m.agent;
           renderAgentList();
           updateActiveAgentUI();
         }
-        await openSession(m.state.session);
+        if (session !== m.session) {
+          session = m.session;
+        }
+        const lastMsg = $("log").querySelector(".msg:last-child");
+        if (!lastMsg || !lastMsg.classList.contains("user") || lastMsg.textContent.trim() !== (m.text || "").trim()) {
+          addMessage("user", "").textContent = m.text;
+        }
+        setBusy(true);
+        return;
       }
-      return;
-    }
 
-    // 2. Nhận tín hiệu đồng bộ chuyển Agent / Session / Workspace từ thiết bị khác
-    if (m.type === "sync_active") {
-      let changed = false;
-      if (m.workspace && (!currentWorkspace.path || m.workspace.toLowerCase() !== (currentWorkspace.path || "").toLowerCase())) {
-        currentWorkspace.path = m.workspace;
-        currentWorkspace.name = m.workspace_name;
-        updateWorkspaceUI();
-        refreshFsTree();
-        changed = true;
+      // 5. Luồng sinh câu trả lời Streaming từ AI
+      const a = currentAgent();
+      if (!bot && (m.type === "text" || m.type === "tool" || m.type === "error" || m.type === "final" || m.type === "turn_complete")) {
+        bot = addMessage("bot", "", a.name.toUpperCase());
+        botText = "";
       }
-      if (m.agent && m.agent !== selectedAgent) {
-        selectedAgent = m.agent;
-        renderAgentList();
-        updateActiveAgentUI();
-        changed = true;
-      }
-      if (m.session && m.session !== session) {
-        await openSession(m.session);
-      } else if (changed) {
-        await loadSessions(selectedAgent);
-      }
-      return;
-    }
-
-    // 3. Cập nhật thông tin session id
-    if (m.type === "session") {
-      session = m.id;
-      return;
-    }
-
-    // 4. Nhận tin nhắn User gửi từ thiết bị khác (PC hoặc ĐT)
-    if (m.type === "user_message") {
-      if (m.workspace && currentWorkspace.path && m.workspace.toLowerCase() !== currentWorkspace.path.toLowerCase()) {
-        currentWorkspace.path = m.workspace;
-        updateWorkspaceUI();
-        refreshFsTree();
-      }
-      if (m.agent && m.agent !== selectedAgent) {
-        selectedAgent = m.agent;
-        renderAgentList();
-        updateActiveAgentUI();
-      }
-      if (session !== m.session) {
-        session = m.session;
-      }
-      // Kiểm tra nếu bong bóng user chưa có thì thêm vào
-      const lastMsg = $("log").querySelector(".msg:last-child");
-      if (!lastMsg || !lastMsg.classList.contains("user") || lastMsg.textContent.trim() !== (m.text || "").trim()) {
-        addMessage("user", "").textContent = m.text;
-      }
-      setBusy(true);
-      return;
-    }
-
-    // 5. Luồng sinh câu trả lời Streaming từ AI
-    const a = currentAgent();
-    if (!bot) {
-      bot = addMessage("bot", "", a.name.toUpperCase());
-      botText = "";
-    }
-    if (m.type === "text") {
-      botText += m.text;
-      bot.innerHTML = md(botText);
-    } else if (m.type === "tool") {
-      bot.insertAdjacentHTML("beforeend", `<span class="tool">${DOMPurify.sanitize(m.name)}</span>`);
-    } else if (m.type === "error") {
-      botText += `\n\n**Lỗi:** ${m.text}`;
-      bot.innerHTML = md(botText);
-      mood("err");
-    } else if (m.type === "final") {
-      if (!botText && m.text) bot.innerHTML = md(m.text);
-      bot = null;
-      setBusy(false);
-      loadSessions(selectedAgent);
-      loadSessionContext(session);
-      if (!document.body.classList.contains("err")) mood("happy");
-    } else if (m.type === "session_saved") {
-      loadSessions(selectedAgent);
-    } else if (m.type === "workspace_changed") {
-      if (m.active && (!currentWorkspace.path || m.active.toLowerCase() !== currentWorkspace.path.toLowerCase())) {
-        currentWorkspace.path = m.active;
-        currentWorkspace.name = m.name;
-        recentWorkspaces = m.recent || [];
-        updateWorkspaceUI();
-        refreshFsTree();
+      if (m.type === "text") {
+        botText += m.text;
+        scheduleBotRender();
+      } else if (m.type === "tool") {
+        if (bot) {
+          bot.insertAdjacentHTML("beforeend", `<span class="tool">${DOMPurify.sanitize(m.name)}</span>`);
+        }
+      } else if (m.type === "error") {
+        botText += `\n\n**Lỗi:** ${m.text}`;
+        if (bot) {
+          bot.innerHTML = md(botText);
+        }
+        mood("err");
+      } else if (m.type === "final") {
+        renderPending = false;
+        if (!botText && m.text) {
+          botText = m.text;
+        }
+        if (bot) {
+          try {
+            bot.innerHTML = md(botText || m.text || "_(Đã hoàn tất)_");
+          } catch (err) {
+            bot.textContent = botText;
+          }
+        }
+        bot = null;
+        setBusy(false);
+        if (autoSyncTimer) clearInterval(autoSyncTimer);
         loadSessions(selectedAgent);
+        loadSessionContext(session);
+        if (!document.body.classList.contains("err")) mood("happy");
+      } else if (m.type === "turn_complete") {
+        renderPending = false;
+        const ans = (m.answer || "").trim();
+        if (!session || m.session === session) {
+          if (!bot) {
+            bot = addMessage("bot", "", a.name.toUpperCase());
+          }
+          if (ans) {
+            botText = ans;
+          }
+          try {
+            bot.innerHTML = md(botText || "_(Đã hoàn tất)_");
+          } catch (err) {
+            bot.textContent = botText;
+          }
+          bot = null;
+          setBusy(false);
+          if (autoSyncTimer) clearInterval(autoSyncTimer);
+          loadSessions(selectedAgent);
+          loadSessionContext(session);
+          if (!document.body.classList.contains("err")) mood("happy");
+          $("log").scrollTop = $("log").scrollHeight;
+        }
+      } else if (m.type === "session_saved") {
+        loadSessions(selectedAgent);
+      } else if (m.type === "workspace_changed") {
+        if (m.active && (!currentWorkspace.path || m.active.toLowerCase() !== currentWorkspace.path.toLowerCase())) {
+          currentWorkspace.path = m.active;
+          currentWorkspace.name = m.name;
+          recentWorkspaces = m.recent || [];
+          updateWorkspaceUI();
+          refreshFsTree();
+          loadSessions(selectedAgent);
+        }
       }
+      $("log").scrollTop = $("log").scrollHeight;
+    } catch (err) {
+      console.error("Lỗi xử lý websocket message:", err);
     }
-    $("log").scrollTop = $("log").scrollHeight;
   };
   ws.onopen = () => {
     document.body.classList.add("online");
     $("net").textContent = "Ổn định";
+    startWsPing();
+    if (busy && session) {
+      startSessionAutoSync(session);
+    }
   };
   ws.onclose = () => {
     document.body.classList.remove("online");
     $("net").textContent = "Mất nối";
-    if (busy) setBusy(false);
+    if (wsPingInterval) clearInterval(wsPingInterval);
     setTimeout(connect, 2000);
   };
 }
@@ -1986,6 +2114,8 @@ function sendChatMessage(displayText, promptToSend) {
     attachments: sentAttachments
   }));
 
+  startSessionAutoSync(session);
+
   if (typeof updateChatNavTicks === "function") {
     setTimeout(updateChatNavTicks, 80);
   }
@@ -2317,8 +2447,8 @@ fetch("/api/settings").then((r) => r.json()).then((r) => {
 
 // ===================== QUẢN LÝ PHIÊN BẢN & CẬP NHẬT (THEO KIẾN TRÚC JAVIS OS) =====================
 let versionData = {
-  current: "1.5.10",
-  latest: "1.5.10",
+  current: "1.5.11",
+  latest: "1.5.11",
   behind: 0,
   update_available: false,
   notes: []
@@ -2333,7 +2463,7 @@ async function checkUpdate(force = false) {
     versionData = u;
 
     // Cập nhật các nhãn số phiên bản
-    const curText = "v" + (u.current || "1.5.10");
+    const curText = "v" + (u.current || "1.5.11");
     const sideBadge = $("sidebar-version-badge");
     const hdrBtn = $("btn-version-header");
     const hdrText = $("header-version-text");
@@ -2373,12 +2503,12 @@ async function checkUpdate(force = false) {
 }
 
 function openVersionDialog() {
-  const u = versionData || { current: "1.5.10", latest: "1.5.10", update_available: false, notes: [] };
+  const u = versionData || { current: "1.5.11", latest: "1.5.11", update_available: false, notes: [] };
   const esc = (t) => DOMPurify.sanitize(t, { ALLOWED_TAGS: [] });
 
-  $("vd-current-ver").textContent = "v" + (u.current || "1.5.10");
-  $("vd-latest-ver").textContent = "v" + (u.latest || u.current || "1.5.10");
-  $("vd-input-ver").value = u.current || "1.5.10";
+  $("vd-current-ver").textContent = "v" + (u.current || "1.5.11");
+  $("vd-latest-ver").textContent = "v" + (u.latest || u.current || "1.5.11");
+  $("vd-input-ver").value = u.current || "1.5.11";
   $("vd-save-status").textContent = "";
   $("vd-save-status").className = "save-status-msg";
 
@@ -2405,7 +2535,7 @@ function openVersionDialog() {
 
 function bumpVersion(type) {
   const input = $("vd-input-ver");
-  const val = (input.value || "1.5.10").trim().replace(/^v/i, "");
+  const val = (input.value || "1.5.11").trim().replace(/^v/i, "");
   const parts = val.split(".").map((x) => parseInt(x, 10) || 0);
   while (parts.length < 3) parts.push(0);
 

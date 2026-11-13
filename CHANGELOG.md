@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.11] - 2026-11-13
+- Khắc phục triệt để lỗi Kuro bị kẹt không phản hồi khi đang xem dở câu trả lời (phải chuyển phiên rồi mở lại mới thấy nội dung):
+  - Bổ sung cơ chế phát sự kiện `turn_complete` từ backend mang trọn vẹn toàn bộ câu trả lời (`answer`) sau khi AI sinh xong và lưu vào cơ sở dữ liệu.
+  - Tối ưu hóa hiệu năng render giao diện với Throttled Render (`scheduleBotRender` qua `requestAnimationFrame` 60fps), loại bỏ hoàn toàn hiện tượng nghẽn luồng WebView2 (Render Choking) khi nhận dồn dập hàng chục token Markdown mỗi giây.
+  - Bổ sung cơ chế WebSocket Heartbeat Ping/Pong (15 giây) định kỳ hai chiều, giữ kết nối thông suốt liên tục khi AI suy nghĩ lâu hoặc chạy script kiểm toán Python mất nhiều thời gian.
+  - Tích hợp bộ tự động phục hồi và đồng bộ (Auto-Recovery Sync): nếu giao diện đang ở trạng thái xử lý mà kết nối bị ngắt quãng hoặc quá thời gian chờ, hệ thống tự động kiểm tra và kéo toàn bộ câu trả lời đã lưu về hiển thị ngay lập tức mà không cần người dùng phải bấm chuyển phiên.
+
 ## [1.5.10] - 2026-11-13
 - Sửa lỗi cú pháp JavaScript gây treo đơ giao diện khởi động: Khắc phục triệt để lỗi Unexpected token trong tệp app.js khiến ứng dụng không tải được danh sách cộng sự, gợi ý câu hỏi nhanh và trạng thái kết nối.
 - Nâng cấp số phiên bản cache và Service Worker (v44 / kuro-os-v24) để trình duyệt và WebView2 tự động làm mới mã nguồn, không bị kẹt cache phiên bản cũ.
