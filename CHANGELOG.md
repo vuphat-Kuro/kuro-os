@@ -1,5 +1,15 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.9] - 2026-11-13
+- Khắc phục triệt để lỗi không mở được ứng dụng Desktop Kuro OS trên máy mới tải về:
+  - Bổ sung các thư viện Desktop cốt lõi (`pywebview`, `pywin32`, `pythonnet`, `psutil`, `qrcode`, `pillow`) vào `requirements.txt`.
+  - Nâng cấp `setup.bat` thông minh: tự động phát hiện mọi biến thể Python trên máy (`py -3.13`, `py -3.12`, `py -3.11`, `py`, `python`), không chặn tiến trình cài đặt nếu người dùng chưa cài Claude Code CLI.
+  - Cơ chế tự phục hồi trong `app_desktop.py`: tự động cài bù gói `pywebview` nếu thiếu, tự động mở trên trình duyệt web kèm thông báo hướng dẫn thay vì bị crash ẩn.
+- Chuẩn hóa hệ thống kiểm tra và cập nhật phiên bản:
+  - Đồng bộ toàn bộ nhãn hiển thị phiên bản tĩnh trên giao diện (`v1.5.9`), chấm dứt triệt để hiện tượng hiển thị nhãn cũ `1.4` gây hiểu lầm.
+  - Bổ sung nút "⚡ Cập nhật lại từ GitHub" trong hộp thoại phiên bản, cho phép người dùng chạy lại tiến trình cập nhật mã nguồn và cài thư viện bất cứ lúc nào kể cả khi đang ở bản mới nhất.
+  - Bổ sung hộp thoại phản hồi rõ ràng khi nhấp nút "Kiểm tra bản mới trên GitHub" để người dùng nắm rõ tình trạng cập nhật của máy.
+
 ## [1.5.8] - 2026-11-12
 - Kích hoạt tính năng xem trước trực tiếp toàn bộ các tệp và tài nguyên trong Panel Ngữ cảnh:
   - Tệp bộ nhớ (Memory files): Nhấp chuột trực tiếp vào bất kỳ tệp bộ nhớ nào (`CLAUDE.md`, `AGENTS.md`, `MEMORY.md`, `KE-HOACH.md`...) để mở ngay hộp thoại Modal xem trước nội dung tài liệu định dạng Markdown hoàn chỉnh.

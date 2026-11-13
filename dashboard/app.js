@@ -2317,8 +2317,8 @@ fetch("/api/settings").then((r) => r.json()).then((r) => {
 
 // ===================== QUẢN LÝ PHIÊN BẢN & CẬP NHẬT (THEO KIẾN TRÚC JAVIS OS) =====================
 let versionData = {
-  current: "1.4.0",
-  latest: "1.4.0",
+  current: "1.5.9",
+  latest: "1.5.9",
   behind: 0,
   update_available: false,
   notes: []
@@ -2333,7 +2333,7 @@ async function checkUpdate(force = false) {
     versionData = u;
 
     // Cập nhật các nhãn số phiên bản
-    const curText = "v" + (u.current || "1.4.0");
+    const curText = "v" + (u.current || "1.5.9");
     const sideBadge = $("sidebar-version-badge");
     const hdrBtn = $("btn-version-header");
     const hdrText = $("header-version-text");
@@ -2373,12 +2373,12 @@ async function checkUpdate(force = false) {
 }
 
 function openVersionDialog() {
-  const u = versionData || { current: "1.4.0", latest: "1.4.0", update_available: false, notes: [] };
+  const u = versionData || { current: "1.5.9", latest: "1.5.9", update_available: false, notes: [] };
   const esc = (t) => DOMPurify.sanitize(t, { ALLOWED_TAGS: [] });
 
-  $("vd-current-ver").textContent = "v" + (u.current || "1.4.0");
-  $("vd-latest-ver").textContent = "v" + (u.latest || u.current || "1.4.0");
-  $("vd-input-ver").value = u.current || "1.4.0";
+  $("vd-current-ver").textContent = "v" + (u.current || "1.5.9");
+  $("vd-latest-ver").textContent = "v" + (u.latest || u.current || "1.5.9");
+  $("vd-input-ver").value = u.current || "1.5.9";
   $("vd-save-status").textContent = "";
   $("vd-save-status").className = "save-status-msg";
 
@@ -2405,9 +2405,18 @@ function openVersionDialog() {
 
 function bumpVersion(type) {
   const input = $("vd-input-ver");
-  const val = (input.value || "1.4.0").trim().replace(/^v/i, "");
+  const val = (input.value || "1.5.9").trim().replace(/^v/i, "");
   const parts = val.split(".").map((x) => parseInt(x, 10) || 0);
   while (parts.length < 3) parts.push(0);
+
+  if (type === "patch") {
+    parts[2] += 1;
+  } else if (type === "minor") {
+    parts[1] += 1;
+    parts[2] = 0;
+  }
+  input.value = parts.join(".");
+}
 
   if (type === "patch") {
     parts[2] += 1;
@@ -2594,9 +2603,17 @@ $("btn-close-version-dialog") && ($("btn-close-version-dialog").onclick = () => 
 $("btn-close-version-dialog2") && ($("btn-close-version-dialog2").onclick = () => $("version-dialog").close());
 $("btn-check-update-manual") && ($("btn-check-update-manual").onclick = async () => {
   $("btn-check-update-manual").textContent = "🔄 Đang kiểm tra...";
-  await checkUpdate(true);
+  const u = await checkUpdate(true);
   openVersionDialog();
   $("btn-check-update-manual").textContent = "🔄 Kiểm tra bản mới trên GitHub";
+  if (u && !u.update_available) {
+    alert(`✓ Hệ thống đã kiểm tra trên GitHub:\nBạn đang sử dụng phiên bản mới nhất (v${u.current || "1.5.9"}).\nNếu muốn kéo lại toàn bộ mã nguồn và cập nhật lại thư viện, bạn có thể bấm nút "⚡ Cập nhật lại từ GitHub".`);
+  }
+});
+$("btn-force-update") && ($("btn-force-update").onclick = () => {
+  if (confirm("Chạy cập nhật lại toàn bộ mã nguồn và thư viện từ nhánh main trên GitHub?")) {
+    runSelfUpdate();
+  }
 });
 $("btn-save-version") && ($("btn-save-version").onclick = saveVersionNumber);
 $("btn-bump-patch") && ($("btn-bump-patch").onclick = () => bumpVersion("patch"));

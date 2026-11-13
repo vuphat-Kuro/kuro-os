@@ -48,7 +48,21 @@ if sys.platform == "win32":
 import threading
 import time
 import urllib.request
-import webview
+
+# Nạp an toàn pywebview, tự động cài đặt nếu môi trường thiếu thư viện
+webview = None
+try:
+    import webview
+except ImportError:
+    try:
+        import subprocess
+        print("[Desktop App] Đang bổ sung gói pywebview cho ứng dụng Desktop...")
+        py_exe = sys.executable
+        subprocess.run([py_exe, "-m", "pip", "install", "pywebview", "pywin32", "pythonnet"], check=False)
+        import webview
+    except Exception as e:
+        print(f"[Desktop App] Không nạp được pywebview: {e}")
+        webview = None
 
 class DesktopApi:
     """Cầu nối API giữa JavaScript giao diện và hệ điều hành Windows."""
@@ -159,6 +173,25 @@ def main():
                 break
 
         # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
+        if webview is None:
+            print("[Kuro Desktop] Mở giao diện trên trình duyệt web...")
+            import webbrowser
+            webbrowser.open("http://127.0.0.1:7788")
+            if sys.platform == "win32":
+                import ctypes
+                try:
+                    ctypes.windll.user32.MessageBoxW(
+                        0,
+                        "Kuro OS đã khởi động máy chủ thành công và mở trên trình duyệt web.\n\n"
+                        "Để hiển thị dưới dạng cửa sổ ứng dụng Windows chuyên dụng, bạn hãy nhấp đúp chạy lại tệp setup.bat nhé.",
+                        "Kuro OS Desktop",
+                        64
+                    )
+                except Exception:
+                    pass
+            while True:
+                time.sleep(1)
+
         api = DesktopApi()
         icon_path = (ROOT / "kuro_logo.ico").resolve()
         icon_str = str(icon_path) if icon_path.is_file() else None
