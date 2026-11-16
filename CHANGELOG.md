@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.15] - 2026-11-16
+- Chuẩn hóa persona Agent và cơ chế gọi công cụ kiểm toán hố móng CVT:
+  - Khắc phục việc Agent tự động xưng hô cố định "anh Nghĩa" trên mọi máy: Loại bỏ việc hardcode tên cá nhân trong `agents/ky-su-kiem-toan-ho-mong-cvt.md` và `agents/xac-nhan-thanh-quyet-toan.md`, chuyển sang cơ chế xưng hô linh hoạt theo kỹ sư phụ trách / người dùng trên máy.
+  - Bổ sung chỉ thị bắt buộc trong Agent: Khi người dùng yêu cầu xuất file báo cáo (Excel, HTML), Agent phải trực tiếp thực thi script `python tools/KiemToanHoMongCVT/chay_kiem_toan.py` hoặc dùng công cụ ghi tệp để tạo file thật ra thư mục dự án (`projects/<tên_dự_án>/`), cấm xuất mã thô và bảo người dùng copy dán vào Notepad.
+  - Hướng dẫn người dùng khởi tạo **Phiên mới (➕ Phiên mới)** sau khi thêm quyền công cụ `Bash` để AI giải phóng hoàn toàn ngữ cảnh cấm đoán cũ.
+
 ## [1.5.14] - 2026-11-16
 - Mở khóa toàn diện quyền ghi tệp và thực thi script cho Google Antigravity & OpenAI Codex (Fix write_file permission):
   - Khắc phục triệt để lỗi máy cài mới báo "phiên làm việc bị khóa quyền ghi tệp trực tiếp / write_file bị chặn trên hệ thống" khi yêu cầu xuất tệp HTML hoặc Excel (.xlsx).
