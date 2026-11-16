@@ -299,11 +299,16 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
     ws_note = f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC\nThư mục hiện hành: `{ws_path}`."
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
         return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n\n{text}"
-    if "Bash" in config.ALLOWED_TOOLS:
-        calc_rule = ("Không có tool tinh_python: viết script Python vào thư mục tinh-toan/, chạy bằng shell, ghi đường "
-                     "dẫn script vào câu trả lời.")
-    else:   # đo thật: agy bị từ chối ghi file thì dừng lượt không trả lời; codex trên Windows chặn cả lệnh đọc
-        calc_rule = ("Phiên này KHÔNG được ghi file và KHÔNG được chạy lệnh: thử là bị chặn và hỏng lượt trả lời. "
+    can_shell = "Bash" in config.ALLOWED_TOOLS
+    can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
+    if can_shell:
+        calc_rule = ("Viết script Python vào thư mục tinh-toan/ hoặc thư mục dự án, chạy bằng shell hoặc python để tính toán chính xác, tạo tệp HTML/Excel và ghi đường "
+                     "dẫn script/tệp vào câu trả lời.")
+    elif can_write:
+        calc_rule = ("Phiên này được phép tạo và ghi đè tệp tin (.html, .xlsx, .md...) trực tiếp vào thư mục dự án. "
+                     "Khi người dùng yêu cầu xuất file báo cáo, hãy dùng công cụ ghi tệp tạo ra file thật trên ổ cứng.")
+    else:   # Cả shell lẫn write đều tắt
+        calc_rule = ("Phiên này chỉ đọc, không ghi tệp và không chạy lệnh shell. "
                      "Đọc file thì được nếu công cụ cho phép; không đọc được thì dựa vào mô tả skill ở trên. Phép tính "
                      "làm trực tiếp trong câu trả lời, ghi rõ \"(chưa kiểm bằng script)\" cạnh mỗi kết quả.")
     agent_info = agent_prompt_block(agent)

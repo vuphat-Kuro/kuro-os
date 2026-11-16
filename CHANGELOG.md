@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.14] - 2026-11-16
+- Mở khóa toàn diện quyền ghi tệp và thực thi script cho Google Antigravity & OpenAI Codex (Fix write_file permission):
+  - Khắc phục triệt để lỗi máy cài mới báo "phiên làm việc bị khóa quyền ghi tệp trực tiếp / write_file bị chặn trên hệ thống" khi yêu cầu xuất tệp HTML hoặc Excel (.xlsx).
+  - Tự động bổ sung quyền `Bash` và `Write` vào danh mục `KURO_ALLOWED_TOOLS` mặc định, cho phép AI chạy script Python kiểm toán kỹ thuật và ghi tệp trực tiếp vào thư mục dự án.
+  - Tự động gắn cờ `--dangerously-skip-permissions` khi gọi Google Antigravity (`agy`) ở chế độ headless và đặt chế độ `workspace-write` cho Codex khi phiên có quyền ghi tệp hoặc chạy shell.
+  - Loại bỏ hoàn toàn câu nhắc cấm đoán ghi file trong system prompt (`cli_prompt`), hướng dẫn AI chủ động tạo tệp báo cáo thật ra đĩa thay vì chỉ xuất mã nguồn thô và bảo người dùng copy dán vào Notepad.
+
 ## [1.5.13] - 2026-11-13
 - Cô lập và lưu cố định Model AI riêng biệt cho từng phiên làm việc (Session Model Isolation):
   - Khắc phục triệt để lỗi đổi model ở một vị trí khiến các phiên khác bị đổi theo: Model được lưu cố định vào cơ sở dữ liệu SQLite theo từng phiên (`sessions.model`), loại bỏ hiện tượng ghi đè model phiên vào trạng thái toàn cục `active_state.json`.

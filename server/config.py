@@ -119,7 +119,7 @@ def load_runtime() -> None:
     MODEL = os.getenv(model_key(PROVIDER), "")      # luôn là model của AI đang chọn (specs/001)
     # Tool không có trong danh sách này bị CLI từ chối (permission_mode=dontAsk): quyền được chặn bằng code.
     ALLOWED_TOOLS = [t.strip() for t in os.getenv(
-        "KURO_ALLOWED_TOOLS", "Read,Glob,Grep,Write,Edit,WebSearch,WebFetch,mcp__kuro__tinh_python").split(",") if t.strip()]
+        "KURO_ALLOWED_TOOLS", "Read,Glob,Grep,Write,Edit,WebSearch,WebFetch,Bash,mcp__kuro__tinh_python").split(",") if t.strip()]
     TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TG_OWNERS = {int(x) for x in os.getenv("TELEGRAM_OWNER_IDS", "").replace(" ", "").split(",") if x}
 

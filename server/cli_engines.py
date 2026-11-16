@@ -55,7 +55,7 @@ async def models(kind: str) -> list[dict]:
     return _models[kind]
 
 
-def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None) -> tuple[list[str], bytes | None]:
+def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True) -> tuple[list[str], bytes | None]:
     """Trả (lệnh, dữ liệu stdin). codex nhận prompt qua stdin nên không vướng giới hạn dòng lệnh Windows."""
     chosen_model = model or config.MODEL
     if kind == "codex":
@@ -63,7 +63,7 @@ def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | N
             # --ignore-user-config: không nạp MCP và cấu hình cá nhân trong ~/.codex (đăng nhập vẫn giữ), cùng
             # nguyên tắc setting_sources=["project"] của đường Claude
             "--json", "--skip-git-repo-check", "--ignore-user-config", "-c", "approval_policy=\"never\"",
-            "-c", f"sandbox_mode=\"{'workspace-write' if shell else 'read-only'}\""]
+            "-c", f"sandbox_mode=\"{'workspace-write' if (shell or write) else 'read-only'}\""]
         if shell:   # elevated lỗi quyền trên máy thường; unelevated chạy được (xem ghi chú đầu file)
             cmd += ["-c", "windows.sandbox=\"unelevated\""]
         if chosen_model:
@@ -74,7 +74,7 @@ def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | N
         cmd += ["--conversation", resume]
     if chosen_model:
         cmd += ["--model", chosen_model]
-    if shell:   # headless không hỏi được: không có cờ này thì agy tự từ chối mọi lệnh shell
+    if shell or write:   # headless không hỏi được: cần cờ này để agy thực thi lệnh shell hoặc write_file
         cmd.append("--dangerously-skip-permissions")
     return cmd, None
 
@@ -126,7 +126,9 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
         yield {"type": "error", "text": f"Chưa cài `{kind}` trên máy này. Xem hướng dẫn ở ⚙ Cài đặt."}
         yield {"type": "final", "text": ""}
         return
-    cmd, stdin = _cmd(kind, prompt, resume, "Bash" in config.ALLOWED_TOOLS, model=model)
+    can_shell = "Bash" in config.ALLOWED_TOOLS
+    can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
+    cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write)
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
     work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(
