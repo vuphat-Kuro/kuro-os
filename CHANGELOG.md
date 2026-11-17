@@ -1,6 +1,6 @@
 # Nhật ký phiên bản Kuro OS
 
-## [1.6.2] - 2026-11-17
+## [1.7.1] - 2026-11-17
 - Nâng cấp nút dừng phản hồi & Đa luồng phiên hội thoại độc lập (Multi-Session Concurrent Stream):
   - **Nút Dừng phản hồi (Stop button):** Khi AI đang phản hồi, biểu tượng gửi tin tự động chuyển thành biểu tượng Stop vuông nổi bật (`⏹`), màu đỏ cam cảnh báo. Nhấn vào sẽ lập tức dừng phản hồi của phiên đó, ngắt process CLI nền và hiển thị thông báo `_(Đã dừng phản hồi theo yêu cầu)_`.
   - **Đa phiên xử lý độc lập, song song:** Chuyển đổi cơ chế chạy phản hồi sang các Task asyncio nền riêng biệt theo từng phiên (`session_id`), giải phóng hoàn toàn vòng lặp WebSocket. Kỹ sư có thể chuyển qua lại giữa các phiên khác nhau, gõ và gửi tin nhắn đồng thời mà không phải chờ đợi phiên trước xong.
