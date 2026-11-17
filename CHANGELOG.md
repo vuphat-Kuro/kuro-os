@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.18] - 2026-11-17
+- Thiết lập rào chắn quy tắc lưu tệp kết quả và bảo vệ kho dữ liệu công ty:
+  - **Kho mạng UNC công ty là kho Read-Only (Chỉ đọc & Tra cứu):** Xác lập nguyên tắc bất khả xâm phạm trên toàn hệ thống (`AGENTS.md`, `CLAUDE.md`, `facts/kho-du-lieu-phuong-thanh.md`, `server/engine.py`): Thư mục mạng `\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng chỉ phục vụ đọc, tra cứu tài liệu và lấy file mẫu. Tuyệt đối không tự ý lưu tệp kết quả, tạo thư mục rác hay ghi đè lên kho mạng chung công ty (trừ khi có chỉ đạo rõ ràng từ người dùng).
+  - **Quy định nơi lưu kết quả bắt buộc (Active Workspace trên máy người dùng):** Mọi tệp tin kết quả do AI/tool sinh ra (.xlsx, .html, .docx, .py, script, báo cáo, biểu mẫu...) bắt buộc phải lưu vào thư mục dự án hiện hành trên máy người dùng đang cài (Active Workspace đang mở trong Kuro, ví dụ: `D:\1`, `projects/...`).
+  - **Nguyên tắc hỏi vị trí lưu khi chưa rõ:** Nếu trong thư mục dự án hiện hành chưa có quy tắc phân loại thư mục lưu (hoặc chưa rõ cấu trúc lưu cho hạng mục đó), AI bắt buộc phải hỏi lại người dùng vị trí muốn lưu trước khi thực hiện ghi tệp, tuyệt đối không tự ý lưu vào các vị trí chưa được phép.
+
 ## [1.5.17] - 2026-11-17
 - Chuẩn hóa thư mục lưu trữ và bổ sung bộ tệp mẫu cho Agent Xác nhận thanh quyết toán:
   - Loại bỏ hoàn toàn đường dẫn ảo `QLDA/99-Temp/qlda/` trong `agents/xac-nhan-thanh-quyet-toan.md` và `skills/kiem-toan-ho-mong-cvt/SKILL.md` (vốn là tàn dư của hệ thống cũ, gây lỗi thiếu thư mục khi cài trên máy mới).

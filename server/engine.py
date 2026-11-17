@@ -254,7 +254,13 @@ def system_append() -> str:
 def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None) -> ClaudeAgentOptions:
     extra = agent_prompt_block(agent)
     ws_path = cwd or str(active_workspace_dir())
-    ws_note = f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\nĐường dẫn thư mục dự án: `{ws_path}`.\nKhi cần đọc, tạo hoặc kiểm toán hồ sơ kỹ thuật, bản vẽ, bảng tính hay script, hãy thực hiện trong thư mục này."
+    ws_note = (
+        f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\n"
+        f"Đường dẫn thư mục dự án trên máy người dùng: `{ws_path}`.\n"
+        f"- NƠI LƯU KẾT QUẢ BẮT BUỘC: Mọi tệp tin kết quả (.xlsx, .html, .docx, .py, script, báo cáo...) do AI tạo ra PHẢI lưu vào thư mục dự án này (`{ws_path}`).\n"
+        f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy định cấu trúc thư mục lưu cụ thể thì BẮT BUỘC hỏi lại người dùng xem muốn lưu vào thư mục/vị trí nào, tuyệt đối không tự ý lưu vào các vị trí chưa được phép.\n"
+        f"- KHO DỮ LIỆU CÔNG TY (UNC): Các kho mạng chung như `\\\\phuongthanhtranconsin.data.com\\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng CHỈ là nơi lưu trữ, tra cứu hồ sơ (READ-ONLY). TUYỆT ĐỐI KHÔNG tự ý lưu kết quả, không tạo tệp tạm hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng)."
+    )
     chosen_model = model or config.MODEL or None
     return ClaudeAgentOptions(
         system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note},
@@ -296,7 +302,13 @@ def skill_index() -> str:
 
 def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None) -> str:
     ws_path = ws_dir or str(active_workspace_dir())
-    ws_note = f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC\nThư mục hiện hành: `{ws_path}`."
+    ws_note = (
+        f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\n"
+        f"Thư mục hiện hành trên máy người dùng: `{ws_path}`.\n"
+        f"- NƠI LƯU KẾT QUẢ BẮT BUỘC: Mọi file kết quả (.xlsx, .html, .docx, script tính toán...) PHẢI lưu vào thư mục dự án hiện hành `{ws_path}`.\n"
+        f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy tắc phân loại thư mục lưu, hãy hỏi lại người dùng vị trí muốn lưu, không tự ý tạo thư mục hay lưu vào vị trí chưa được phép.\n"
+        f"- KHO DỮ LIỆU CÔNG TY (UNC): Kho `\\\\phuongthanhtranconsin.data.com\\...` CHỈ ĐỂ TRA CỨU HỒ SƠ (READ-ONLY), không lưu kết quả vào đây trừ khi người dùng yêu cầu đích danh."
+    )
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
         return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n\n{text}"
     can_shell = "Bash" in config.ALLOWED_TOOLS

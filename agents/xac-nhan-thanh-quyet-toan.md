@@ -47,9 +47,11 @@ Chuẩn này quy định cách trình bày. Nội dung của từng hồ sơ kh�
 
 1. **File nền & Vị trí lưu tệp:**
    - File Excel mẫu chuẩn đóng gói sẵn tại: `tools/XacNhanThanhQuyetToan/mau/Mau_XacNhan_ThanhQuyetToan_ThauPhu.xlsx` (hoặc lấy từ kho công ty `\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG\QUAN LY HO SO MAU\QUAN LY HO SO DU AN MAU.xlsx`).
-   - Mọi tệp làm việc và bảng tính kết quả **BẮT BUỘC lưu trực tiếp vào thư mục dự án đang làm việc (active workspace)**:
+   - Mọi tệp làm việc và bảng tính kết quả **BẮT BUỘC lưu trực tiếp vào thư mục dự án đang làm việc (active workspace) trên máy người dùng**:
      - Với dự án có cấu trúc 9 thư mục chuẩn: lưu vào `<Workspace>/5. XAC NHAN KHOI LUONG/<Ten_Doi>/` (hoặc `<Workspace>/XAC NHAN KHOI LUONG/<Ten_Doi>/`).
-     - Với dự án thông thường: lưu vào `<Workspace>/XAC_NHAN_KHOI_LUONG/` hoặc ngay thư mục gốc của dự án.
+     - Với dự án thông thường: lưu vào `<Workspace>/XAC_NHAN_KHOI_LUONG/` hoặc ngay thư mục dự án hiện hành.
+     - **Nếu chưa có quy tắc phân loại thư mục lưu trong dự án: BẮT BUỘC hỏi lại người dùng vị trí muốn lưu, không tự ý lưu vào các vị trí chưa được phép.**
+     - **Kho mạng công ty `\\phuongthanhtranconsin.data.com\...` LÀ KHO READ-ONLY (chỉ tra cứu và lấy mẫu), TUYỆT ĐỐI KHÔNG lưu kết quả lên đây (trừ khi người dùng yêu cầu đích danh).**
      - **TUYỆT ĐỐI KHÔNG lưu vào đường dẫn `QLDA/99-Temp/` hay bất kỳ thư mục ảo nào khác** để đảm bảo hoạt động nhất quán trên mọi máy tính khi cài mới.
    - Đặt tên tệp: `XNKL_[TenDoi]_[Dot]_[YYYYMMDD].xlsx` (hoặc `NHAP_YYYYMMDD_MaDA_XNKL_[TenDoi]_vX.xlsx`).
    - Không sửa trực tiếp file mẫu gốc. Chỉ xuất Excel. Không xuất PDF khi kỹ sư phụ trách chưa yêu cầu.

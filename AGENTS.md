@@ -28,3 +28,11 @@ hiện trường, QC/QS và BIM. Trả lời tiếng Việt, xưng "mình", gọ
 - **Kho Hợp đồng Đội thi công & Thầu phụ:** `\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\Hợp đồng kinh tế - Linh\HỢP ĐỒNG`
   Bắt buộc tra cứu qua file Excel đầu mục: `TỔNG HỢP.xlsx` (các sheet: `HĐ Phương Thành`, `HĐ Đối Tác`, `HĐ Khai Thác Mỏ`...).
 - **Quy tắc VÀNG về tra cứu hợp đồng:** TUYỆT ĐỐI KHÔNG quét đệ quy toàn bộ thư mục hợp đồng vì dữ liệu rất lớn. Mọi tra cứu hợp đồng BẮT BUỘC thực hiện qua file Excel đầu mục, xác định chính xác số HĐ, năm ký hoặc mã dự án rồi mới truy cập thẳng vào thư mục đích lấy file scan.
+
+## Quy tắc lưu tệp kết quả & Bảo vệ kho dữ liệu công ty
+- **Kho mạng UNC công ty LÀ KHO CHỈ ĐỌC / TRA CỨU (READ-ONLY):**
+  Kho `\\phuongthanhtranconsin.data.com\...` (Phòng KT-TC, kho HĐ dự án, kho HĐ đội/thầu phụ) chỉ phục vụ đọc, tra cứu hồ sơ và lấy file mẫu. TUYỆT ĐỐI KHÔNG tự ý lưu tệp kết quả, tạo thư mục rác hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng).
+- **Vị trí lưu kết quả bắt buộc (Active Workspace trên máy người dùng):**
+  Mọi tệp tin kết quả do AI/tool sinh ra (.xlsx, .html, .docx, .py, script, báo cáo, biểu mẫu...) BẮT BUỘC lưu vào thư mục dự án hiện hành trên máy người dùng đang cài (Active Workspace đang mở trong Kuro, ví dụ: `D:\1`, thư mục dự án trên máy cục bộ).
+- **Nguyên tắc hỏi vị trí lưu khi chưa rõ:**
+  Nếu trong thư mục dự án hiện hành chưa có quy tắc phân loại thư mục lưu (hoặc chưa rõ cấu trúc lưu cho hạng mục đó), BẮT BUỘC hỏi lại người dùng xem muốn lưu tệp ở đâu, tuyệt đối không tự ý lưu vào các vị trí chưa được phép hoặc tự bịa đường dẫn ảo.
