@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -328,6 +329,37 @@ def get_quota(session_id: str | None = None):
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])
 async def test_ai():
     return await engine.ping()
+
+
+def _claude_exe() -> str:
+    exe = shutil.which("claude")
+    if not exe:
+        raise HTTPException(400, "Chưa cài Claude Code. Cài: npm install -g @anthropic-ai/claude-code")
+    return exe
+
+
+@app.get("/api/claude-login", dependencies=[Depends(local_only)])
+async def claude_login_status():
+    """Claude CLI đã đăng nhập chưa (claude auth status)."""
+    exe = _claude_exe()
+    try:
+        r = await asyncio.to_thread(subprocess.run, [exe, "auth", "status"], capture_output=True, text=True,
+                                    encoding="utf-8", errors="replace", timeout=20,
+                                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        j = json.loads(r.stdout or "{}")
+    except (subprocess.TimeoutExpired, ValueError) as e:
+        raise HTTPException(500, f"Không đọc được trạng thái đăng nhập: {type(e).__name__}")
+    return {"loggedIn": bool(j.get("loggedIn")), "method": j.get("authMethod", "")}
+
+
+@app.post("/api/claude-login", dependencies=[Depends(local_only)])
+def claude_login():
+    """Mở cửa sổ dòng lệnh chạy `claude auth login` (trình duyệt tự mở để đăng nhập)."""
+    exe = _claude_exe()
+    if sys.platform != "win32":
+        raise HTTPException(400, "Mở terminal và gõ: claude auth login")
+    subprocess.Popen(["cmd", "/k", exe, "auth", "login"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+    return {"ok": True}
 
 
 # Kho skill và việc theo lịch (specs/002)

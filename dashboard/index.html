@@ -3371,6 +3371,11 @@
       <label for="s-KURO_PROVIDER">Chọn AI</label>
       <select id="s-KURO_PROVIDER" name="KURO_PROVIDER"><option value="">- Chưa chọn -</option></select>
       <small id="s-hint"></small>
+      <div id="s-clirow" style="display:none">
+        <button class="btn" type="button" id="s-cli-login">Đăng nhập Claude CLI</button>
+        <span id="s-cli-msg" role="status"></span>
+        <small>Mở cửa sổ chạy claude auth login. Đăng nhập trên trình duyệt xong, Kuro tự nhận.</small>
+      </div>
       <div id="s-keyrow">
         <label for="s-KURO_AI_KEY">API key</label>
         <div class="row">

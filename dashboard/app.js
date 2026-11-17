@@ -2854,7 +2854,46 @@ function showProvider() {
   const p = $("s-KURO_PROVIDER").value;
   const info = window._providers ? window._providers[p] : null;
   $("s-keyrow").style.display = p === "antigravity" || p === "codex" || !p ? "none" : "block";
+  $("s-clirow").style.display = p === "claude" ? "block" : "none";
 }
+
+async function claudeLoggedIn() {
+  const r = await fetch("/api/claude-login");
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || "Lỗi kiểm tra đăng nhập");
+  return j.loggedIn;
+}
+
+$("s-cli-login").onclick = async () => {
+  const out = $("s-cli-msg"), btn = $("s-cli-login");
+  btn.disabled = true;
+  out.className = "";
+  try {
+    if (await claudeLoggedIn()) {
+      out.className = "ok";
+      out.textContent = "Đã đăng nhập Claude CLI.";
+      return;
+    }
+    const r = await fetch("/api/claude-login", { method: "POST" });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Không mở được cửa sổ đăng nhập");
+    out.textContent = "Đã mở cửa sổ đăng nhập. Hoàn tất trên trình duyệt (chờ tối đa 3 phút)...";
+    for (let i = 0; i < 60; i++) {
+      await new Promise((ok) => setTimeout(ok, 3000));
+      if (await claudeLoggedIn()) {
+        out.className = "ok";
+        out.textContent = "Đã đăng nhập Claude CLI. Bấm Lưu và kiểm tra kết nối.";
+        return;
+      }
+    }
+    out.className = "err";
+    out.textContent = "Chưa thấy đăng nhập xong. Bấm lại để thử.";
+  } catch (e) {
+    out.className = "err";
+    out.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 $("s-KURO_PROVIDER").onchange = async () => {
   const p = $("s-KURO_PROVIDER").value || "claude";
