@@ -11,3 +11,4 @@ nhap-tu-javis.bat
 projects/*
 !projects/DuAn_KhoiTao/
 !projects/DuAn_KhoiTao/**
+.archify/

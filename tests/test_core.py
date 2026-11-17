@@ -177,7 +177,7 @@ class ModelPerAI(unittest.TestCase):
         import engine
         seen = []
 
-        async def fake(prompt, resume, cur):
+        async def fake(prompt, resume, cur, **_):   # bản 1.5.x thêm agent/cwd/model
             seen.append(resume)
             yield {"type": "final", "text": "", "claude_id": "moi"}
 
