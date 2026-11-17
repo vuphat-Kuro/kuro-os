@@ -1112,6 +1112,216 @@
     margin-top: 2px;
   }
 
+  /* Pill chọn Thinking / Mức độ suy nghĩ */
+  .thinking-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: #94a3b8;
+    font: 600 11px/1.2 var(--hud);
+    cursor: pointer;
+    transition: all .16s ease;
+  }
+  .thinking-pill-btn:hover {
+    background: rgba(168, 85, 247, 0.14);
+    border-color: #c084fc;
+    color: #c084fc;
+  }
+  .thinking-menu-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 170px;
+    min-width: 250px;
+    background: #0f172a;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+    z-index: 120;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    animation: rise .2s ease;
+  }
+
+  /* Vòng tròn trạng thái hoạt động (Spinner / Status Ring) */
+  .status-indicator-ring {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(34, 211, 238, 0.25);
+    border-top-color: var(--cyan);
+    display: inline-block;
+    transition: all .2s;
+    margin-left: 2px;
+    flex: none;
+  }
+  body.busy .status-indicator-ring {
+    border-top-color: var(--amber);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Submenu Flyout cho Menu Dấu cộng (+) */
+  .menu-item-has-flyout {
+    position: relative;
+    width: 100%;
+  }
+  .attach-menu-item .menu-item-arrow {
+    font-size: 14px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .menu-flyout-sub {
+    position: absolute;
+    left: calc(100% + 4px);
+    bottom: -10px;
+    min-width: 290px;
+    max-width: 360px;
+    background: #0f172a;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.9);
+    z-index: 130;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    animation: rise .18s ease;
+  }
+  @media (max-width: 768px) {
+    .menu-flyout-sub {
+      left: 0;
+      bottom: calc(100% + 4px);
+    }
+  }
+  .flyout-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background .14s;
+  }
+  .flyout-sub-item:hover {
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--cyan-soft);
+  }
+  .flyout-toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    color: var(--text);
+  }
+  .flyout-toggle-item .toggle-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Kuro Switch Toggle chuẩn phong cách Claude */
+  .kuro-switch {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+    flex: none;
+    cursor: pointer;
+  }
+  .kuro-switch input { opacity: 0; width: 0; height: 0; }
+  .kuro-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #334155;
+    transition: .2s;
+    border-radius: 18px;
+  }
+  .kuro-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .2s;
+    border-radius: 50%;
+  }
+  .kuro-switch input:checked + .kuro-slider {
+    background-color: #0284c7;
+  }
+  .kuro-switch input:checked + .kuro-slider:before {
+    transform: translateX(14px);
+  }
+
+  .flyout-search-wrap {
+    padding: 6px 12px;
+  }
+  .flyout-search-wrap input {
+    width: 100%;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+  }
+  .flyout-search-wrap input:focus {
+    border-color: var(--cyan);
+  }
+  .flyout-plugins-list {
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .flyout-sub-plugin-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background .14s;
+  }
+  .flyout-sub-plugin-item:hover {
+    background: rgba(34, 211, 238, 0.12);
+  }
+  .plugin-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .plugin-item-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cyan-soft);
+  }
+  .plugin-item-desc {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+  }
+
   .form-hint-row {
     display: flex;
     justify-content: space-between;
@@ -2108,7 +2318,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.5.15</span>
+        <span class="btn-text" id="header-version-text">v1.5.16</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -2201,25 +2411,160 @@
           <span class="menu-item-text">Thêm thư mục</span>
         </button>
         <button type="button" class="attach-menu-item" id="menu-attach-slash">
-          <span class="menu-item-icon">⚡</span>
+          <span class="menu-item-icon">🖊️</span>
           <span class="menu-item-text">Lệnh gạch chéo</span>
           <span class="menu-item-shortcut">/</span>
         </button>
-        <div class="attach-menu-divider"></div>
-        <button type="button" class="attach-menu-item" id="menu-attach-context">
-          <span class="menu-item-icon">📊</span>
-          <span class="menu-item-text">Kiểm tra ngữ cảnh</span>
-        </button>
-        <button type="button" class="attach-menu-item" id="menu-attach-skills">
-          <span class="menu-item-icon">🛠️</span>
-          <span class="menu-item-text">Danh mục 22 Skill</span>
-        </button>
+
+        <!-- Menu Trình kết nối (Connectors) có flyout submenu -->
+        <div class="menu-item-has-flyout" id="menu-wrap-connectors">
+          <button type="button" class="attach-menu-item" id="menu-attach-connectors">
+            <span class="menu-item-icon">🪟</span>
+            <span class="menu-item-text">Trình kết nối</span>
+            <span class="menu-item-arrow">›</span>
+          </button>
+          <div class="menu-flyout-sub" id="flyout-connectors" style="display:none;">
+            <button type="button" class="flyout-sub-item" id="btn-conn-browse">
+              <span class="menu-item-icon">📖</span>
+              <span>Duyệt trình kết nối</span>
+            </button>
+            <button type="button" class="flyout-sub-item" id="btn-conn-manage">
+              <span class="menu-item-icon">⚙️</span>
+              <span>Quản lý trình kết nối</span>
+            </button>
+            <div class="attach-menu-divider"></div>
+            <div class="flyout-toggle-item">
+              <div class="toggle-info">
+                <span class="menu-item-icon">🧮</span>
+                <span>Python tính toán (kuro)</span>
+              </div>
+              <label class="kuro-switch">
+                <input type="checkbox" id="toggle-mcp-kuro" checked disabled>
+                <span class="kuro-slider"></span>
+              </label>
+            </div>
+            <div class="flyout-toggle-item">
+              <div class="toggle-info">
+                <span class="menu-item-icon">🌐</span>
+                <span>Claude in Chrome</span>
+              </div>
+              <label class="kuro-switch">
+                <input type="checkbox" id="toggle-mcp-chrome" checked>
+                <span class="kuro-slider"></span>
+              </label>
+            </div>
+            <div class="flyout-toggle-item">
+              <div class="toggle-info">
+                <span class="menu-item-icon">📑</span>
+                <span>project-report-mcp</span>
+              </div>
+              <label class="kuro-switch">
+                <input type="checkbox" id="toggle-mcp-report" checked>
+                <span class="kuro-slider"></span>
+              </label>
+            </div>
+            <div class="flyout-toggle-item">
+              <div class="toggle-info">
+                <span class="menu-item-icon">☁️</span>
+                <span>Google Drive</span>
+              </div>
+              <label class="kuro-switch">
+                <input type="checkbox" id="toggle-mcp-gdrive">
+                <span class="kuro-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu Plugin & Kỹ năng có flyout submenu -->
+        <div class="menu-item-has-flyout" id="menu-wrap-plugins">
+          <button type="button" class="attach-menu-item" id="menu-attach-plugins">
+            <span class="menu-item-icon">🔌</span>
+            <span class="menu-item-text">Plugin</span>
+            <span class="menu-item-arrow">›</span>
+          </button>
+          <div class="menu-flyout-sub" id="flyout-plugins" style="display:none;">
+            <div class="flyout-search-wrap">
+              <input type="text" id="plugin-flyout-search" placeholder="🔍 Tìm kiếm plugin...">
+            </div>
+            <div class="attach-menu-divider"></div>
+            <div id="flyout-plugins-list" class="flyout-plugins-list">
+              <button type="button" class="flyout-sub-plugin-item" data-skill="kiem-toan-ket-cau-phu-tro">
+                <span class="menu-item-icon">📄</span>
+                <div class="plugin-item-info">
+                  <span class="plugin-item-title">kiem-toan-ket-cau-phu-tro</span>
+                  <span class="plugin-item-desc">Quy trình và checklist kiểm toán kết cấu phụ trợ...</span>
+                </div>
+              </button>
+              <button type="button" class="flyout-sub-plugin-item" data-skill="bien-phap-thi-cong">
+                <span class="menu-item-icon">🏗️</span>
+                <div class="plugin-item-info">
+                  <span class="plugin-item-title">bien-phap-thi-cong</span>
+                  <span class="plugin-item-desc">Lập và rà soát thuyết minh bản vẽ BPTC...</span>
+                </div>
+              </button>
+              <button type="button" class="flyout-sub-plugin-item" data-skill="du-toan-qs">
+                <span class="menu-item-icon">📊</span>
+                <div class="plugin-item-info">
+                  <span class="plugin-item-title">du-toan-qs</span>
+                  <span class="plugin-item-desc">Bóc tách khối lượng, áp định mức, đơn giá...</span>
+                </div>
+              </button>
+              <button type="button" class="flyout-sub-plugin-item" data-skill="qa-qc-ho-so">
+                <span class="menu-item-icon">📑</span>
+                <div class="plugin-item-info">
+                  <span class="plugin-item-title">qa-qc-ho-so</span>
+                  <span class="plugin-item-desc">Kiểm soát chất lượng, biên bản nghiệm thu...</span>
+                </div>
+              </button>
+              <button type="button" class="flyout-sub-plugin-item" data-skill="tra-cuu-hop-dong">
+                <span class="menu-item-icon">📂</span>
+                <div class="plugin-item-info">
+                  <span class="plugin-item-title">tra-cuu-hop-dong</span>
+                  <span class="plugin-item-desc">Tra cứu HĐ dự án và thầu phụ Phương Thành...</span>
+                </div>
+              </button>
+            </div>
+            <div class="attach-menu-divider"></div>
+            <button type="button" class="flyout-sub-item" id="btn-plugin-manage">
+              <span class="menu-item-icon">⚙️</span>
+              <span>Quản lý plugin</span>
+            </button>
+            <button type="button" class="flyout-sub-item" id="btn-plugin-browse">
+              <span class="menu-item-icon">➕</span>
+              <span>Duyệt plugin</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Popover Menu chọn Model AI -->
       <div id="model-menu-popover" class="model-menu-popover" style="display:none;">
         <div class="model-menu-header">MÔ HÌNH AI CHO PHIÊN CHAT NÀY</div>
         <div id="model-menu-items"></div>
+      </div>
+
+      <!-- Popover Menu chọn Mức suy nghĩ (Thinking) -->
+      <div id="thinking-menu-popover" class="thinking-menu-popover" style="display:none;">
+        <button type="button" class="mode-menu-item active" data-thinking="high">
+          <div class="mode-item-title">
+            <span>Cao (Thinking High)</span>
+            <span>✓</span>
+          </div>
+          <div class="mode-item-desc">Suy nghĩ sâu và kiểm chứng chéo từng công thức tính toán</div>
+        </button>
+        <button type="button" class="mode-menu-item" data-thinking="standard">
+          <div class="mode-item-title">
+            <span>Tiêu chuẩn (Standard)</span>
+          </div>
+          <div class="mode-item-desc">Phản hồi nhanh và chuẩn xác theo tiến trình nghiệp vụ</div>
+        </button>
+        <button type="button" class="mode-menu-item" data-thinking="off">
+          <div class="mode-item-title">
+            <span>Tắt (None)</span>
+          </div>
+          <div class="mode-item-desc">Trả lời trực tiếp ngắn gọn không cần suy nghĩ sâu</div>
+        </button>
       </div>
 
       <!-- Popover Menu chọn Chế độ (Mode) -->
@@ -2257,8 +2602,8 @@
       <!-- Hàng công cụ dưới đáy (Bottom Toolbar) -->
       <div class="chat-toolbar-bottom">
         <div class="chat-toolbar-left">
-          <!-- Nút cộng + thêm tệp/thư mục -->
-          <button type="button" class="btn-plus-attach" id="btn-chat-plus" title="Đính kèm tệp, thư mục, lệnh nhanh">+</button>
+          <!-- Nút cộng + thêm tệp/thư mục/plugin/kết nối -->
+          <button type="button" class="btn-plus-attach" id="btn-chat-plus" title="Đính kèm tệp, thư mục, trình kết nối, plugin">+</button>
 
           <!-- Nút chọn Model cho phiên hiện tại -->
           <button type="button" class="model-pill-btn" id="btn-model-pill" title="Đổi mô hình AI riêng cho phiên chat này">
@@ -2266,11 +2611,20 @@
             <span class="model-pill-chevron">▼</span>
           </button>
 
+          <!-- Nút chọn Mức độ suy nghĩ (Thinking) -->
+          <button type="button" class="thinking-pill-btn" id="btn-thinking-pill" title="Mức độ suy nghĩ & kiểm chứng: Cao / Tiêu chuẩn">
+            <span id="thinking-pill-label">Cao</span>
+            <span style="font-size:8px; opacity:0.7;">▼</span>
+          </button>
+
           <!-- Nút chọn Chế độ thực thi -->
           <button type="button" class="mode-pill-btn" id="btn-mode-pill" title="Chế độ xử lý: Tự động / Kế hoạch / Mục tiêu">
             <span id="mode-pill-label">Tự động</span>
             <span style="font-size:8px; opacity:0.7;">▼</span>
           </button>
+
+          <!-- Trạng thái hoạt động spinner -->
+          <span class="status-indicator-ring" id="chat-status-ring" title="Trạng thái Kuro: Sẵn sàng"></span>
         </div>
 
         <div class="chat-toolbar-right">

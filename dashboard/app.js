@@ -641,8 +641,10 @@ async function selectAgent(slug) {
   // Tải danh sách phiên riêng của Agent này
   await loadSessions(slug);
 
-  // Mở phiên mới cho Agent này
-  newSession();
+  // Nếu chưa có phiên nào thì mới tạo phiên mới
+  if (!session && (!currentSessions || currentSessions.length === 0)) {
+    newSession();
+  }
 
   // Đồng bộ trạng thái Agent sang thiết bị khác (PC / ĐT)
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2569,15 +2571,22 @@ function hideBottomPopovers() {
   const attachMenu = $("attach-menu-popover");
   const modelMenu = $("model-menu-popover");
   const modeMenu = $("mode-menu-popover");
+  const thinkMenu = $("thinking-menu-popover");
+  const flyConnectors = $("flyout-connectors");
+  const flyPlugins = $("flyout-plugins");
   if (attachMenu) attachMenu.style.display = "none";
   if (modelMenu) modelMenu.style.display = "none";
   if (modeMenu) modeMenu.style.display = "none";
+  if (thinkMenu) thinkMenu.style.display = "none";
+  if (flyConnectors) flyConnectors.style.display = "none";
+  if (flyPlugins) flyPlugins.style.display = "none";
 }
 
 // Bắt sự kiện click ra ngoài để đóng các popover dưới đáy
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#btn-chat-plus") && !e.target.closest("#attach-menu-popover") &&
       !e.target.closest("#btn-model-pill") && !e.target.closest("#model-menu-popover") &&
+      !e.target.closest("#btn-thinking-pill") && !e.target.closest("#thinking-menu-popover") &&
       !e.target.closest("#btn-mode-pill") && !e.target.closest("#mode-menu-popover")) {
     hideBottomPopovers();
   }
@@ -2648,29 +2657,85 @@ if ($("menu-attach-slash")) {
   };
 }
 
-if ($("menu-attach-context")) {
-  $("menu-attach-context").onclick = () => {
-    hideBottomPopovers();
-    const q = $("q");
-    if (q) {
-      q.value = "/context";
-      $("f").requestSubmit();
-    }
+// Flyout Trình kết nối
+const menuWrapConnectors = $("menu-wrap-connectors");
+const flyConnectors = $("flyout-connectors");
+if (menuWrapConnectors && flyConnectors) {
+  $("menu-attach-connectors").onclick = (e) => {
+    e.stopPropagation();
+    const isShow = flyConnectors.style.display === "flex";
+    if ($("flyout-plugins")) $("flyout-plugins").style.display = "none";
+    flyConnectors.style.display = isShow ? "none" : "flex";
+  };
+  menuWrapConnectors.onmouseenter = () => {
+    if ($("flyout-plugins")) $("flyout-plugins").style.display = "none";
+    flyConnectors.style.display = "flex";
   };
 }
 
-if ($("menu-attach-skills")) {
-  $("menu-attach-skills").onclick = () => {
+// Flyout Plugin & Kỹ năng
+const menuWrapPlugins = $("menu-wrap-plugins");
+const flyPlugins = $("flyout-plugins");
+if (menuWrapPlugins && flyPlugins) {
+  $("menu-attach-plugins").onclick = (e) => {
+    e.stopPropagation();
+    const isShow = flyPlugins.style.display === "flex";
+    if ($("flyout-connectors")) $("flyout-connectors").style.display = "none";
+    flyPlugins.style.display = isShow ? "none" : "flex";
+  };
+  menuWrapPlugins.onmouseenter = () => {
+    if ($("flyout-connectors")) $("flyout-connectors").style.display = "none";
+    flyPlugins.style.display = "flex";
+  };
+}
+
+// Tìm kiếm plugin trong flyout
+const pluginSearch = $("plugin-flyout-search");
+if (pluginSearch) {
+  pluginSearch.oninput = () => {
+    const term = (pluginSearch.value || "").trim().toLowerCase();
+    document.querySelectorAll(".flyout-sub-plugin-item").forEach(item => {
+      const title = (item.querySelector(".plugin-item-title")?.textContent || "").toLowerCase();
+      const desc = (item.querySelector(".plugin-item-desc")?.textContent || "").toLowerCase();
+      item.style.display = (!term || title.includes(term) || desc.includes(term)) ? "flex" : "none";
+    });
+  };
+}
+
+// Bấm vào plugin/kỹ năng trong flyout
+document.querySelectorAll(".flyout-sub-plugin-item").forEach(btn => {
+  btn.onclick = () => {
+    const skill = btn.dataset.skill;
     hideBottomPopovers();
     const q = $("q");
-    if (q) {
-      q.value = "/skill ";
+    if (q && skill) {
+      q.value = `/${skill} `;
       q.focus();
       q.setSelectionRange(q.value.length, q.value.length);
       handleSlashInput();
     }
   };
+});
+
+if ($("btn-conn-manage")) {
+  $("btn-conn-manage").onclick = () => {
+    hideBottomPopovers();
+    openSettings();
+  };
 }
+if ($("btn-conn-browse")) {
+  $("btn-conn-browse").onclick = () => {
+    hideBottomPopovers();
+    openSettings();
+  };
+}
+const openPluginsHandler = () => {
+  hideBottomPopovers();
+  switchInspectorTab("context");
+  $("history-sidebar").classList.remove("collapsed");
+};
+if ($("btn-plugin-manage")) $("btn-plugin-manage").onclick = openPluginsHandler;
+if ($("btn-plugin-browse")) $("btn-plugin-browse").onclick = openPluginsHandler;
 
 // Nút chọn Model Pill
 const btnModelPill = $("btn-model-pill");
@@ -2685,6 +2750,39 @@ if (btnModelPill) {
     }
   };
 }
+
+// Nút chọn Mức suy nghĩ (Thinking Pill)
+let currentThinkingMode = "high";
+const btnThinkingPill = $("btn-thinking-pill");
+if (btnThinkingPill) {
+  btnThinkingPill.onclick = (e) => {
+    e.stopPropagation();
+    const menu = $("thinking-menu-popover");
+    const isVisible = menu && menu.style.display === "flex";
+    hideBottomPopovers();
+    if (menu && !isVisible) {
+      menu.style.display = "flex";
+    }
+  };
+}
+
+const thinkingItems = document.querySelectorAll("#thinking-menu-popover .mode-menu-item");
+thinkingItems.forEach(item => {
+  item.onclick = () => {
+    const t = item.dataset.thinking;
+    currentThinkingMode = t;
+    thinkingItems.forEach(i => {
+      const isCur = i.dataset.thinking === t;
+      i.classList.toggle("active", isCur);
+      const spanCheck = i.querySelector(".mode-item-title span:last-child");
+      if (spanCheck) spanCheck.textContent = isCur ? "✓" : "";
+    });
+    const labelMap = { high: "Cao", standard: "Tiêu chuẩn", off: "Tắt" };
+    const labelEl = $("thinking-pill-label");
+    if (labelEl) labelEl.textContent = labelMap[t] || "Cao";
+    hideBottomPopovers();
+  };
+});
 
 // Nút chọn Chế độ thực thi (Mode)
 const btnModePill = $("btn-mode-pill");

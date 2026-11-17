@@ -260,7 +260,7 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note},
         cwd=ws_path,
         model=chosen_model,
-        env=config.provider_env(),
+        env=config.provider_env(chosen_model),
         resume=claude_id,
         skills="all",
         setting_sources=["project"],      # chỉ đọc cấu hình trong brain, KHÔNG nạp ~/.claude của máy

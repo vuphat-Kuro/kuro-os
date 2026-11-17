@@ -33,6 +33,7 @@ from fastapi.staticfiles import StaticFiles
 import cli_engines
 import config
 import engine
+from tra_cuu_hop_dong import tra_cuu_hop_dong
 import scheduler
 import store
 import telegram
@@ -480,6 +481,11 @@ def rename_agent_group(body: dict):
                 p.write_text(new_txt, encoding="utf-8")
                 updated_count += 1
     return {"ok": True, "old_name": old_name, "new_name": new_name, "updated": updated_count}
+
+
+@app.get("/api/contracts/search")
+def api_tra_cuu_hop_dong(q: str = "", loai: str = "all", limit: int = 50):
+    return tra_cuu_hop_dong(q, loai=loai, limit=limit)
 
 
 @app.get("/api/sessions")
@@ -1713,9 +1719,14 @@ async def ws(sock: WebSocket):
             agent = req.get("agent") or "kuro-core"
             workspace = req.get("workspace") or str(engine.active_workspace_dir())
             req_model = (req.get("model") or "").strip() or None
-            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace, model=req_model or "")
-            if req_model:
-                store.set_model(sid, req_model)
+            
+            # Ưu tiên model gửi lên trong request; nếu không có thì lấy model đã lưu của phiên đó
+            existing_sess = store.get(req.get("session")) if req.get("session") else None
+            effective_model = req_model or (existing_sess.get("model") if existing_sess else None) or None
+
+            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace, model=effective_model or "")
+            if effective_model:
+                store.set_model(sid, effective_model)
 
             # Cập nhật trạng thái active (phiên và thư mục làm việc, model lưu riêng theo từng session)
             cur_st = get_active_state()
@@ -1732,7 +1743,7 @@ async def ws(sock: WebSocket):
                 "agent": agent,
                 "workspace": workspace,
                 "title": text,
-                "model": req_model
+                "model": effective_model
             })
             await manager.broadcast({
                 "type": "user_message",
@@ -1741,7 +1752,7 @@ async def ws(sock: WebSocket):
                 "workspace": workspace,
                 "text": text,
                 "attachments": req.get("attachments") or [],
-                "model": req_model
+                "model": effective_model
             })
 
             # Broadcast từng token streaming tới tất cả thiết bị
@@ -1752,7 +1763,7 @@ async def ws(sock: WebSocket):
                 payload["workspace"] = workspace
                 await manager.broadcast(payload)
 
-            answer = await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace, model=req_model)
+            answer = await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace, model=effective_model)
 
             # Broadcast sự kiện hoàn tất lượt với toàn bộ nội dung câu trả lời hoàn chỉnh
             await manager.broadcast({

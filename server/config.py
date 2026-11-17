@@ -24,6 +24,11 @@ PORT = int(os.getenv("KURO_PORT", "7788"))
 MCP_FILE = STATE / "mcp.json"
 REMINDERS_FILE = STATE / "reminders.json"
 
+# Đường dẫn dữ liệu dùng chung mạng Phương Thành
+DATA_KTTC = os.getenv("KURO_DATA_KTTC", r"\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG")
+DATA_HD_DU_AN = os.getenv("KURO_DATA_HD_DU_AN", r"\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\HĐ các Dự án")
+DATA_HD_THAU_PHU = os.getenv("KURO_DATA_HD_THAU_PHU", r"\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\Hợp đồng kinh tế - Linh\HỢP ĐỒNG")
+
 
 # AI chạy Kuro. Mọi hãng đều đi qua Claude Code (giữ nguyên skill, agent, tool): hãng khác Claude được trỏ tới
 # bằng ANTHROPIC_BASE_URL vì họ có cổng tương thích Anthropic. URL lấy từ tài liệu chính thức của từng hãng.
@@ -53,7 +58,7 @@ _MODEL_ENVS = ("ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEF
                "ANTHROPIC_DEFAULT_HAIKU_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL")
 
 
-def provider_env() -> dict[str, str]:
+def provider_env(model_override: str | None = None) -> dict[str, str]:
     """Biến môi trường cho tiến trình Claude Code theo AI đã chọn; đè lên biến sẵn có của máy."""
     p = PROVIDERS.get(PROVIDER) or PROVIDERS["claude"]
     if PROVIDER in ("", "claude") or p.get("cli"):
@@ -62,9 +67,10 @@ def provider_env() -> dict[str, str]:
         return {"ANTHROPIC_API_KEY": AI_KEY}
     # API_KEY rỗng để Claude Code không quay về đăng nhập Anthropic; model con và model nền cũng phải là model
     # của hãng đó, nếu không Claude Code sẽ gọi tên claude-haiku mà hãng không có.
+    eff_model = model_override or MODEL
     env = {"ANTHROPIC_BASE_URL": BASE_URL or p.get("url", ""), "ANTHROPIC_AUTH_TOKEN": AI_KEY or "ollama",
            "ANTHROPIC_API_KEY": ""}
-    return env | ({k: MODEL for k in _MODEL_ENVS} if MODEL else {})
+    return env | ({k: eff_model for k in _MODEL_ENVS} if eff_model else {})
 
 
 # Bí danh model mà Claude Code nhận (dùng thật từ bản 1.0); tên đầy đủ "claude-..." cũng hợp lệ.
@@ -110,7 +116,7 @@ def migrate_model() -> None:
 
 def load_runtime() -> None:
     """Các giá trị sửa được lúc đang chạy (mục Cài đặt), đọc lại từ os.environ."""
-    global MODEL, ALLOWED_TOOLS, TG_TOKEN, TG_OWNERS, PROVIDER, AI_KEY, BASE_URL
+    global MODEL, ALLOWED_TOOLS, TG_TOKEN, TG_OWNERS, PROVIDER, AI_KEY, BASE_URL, DATA_KTTC, DATA_HD_DU_AN, DATA_HD_THAU_PHU
     if not os.getenv("ANTHROPIC_API_KEY"):
         os.environ.pop("ANTHROPIC_API_KEY", None)   # dòng trống trong .env không được che phiên đăng nhập Claude
     PROVIDER = os.getenv("KURO_PROVIDER", "")       # trống = chưa chọn: giao diện mở màn hình chọn AI
@@ -122,6 +128,9 @@ def load_runtime() -> None:
         "KURO_ALLOWED_TOOLS", "Read,Glob,Grep,Write,Edit,WebSearch,WebFetch,Bash,mcp__kuro__tinh_python").split(",") if t.strip()]
     TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TG_OWNERS = {int(x) for x in os.getenv("TELEGRAM_OWNER_IDS", "").replace(" ", "").split(",") if x}
+    DATA_KTTC = os.getenv("KURO_DATA_KTTC", r"\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG")
+    DATA_HD_DU_AN = os.getenv("KURO_DATA_HD_DU_AN", r"\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\HĐ các Dự án")
+    DATA_HD_THAU_PHU = os.getenv("KURO_DATA_HD_THAU_PHU", r"\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\Hợp đồng kinh tế - Linh\HỢP ĐỒNG")
 
 
 load_runtime()
@@ -135,6 +144,9 @@ SETTINGS = {
     "KURO_ALLOWED_TOOLS": (False, r"[\w-]+(,[\w-]+)*"),
     "TELEGRAM_BOT_TOKEN": (True, r"(\d+:[\w-]+)?"),
     "TELEGRAM_OWNER_IDS": (False, r"(\d+(,\d+)*)?"),
+    "KURO_DATA_KTTC": (False, r".*"),
+    "KURO_DATA_HD_DU_AN": (False, r".*"),
+    "KURO_DATA_HD_THAU_PHU": (False, r".*"),
 }
 
 

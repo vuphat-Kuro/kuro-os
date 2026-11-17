@@ -90,16 +90,20 @@ Nếu còn một điểm chưa rõ thì hỏi anh Nghĩa trước. Không lập 
 Mọi số liệu phải có nguồn: ghi rõ file, ô hoặc mục.
 
 ## Tra cứu hợp đồng
-Tra file Excel index trước, không quét cả thư mục hợp đồng.
-1. Mở file index `TỔNG HỢP.xlsx` trong thư mục hợp đồng kinh tế của công ty.
-2. Tìm theo tên đội hoặc số hợp đồng ở các cột số hợp đồng, công trình, đối tác. Sheet cho tổ nhân công của công ty là `HĐ Phương Thành`, đối tác khác dùng sheet `HĐ Đối Tác` và các sheet tương ứng.
-3. Lấy đường dẫn tương đối ở cột link, rồi mở đúng một file PDF đó. Không duyệt thư mục năm.
-4. Đối chiếu số, ngày, giá trị trên PDF với index. Nếu lệch thì ghi `[CẦN KIỂM TRA]` và nêu cả hai nguồn.
+Tra file Excel index trước, tuyệt đối không quét cả thư mục hợp đồng.
+1. Đường dẫn kho HĐ Thầu phụ / Đội thi công: `\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\Hợp đồng kinh tế - Linh\HỢP ĐỒNG`
+   - Mở file index `TỔNG HỢP.xlsx`.
+   - Tìm theo tên đội hoặc số hợp đồng ở các cột số hợp đồng, công trình, đối tác. Sheet cho tổ nhân công của công ty là `HĐ Phương Thành`, đối tác khác dùng sheet `HĐ Đối Tác`, mỏ đất đá dùng `HĐ Khai Thác Mỏ` và các sheet tương ứng.
+   - Xác định năm ký ở cột `Ngày trên HĐ`, rồi vào đúng thư mục `Năm [YYYY]` để mở file PDF hợp đồng scan. Không duyệt quét qua các năm khác.
+2. Đường dẫn kho HĐ Dự án (với Chủ đầu tư / Ban QLDA): `\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\HĐ các Dự án`
+   - Bắt buộc tra cứu trong file `DANH MỤC HỌP ĐỒNG, PHỤ LỤC HỢP ĐỒNG DỰ ÁN.xls`.
+   - Lấy mã dự án / gói thầu rồi vào đúng thư mục dự án đó lấy file scan.
+3. Đối chiếu số, ngày, giá trị trên PDF với index. Nếu lệch thì ghi `[CẦN KIỂM TRA]` và nêu cả hai nguồn.
 
 Chỉ dùng hạng mục, đơn giá, điều khoản thanh toán, tiến độ, phạt của hợp đồng đang soát. Các điều khoản này phải đọc từ hợp đồng và phụ lục của đúng đội đó, rồi ghi nguồn điều khoản.
 
 ## Quy tắc bắt buộc
-- **Số lũy kế chuẩn** chỉ lấy từ phiếu hoặc bảng xác nhận khối lượng đã được Phòng KT-TC ký duyệt. Thiếu bảng đã duyệt thì dừng và xin ý kiến anh Nghĩa.
+- **Số lũy kế chuẩn** chỉ lấy từ phiếu hoặc bảng xác nhận khối lượng đã được Phòng KT-TC ký duyệt. Thiếu bảng đã duyệt thì dừng và xin ý kiến lãnh đạo Phòng KT-TC / kỹ sư phụ trách.
 - **Không lấy số đề nghị của BĐH hay của đội thi công làm mốc chuẩn** để đối soát. Chỉ dùng số đó làm đối tượng để so sánh.
 - **Không bịa đơn giá, định mức, tỷ lệ hao hụt, tỷ lệ giữ lại hay mức tạm ứng.** Thiếu căn cứ thì ghi `CHƯA CÓ CĂN CỨ: <nội dung>`. Lấy tỷ lệ giữ lại, tạm ứng và chu kỳ thanh toán từ đúng hợp đồng.
 - **Kiểm tra chéo khối lượng bằng ít nhất 2 cách độc lập** (ví dụ theo cấu kiện và theo hạng mục, hoặc theo BVTC). Báo kết quả và mọi chênh lệch.

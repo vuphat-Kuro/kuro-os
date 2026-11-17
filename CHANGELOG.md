@@ -1,5 +1,18 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.16] - 2026-11-17
+- Hoàn thiện toàn diện giao diện Chat Input chuẩn Claude Desktop & Antigravity 2.0:
+  - Menu nút cộng (+) đa cấp (Flyout Submenu): Bổ sung mục "Trình kết nối (Connectors) >" với các công tắc toggle (Python tính toán, Claude in Chrome, project-report-mcp, Google Drive...) và "Plugin & Kỹ năng >" tích hợp ô tìm kiếm cùng danh mục kỹ năng hạ tầng giao thông.
+  - Bổ sung nút Thinking Pill (Mức độ suy nghĩ: Cao / Tiêu chuẩn / Tắt) và vòng tròn trạng thái hoạt động (Status Ring spinner) ngay trên thanh đáy Bottom Toolbar.
+  - Nút Gửi tròn (Send button) và toàn bộ hàng điều khiển nằm tách biệt ở dòng dưới cùng, tuyệt đối không chèn hay đè lên vùng nhập văn bản.
+- Cô lập và sửa triệt để cơ chế lưu Model riêng cho từng phiên làm việc:
+  - Khắc phục hiện tượng đổi model ở một phiên làm các phiên khác bị đổi theo: Tách biệt biến model môi trường `provider_env(chosen_model)` với model toàn cục của `.env`, đồng thời chỉ định `effective_model` cho từng lượt chat của session.
+  - Sửa hàm chuyển đổi Agent không tự động đóng phiên đang mở nếu đã có lịch sử.
+- Thiết lập kho dữ liệu mạng dùng chung - Công ty CP ĐTXD Giao thông Phương Thành:
+  - Chuẩn hóa 3 đường dẫn UNC mạng dùng chung trong `server/config.py` và `env.example`: Thư viện KTTC (`\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG`), Kho HĐ Dự án (`HĐ các Dự án`), Kho HĐ Thầu phụ (`Hợp đồng kinh tế - Linh\HỢP ĐỒNG`).
+  - Xây dựng module `server/tra_cuu_hop_dong.py` và API `/api/contracts/search`: Tra cứu tức thì (<0.05s) qua 2 file Excel index `TỔNG HỢP.xlsx` và `DANH MỤC HỌP ĐỒNG, PHỤ LỤC HỢP ĐỒNG DỰ ÁN.xls`, tuyệt đối không quét đệ quy tránh treo mạng công ty.
+  - Lưu trữ quy định tra cứu vào hệ thống ký ức bền vững `facts/kho-du-lieu-phuong-thanh.md`, `MEMORY.md`, `AGENTS.md` và `CLAUDE.md`.
+
 ## [1.5.15] - 2026-11-16
 - Chuẩn hóa persona Agent và cơ chế gọi công cụ kiểm toán hố móng CVT:
   - Khắc phục việc Agent tự động xưng hô cố định "anh Nghĩa" trên mọi máy: Loại bỏ việc hardcode tên cá nhân trong `agents/ky-su-kiem-toan-ho-mong-cvt.md` và `agents/xac-nhan-thanh-quyet-toan.md`, chuyển sang cơ chế xưng hô linh hoạt theo kỹ sư phụ trách / người dùng trên máy.
