@@ -1825,7 +1825,7 @@ function connect() {
         if (targetSid) runningSessions.delete(targetSid);
         updateSendButtonState();
         loadSessions(selectedAgent);
-      } else if (m.type === "turn_complete" || m.type === "final") {
+      } else if (m.type === "turn_complete") {   // "final" của engine bị bỏ: nếu xử lý cả hai, câu trả lời hiện 2 khung
         renderPending = false;
         const ans = (m.answer || (sessData ? sessData.text : "") || m.text || "").trim();
         if (targetSid === session) {
