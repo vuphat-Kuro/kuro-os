@@ -1,5 +1,13 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.5.17] - 2026-11-17
+- Chuẩn hóa thư mục lưu trữ và bổ sung bộ tệp mẫu cho Agent Xác nhận thanh quyết toán:
+  - Loại bỏ hoàn toàn đường dẫn ảo `QLDA/99-Temp/qlda/` trong `agents/xac-nhan-thanh-quyet-toan.md` và `skills/kiem-toan-ho-mong-cvt/SKILL.md` (vốn là tàn dư của hệ thống cũ, gây lỗi thiếu thư mục khi cài trên máy mới).
+  - Quy định chuẩn xác vị trí lưu tệp: Mọi tệp bảng tính xác nhận thanh quyết toán phải được tạo và lưu trực tiếp trong thư mục dự án đang làm việc (`<Workspace>/5. XAC NHAN KHOI LUONG/<Ten_Doi>/` hoặc `<Workspace>/XAC_NHAN_KHOI_LUONG/`).
+  - Đóng gói sẵn bộ tệp Excel mẫu chuẩn mực tại `tools/XacNhanThanhQuyetToan/mau/Mau_XacNhan_ThanhQuyetToan_ThauPhu.xlsx` gồm đầy đủ 6 sheet chuyên môn: `TTC` (Thông tin chung), `1.XNKL` (Phiếu xác nhận khối lượng đợt / quyết toán), `2.VTC` (Vật tư thi công theo BVTC), `3.VTLC` (Hao hụt vật tư luân chuyển BPTC), `4.DGTD` (Đánh giá tiến độ hợp đồng), `GHI_CHU` (Đối soát nội bộ BĐH vs Phòng KTTC).
+  - Bổ sung công cụ `tools/XacNhanThanhQuyetToan/tao_ho_so_mau.py` để AI tự động nhân bản file mẫu sang thư mục dự án khi bắt đầu soát xét hồ sơ.
+  - Chuẩn hóa toàn bộ danh xưng trong agent sang "kỹ sư phụ trách / người dùng" để áp dụng cho mọi máy tính trong công ty.
+
 ## [1.5.16] - 2026-11-17
 - Hoàn thiện toàn diện giao diện Chat Input chuẩn Claude Desktop & Antigravity 2.0:
   - Menu nút cộng (+) đa cấp (Flyout Submenu): Bổ sung mục "Trình kết nối (Connectors) >" với các công tắc toggle (Python tính toán, Claude in Chrome, project-report-mcp, Google Drive...) và "Plugin & Kỹ năng >" tích hợp ô tìm kiếm cùng danh mục kỹ năng hạ tầng giao thông.

@@ -31,9 +31,9 @@ python tools/KiemToanHoMongCVT/chay_kiem_toan.py --hoi-quy        # sau mọi th
 2. Chạy `chay_kiem_toan.py`. `ghi_chu.txt` phải trống lỗi.
 3. Đọc `tong_hop.md` trước: kết luận (có mục không đạt hay không), rồi từng mục không đạt: tỷ số, giai đoạn, vị trí.
 4. Kiểm tính hợp lý: cân bằng lực khung mặt bằng, chuyển vị cừ ≤ L/400 khi dùng gối đàn hồi, tầng nào thanh chống không đạt. Tỷ số > 1 là không đạt, 0,9 đến 1 là sát.
-5. Báo cáo: kết luận trước, bảng mục không đạt, giả thiết đã dùng (nhãn `[GIẢ THIẾT]`, `[NGƯỜI DÙNG KHAI]`, `[ĐÃ XÁC MINH]`), việc cần anh quyết. Mẫu ở mục Đầu ra của agent `ky-su-kiem-toan-ho-mong-cvt`.
+5. Báo cáo: kết luận trước, bảng mục không đạt, giả thiết đã dùng (nhãn `[GIẢ THIẾT]`, `[NGƯỜI DÙNG KHAI]`, `[ĐÃ XÁC MINH]`), việc cần kỹ sư phụ trách quyết định. Mẫu ở mục Đầu ra của agent `ky-su-kiem-toan-ho-mong-cvt`.
 6. Cần Midas: dùng `mct/`, xem `references/midas.md` (cách nhập, bẫy biến dạng cắt, cách đối soát).
-7. Lưu tệp mới có phiên bản vào `99-Temp/<slug>/`; trước khi sửa hay ghi đè tệp đã có thì sao lưu vào `_backup/YYYYMMDD/` và ghi `_backup/_log.md`.
+7. Lưu tệp mới vào thư mục dự án đang làm việc (workspace) có gắn phiên bản (ví dụ `projects/<du_an>/` hoặc `9. KIEM TOAN CONG TRUONG/`); trước khi sửa hay ghi đè tệp đã có thì sao lưu vào `_backup/YYYYMMDD/` và ghi `_backup/_log.md`.
 
 ## Bẫy
 - **Số liệu trong HTML tự lưu trong trình duyệt**, còn `chay_kiem_toan.py` luôn nạp sạch: kết quả hai nơi chỉ khớp khi cùng một JSON.

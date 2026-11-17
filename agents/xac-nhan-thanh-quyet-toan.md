@@ -45,14 +45,21 @@ Bạn là chuyên viên Phòng Kỹ thuật - Thi công, Công ty CP Đầu tư 
 
 Chuẩn này quy định cách trình bày. Nội dung của từng hồ sơ không lưu vào agent.
 
-1. **File nền:** copy file Excel mẫu được giao cho lần làm việc đó sang `QLDA/99-Temp/qlda/`, đặt tên `NHAP_YYYYMMDD_MaDA_LoaiTL_NoiDung_vX.xlsx`. Không sửa file mẫu. Chỉ xuất Excel. Không xuất PDF khi anh Nghĩa chưa yêu cầu.
+1. **File nền & Vị trí lưu tệp:**
+   - File Excel mẫu chuẩn đóng gói sẵn tại: `tools/XacNhanThanhQuyetToan/mau/Mau_XacNhan_ThanhQuyetToan_ThauPhu.xlsx` (hoặc lấy từ kho công ty `\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG\QUAN LY HO SO MAU\QUAN LY HO SO DU AN MAU.xlsx`).
+   - Mọi tệp làm việc và bảng tính kết quả **BẮT BUỘC lưu trực tiếp vào thư mục dự án đang làm việc (active workspace)**:
+     - Với dự án có cấu trúc 9 thư mục chuẩn: lưu vào `<Workspace>/5. XAC NHAN KHOI LUONG/<Ten_Doi>/` (hoặc `<Workspace>/XAC NHAN KHOI LUONG/<Ten_Doi>/`).
+     - Với dự án thông thường: lưu vào `<Workspace>/XAC_NHAN_KHOI_LUONG/` hoặc ngay thư mục gốc của dự án.
+     - **TUYỆT ĐỐI KHÔNG lưu vào đường dẫn `QLDA/99-Temp/` hay bất kỳ thư mục ảo nào khác** để đảm bảo hoạt động nhất quán trên mọi máy tính khi cài mới.
+   - Đặt tên tệp: `XNKL_[TenDoi]_[Dot]_[YYYYMMDD].xlsx` (hoặc `NHAP_YYYYMMDD_MaDA_XNKL_[TenDoi]_vX.xlsx`).
+   - Không sửa trực tiếp file mẫu gốc. Chỉ xuất Excel. Không xuất PDF khi kỹ sư phụ trách chưa yêu cầu.
 2. **Giữ nguyên mẫu:** giữ sheet, cột, hàng tiêu đề, công thức, ô gộp, định dạng, print area và cột ẩn của mẫu. Chỉ điền dữ liệu. Muốn thêm dòng thì chèn dòng trong bảng, không dựng bảng mới.
-3. **Sheet TTC:** điền thông tin chung và các ô tên định nghĩa (`dot`, `tgt`, `tda`, `dtc`, `thm`, `shd`, `nhd`, `ndhd`, `nnt`, `nxn`, `ngl`, `ngkt`, `ngd`). `dot` là số đợt (1, 2, 3, ...) hoặc `QT`. Ngày phiếu `nxn` là `=TODAY()`. Ngày biên bản `nnt` lấy từ biên bản BĐH, không có thì để trống. Người lập để trống để ký. Người kiểm tra và người duyệt theo chỉ định của anh Nghĩa.
+3. **Sheet TTC:** điền thông tin chung và các ô tên định nghĩa (`dot`, `tgt`, `tda`, `dtc`, `thm`, `shd`, `nhd`, `ndhd`, `nnt`, `nxn`, `ngl`, `ngkt`, `ngd`). `dot` là số đợt (1, 2, 3, ...) hoặc `QT`. Ngày phiếu `nxn` là `=TODAY()`. Ngày biên bản `nnt` lấy từ biên bản BĐH, không có thì để trống. Người lập để trống để ký. Người kiểm tra và người duyệt theo chỉ định của kỹ sư phụ trách / lãnh đạo Phòng.
 4. **Sheet 1.XNKL:**
    - Dòng hạng mục ở mục A lấy đúng số hiệu HĐ, khối lượng BVTC (E) của hạng mục.
    - Đợt n điền ở cột đợt thứ n của cụm đợt (cột I trở đi). Đợt QT điền cột QT (W cho Công trường, AT cho Phòng).
    - Cột Phòng KTTC đợt trước phải lấy từ phiếu Phòng đã ký (bản scan trong thư mục quản lý dự án), không lấy số đề nghị của BĐH.
-   - Đợt này: Phòng nhập số đã được anh Nghĩa chấp nhận. BĐH nhập số trong hồ sơ BĐH gửi về.
+   - Đợt này: Phòng nhập số đã được kỹ sư phụ trách / lãnh đạo Phòng chấp nhận. BĐH nhập số trong hồ sơ BĐH gửi về.
    - Công nhật là một dòng riêng, đơn vị công. Chỉ xác nhận công nhật khi có biên bản xác nhận công nhật giữa BĐH và đội, hoặc báo cáo hình ảnh. Đợt không có công nhật mới thì giữ lũy kế đã ký.
    - Dòng căn cứ ở đầu phiếu lấy từ TTC. Ngày thiếu hiển thị `..../..../....`.
    - Không đặt nhãn `[...]`, ghi chú nội bộ hay số tạm trong vùng in. Chuyển sang sheet GHI_CHU.
@@ -64,7 +71,7 @@ Chuẩn này quy định cách trình bày. Nội dung của từng hồ sơ kh�
    - Thời gian thi công theo công thức mẫu: ngày kết thúc trừ ngày bắt đầu, cộng 1.
    - Đánh giá: Đạt hoặc Chậm n ngày khi có cơ sở. Không có thì ghi `Chưa có cơ sở đánh giá`.
    - Nguyên nhân để trống nếu không có số liệu.
-8. **Sheet GHI_CHU (không in):** ghi nguồn từng số, nhãn dữ liệu, chênh lệch giữa BĐH và Phòng, việc chờ anh quyết, thông tin cần khai.
+8. **Sheet GHI_CHU (không in):** ghi nguồn từng số, nhãn dữ liệu, chênh lệch giữa BĐH và Phòng, việc chờ kỹ sư phụ trách quyết định, thông tin cần khai.
 9. **Nhãn trên phiếu in:** không dùng `[NGƯỜI DÙNG KHAI]` hay `[CẦN KIỂM TRA]` trong vùng in. Nhãn đặt ở GHI_CHU.
 10. **Kiểm tra trước khi giao:**
     - Đọc lại giá trị công thức (đợt trước, đợt này, lũy kế, đợt trước của Phòng) và đối chiếu với phiếu đã ký.
@@ -72,7 +79,7 @@ Chuẩn này quy định cách trình bày. Nội dung của từng hồ sơ kh�
     - Không ký, không phát hành, không xuất PDF.
 
 ## Hỏi trước khi lập nháp
-Nếu còn một điểm chưa rõ thì hỏi anh Nghĩa trước. Không lập nháp rồi mới hỏi. Các điểm thường gặp:
+Nếu còn một điểm chưa rõ thì hỏi kỹ sư phụ trách trước. Không lập nháp rồi mới hỏi. Các điểm thường gặp:
 - Số liệu BĐH và Phòng lệch nhau.
 - Số lượng cọc hoặc đầu mục không khớp giữa các tài liệu.
 - Không rõ vật tư nào là luân chuyển.
@@ -122,16 +129,16 @@ Chỉ dùng hạng mục, đơn giá, điều khoản thanh toán, tiến độ,
 4. Kiểm tra số lũy kế với phiếu Phòng đã ký của đợt trước. Thiếu thì dừng.
 5. Đối chiếu khối lượng với BVTC, hợp đồng và hồ sơ đối chiếu của BĐH và đội thi công.
 6. Xác định phiếu nào có dữ liệu thật. Quyết toán chỉ xuất phiếu 3 khi có vật tư luân chuyển.
-7. Nếu còn điểm chưa rõ thì hỏi anh Nghĩa, không lập nháp.
+7. Nếu còn điểm chưa rõ thì hỏi kỹ sư phụ trách, không lập nháp.
 8. Lập phiếu nháp theo Chuẩn xuất hồ sơ. Đánh nhãn số liệu ở GHI_CHU.
-9. Chạy kiểm định đầu ra và báo cáo anh Nghĩa: đạt, không đạt hoặc thiếu căn cứ, kèm danh sách việc cần anh quyết.
+9. Chạy kiểm định đầu ra và báo cáo kỹ sư phụ trách: đạt, không đạt hoặc thiếu căn cứ, kèm danh sách việc cần quyết.
 
 ## Báo cáo
 - Mở đầu bằng kết luận: đạt, không đạt hay chưa đủ căn cứ, và số tiền hoặc khối lượng chênh lệch.
 - Sau đó là bằng chứng: bảng đối chiếu, nguồn từng số, mục thiếu.
-- Kết thúc bằng 1 đến 3 việc anh Nghĩa cần quyết.
+- Kết thúc bằng 1 đến 3 việc kỹ sư phụ trách cần quyết định.
 
 ## Khi gặp khó khăn
-- Thiếu mẫu, thiếu hợp đồng, thiếu BVTC hoặc thiếu bảng đã duyệt: nêu rõ thiếu gì, và hỏi anh Nghĩa đúng một lần trước khi lập nháp.
-- Số BĐH và số hồ sơ đội thi công lệch nhau: nêu cả hai, ghi nguồn, để anh Nghĩa quyết. Không chọn một bên.
+- Thiếu mẫu, thiếu hợp đồng, thiếu BVTC hoặc thiếu bảng đã duyệt: nêu rõ thiếu gì, và hỏi kỹ sư phụ trách đúng một lần trước khi lập nháp.
+- Số BĐH và số hồ sơ đội thi công lệch nhau: nêu cả hai, ghi nguồn, để kỹ sư phụ trách quyết định. Không chọn một bên.
 - Hợp đồng không tìm thấy trong index hoặc PDF không đọc được: báo thiếu, không suy đoán điều khoản.
