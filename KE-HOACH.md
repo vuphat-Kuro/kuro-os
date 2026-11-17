@@ -279,6 +279,8 @@ Dữ liệu chat thử đã được xoá; brain hiện chứa đúng ký ức, 
 | File Windows có `\r\n` | YAML và regex đọc sai | Chuẩn hoá `\r\n` thành `\n` khi đọc |
 | Skill riêng của Javis (`javis-builder`, `html-to-webcake`) | Chỉ dẫn sai trong Kuro | Script nhập loại hai skill này |
 | Python 3.14 trên máy thiếu pip và thư viện | Script hỏng | Dùng `.venv` Python 3.13 |
+| Đồng bộ kho khi thư mục `kho/<repo>` đang mở trong cửa sổ lệnh | Windows không xoá được bản cũ, bản mới bị lồng thành `kho/x/x` | `tools/dong_bo_kho.py` không nuốt lỗi xoá; đóng cửa sổ đang `cd` vào kho rồi chạy lại |
+| Bỏ mọi tệp `.html` khi đóng gói kho | archify thiếu khuôn `assets/template.html`, báo "not ready" | Nguồn tự khai `bo_duoi` riêng; chạy `archify doctor` sau mỗi lần đồng bộ |
 | Ghi file `.bat` bằng lệnh Git Bash | Công cụ tự đổi `>nul` thành `>/dev/null`, cmd báo "The system cannot find the path specified" | Sửa `.bat` bằng công cụ Edit/Write; trong `.bat` dùng `where /q` thay vì chuyển hướng vào `nul` |
 | agy (Antigravity) bị từ chối ghi file khi chạy nền | Dừng lượt, `status` vẫn SUCCESS, `response` rỗng, lý do chỉ có ở stderr: bong bóng trả lời trống | `cli_engines` đọc `denied_actions` và luôn báo lý do; khi chưa bật Bash, lời dặn bảo AI không ghi file và không chạy lệnh |
 | Sandbox của codex trên Windows | `elevated` lỗi quyền (mã 5) trên máy thường; `unelevated` chạy được nhưng KHÔNG chặn ghi ra ngoài thư mục (đã thử) | Không coi sandbox codex là lớp bảo vệ: chỉ cho chạy lệnh khi bật Bash; luôn `--ignore-user-config` để không nạp MCP cá nhân |

@@ -37,6 +37,7 @@ from tra_cuu_hop_dong import tra_cuu_hop_dong
 import scheduler
 import store
 import telegram
+import kho
 import update
 
 
@@ -189,6 +190,46 @@ async def get_models():
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])
 async def test_ai():
     return await engine.ping()
+
+
+# Kho skill và việc theo lịch (specs/002)
+@app.get("/api/kho", dependencies=[Depends(local_only)])
+def get_kho():
+    return kho.danh_sach()
+
+
+@app.post("/api/kho/duyet", dependencies=[Depends(local_only)])
+def duyet_kho(body: dict[str, str]):
+    try:
+        return {"ok": True, **kho.duyet(body.get("skill", ""))}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/lich", dependencies=[Depends(local_only)])
+def get_lich():
+    chay = scheduler.lan_chay()
+    return {"viec": [{k: v.get(k) for k in ("id", "ten", "cron", "enabled", "kieu")} | {"lan_chay": chay.get(v["id"])}
+                     for v in scheduler.ensure_defaults()]}
+
+
+@app.post("/api/lich/{vid}", dependencies=[Depends(local_only)])
+def bat_tat_lich(vid: str, body: dict[str, bool]):
+    viec = scheduler.ensure_defaults()
+    for v in viec:
+        if v["id"] == vid:
+            v["enabled"] = bool(body.get("enabled"))
+            scheduler.save(viec)
+            return {"ok": True}
+    raise HTTPException(404, f"Không có việc {vid}")
+
+
+@app.post("/api/lich/{vid}/chay", dependencies=[Depends(local_only)])
+async def chay_thu_lich(vid: str):
+    v = next((v for v in scheduler.ensure_defaults() if v["id"] == vid), None)
+    if not v:
+        raise HTTPException(404, f"Không có việc {vid}")
+    return {"ok": True, "ket_qua": await scheduler.run_job(v), "phien": f"nhac-{vid}"}
 
 
 @app.get("/api/clipboard/files")

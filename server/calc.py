@@ -4,6 +4,7 @@ Chạy đoạn Python trong tiến trình riêng của venv Kuro (có sẵn thư
 requirements-ky-thuat.txt). Mỗi lần chạy lưu script vào brain/tinh-toan/ để soát lại về sau.
 """
 import asyncio
+import json
 import os
 import subprocess
 import sys
@@ -12,6 +13,7 @@ from datetime import datetime
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
 import config
+import kho
 
 TIMEOUT_S = 120
 OUT_MAX = 20_000
@@ -49,4 +51,40 @@ async def tinh_python(args):
     return {"content": [{"type": "text", "text": text}]}
 
 
-SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python])
+def _text(t: str) -> dict:
+    return {"content": [{"type": "text", "text": t}]}
+
+
+# Kho skill (specs/002): 230 skill từ GitHub KHÔNG nạp vào lời nhắc; AI tự tìm, đọc, chạy mã đã duyệt.
+@tool("tim_skill", "Tìm skill trong KHO (DDC xây dựng: BIM, IFC, bóc khối lượng, dự toán, tiến độ, an toàn, hợp đồng, "
+      "hồ sơ; archify vẽ sơ đồ; anatomy hình minh hoạ; graphify; spec-kit) khi skill sẵn có của Kuro không phủ việc. "
+      "Mô tả kho bằng tiếng Anh: truyền TỪ KHOÁ TIẾNG ANH, vd 'ifc quantity takeoff concrete'.",
+      {"tu_khoa": str})
+async def tim_skill(args):
+    kq = kho.tim(args["tu_khoa"])
+    return _text(json.dumps(kq, ensure_ascii=False) if kq else "Không có skill phù hợp trong kho.")
+
+
+@tool("doc_skill", "Đọc hướng dẫn của một skill trong kho (mặc định SKILL.md, hoặc tệp kèm theo đường dẫn tương đối).",
+      {"skill": str, "tep": str})
+async def doc_skill(args):
+    try:
+        return _text(kho.doc(args["skill"], args.get("tep") or "SKILL.md"))
+    except ValueError as e:
+        return _text(f"[LỖI] {e}")
+
+
+@tool("chay_ma_kho", "Chạy một script .py/.mjs/.js của skill trong kho, CHỈ khi mã skill đã được duyệt. Thư mục làm "
+      "việc là dự án đang mở. doi_so là danh sách tham số dòng lệnh.", {"skill": str, "tep": str, "doi_so": list})
+async def chay_ma_kho(args):
+    import engine   # nhập muộn: engine nhập calc
+    try:
+        cwd = engine.active_workspace_dir()
+        text = await asyncio.to_thread(kho.chay, args["skill"], args["tep"], args.get("doi_so") or [], cwd)
+    except ValueError as e:
+        text = f"[LỖI] {e}"
+    return _text(text)
+
+
+KHO_TOOLS = ["mcp__kuro__tim_skill", "mcp__kuro__doc_skill", "mcp__kuro__chay_ma_kho"]
+SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho])

@@ -17,6 +17,7 @@ from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOpti
                               StreamEvent, ToolUseBlock, query)
 
 import calc
+import kho
 import cli_engines
 import config
 import store
@@ -273,7 +274,7 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         # Hai lớp chặn: `tools` gỡ hẳn tool built-in ngoài danh sách (dontAsk một mình vẫn cho chạy
         # lệnh Bash "chỉ đọc" như echo - đã thử thật); dontAsk từ chối MCP tool chưa được liệt kê.
         tools=[t for t in config.ALLOWED_TOOLS if not t.startswith("mcp__")] + ["Skill", "Agent"],
-        allowed_tools=config.ALLOWED_TOOLS + ["Agent"],
+        allowed_tools=config.ALLOWED_TOOLS + ["Agent"] + calc.KHO_TOOLS,   # kho luôn bật (specs/002); mã vẫn phải duyệt
         agents=load_agents(),
         permission_mode="dontAsk",
         mcp_servers={**mcp_from_file(), "kuro": calc.SERVER},
@@ -325,7 +326,11 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
                      "làm trực tiếp trong câu trả lời, ghi rõ \"(chưa kiểm bằng script)\" cạnh mỗi kết quả.")
     agent_info = agent_prompt_block(agent)
     return (f"<huong_dan_kuro>\n{system_append()}{agent_info}{ws_note}\n\n## Skill ngành\nCâu hỏi chuyên môn: đọc file SKILL.md phù hợp "
-            f"TRƯỚC khi trả lời rồi làm theo.\n{skill_index()}\n\n## Tính toán\n{calc_rule}\n</huong_dan_kuro>\n\n"
+            f"TRƯỚC khi trả lời rồi làm theo.\n{skill_index()}\n\n## Kho skill (specs/002)\nSkill trên không phủ việc thì tra "
+            f"kho 230 skill (DDC xây dựng, archify, anatomy...): mục lục `{kho.MUC_LUC}` (id, ten, mo_ta tiếng Anh, "
+            f"duong_dan), đọc SKILL.md ở `{config.ROOT}/<duong_dan>`. Ghi tên skill và repo đã dùng. CHỈ chạy mã của "
+            f"skill có trong `{kho.SO_GOC}`. Dữ liệu giá CWICR cấm dùng thương mại: báo trước khi dùng.\n\n"
+            f"## Tính toán\n{calc_rule}\n</huong_dan_kuro>\n\n"
             "Câu hỏi của người dùng:\n" + text)
 
 

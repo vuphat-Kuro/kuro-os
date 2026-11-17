@@ -1,4 +1,5 @@
 """Chạy: .venv\\Scripts\\python -m unittest discover -s tests"""
+import json
 import os
 import re
 import sys
@@ -317,6 +318,101 @@ class Update(unittest.TestCase):
                              (1, "1.1.0", ["Thêm skill an toàn"]))
         finally:
             config.ROOT = keep
+
+
+class Kho(unittest.TestCase):
+    """specs/002: tìm, đọc, chỉ chạy mã đã duyệt, đồng bộ giữ mã đã duyệt."""
+
+    def test_tim_doc_that(self):
+        import kho
+        kq = kho.tim("ifc quantity takeoff")
+        self.assertTrue(kq and kq[0]["repo"] == "ddc")                        # kho thật trong repo
+        self.assertIn("[Kuro] Skill", kho.doc(kq[0]["id"]))
+        with self.assertRaises(ValueError):
+            kho.doc(kq[0]["id"], "../../../.env")                           # không thoát ra ngoài skill
+
+    def test_chi_chay_ma_da_duyet(self):
+        import kho
+        tmp = Path(tempfile.mkdtemp())
+        keep = (config.ROOT, config.STATE, kho.MUC_LUC, kho.SO_GOC)
+        d = tmp / "kho" / "t" / "s"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text("---\nname: s\n---\n", encoding="utf-8")
+        (d / "run.py").write_text("print('xin chao')", encoding="utf-8")
+        (tmp / "state").mkdir()
+        ml = tmp / "kho" / "muc-luc.json"
+        ml.write_text(json.dumps({"nguon": [], "skill": [{"id": "t/s", "ten": "s", "mo_ta": "", "repo": "t",
+                                                          "duong_dan": "kho/t/s", "co_ma": True}]}), encoding="utf-8")
+        config.ROOT, config.STATE, kho.MUC_LUC, kho.SO_GOC = tmp, tmp / "state", ml, tmp / "kho" / "da-duyet.json"
+        try:
+            self.assertIn("[CHẶN]", kho.chay("t/s", "run.py", [], tmp))     # chưa duyệt
+            kho.duyet("t/s")
+            self.assertIn("xin chao", kho.chay("t/s", "run.py", [], tmp))   # đã duyệt
+            (d / "run.py").write_text("print('da sua')", encoding="utf-8")
+            self.assertIn("[CHẶN]", kho.chay("t/s", "run.py", [], tmp))     # sửa sau khi duyệt: chặn lại
+            self.assertIn("[CHẶN]", kho.chay("t/s", "../../../x.py", [], tmp))
+        finally:
+            config.ROOT, config.STATE, kho.MUC_LUC, kho.SO_GOC = keep
+
+    def test_dong_bo_giu_ma_da_duyet(self):
+        import kho
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+        import dong_bo_kho
+        tmp = Path(tempfile.mkdtemp())
+        keep = kho.KHO
+        kho.KHO = tmp / "kho"
+        try:
+            cu, moi = tmp / "cu" / "a", tmp / "moi" / "a"
+            for root, code, doc in ((cu, "print(1)", "cu"), (moi, "print(2)", "moi")):
+                root.mkdir(parents=True)
+                (root / "SKILL.md").write_text(doc, encoding="utf-8")
+                (root / "x.py").write_text(code, encoding="utf-8")
+            so = {"r/a": {"van_tay": kho.van_tay_goi(cu)}}
+            giu = dong_bo_kho.giu_ma_da_duyet("r", tmp / "moi", tmp / "cu", so)
+            self.assertEqual(giu, ["r/a"])
+            self.assertEqual((moi / "x.py").read_text(), "print(1)")           # mã cũ đã duyệt vẫn chạy
+            self.assertEqual((moi / "SKILL.md").read_text(), "moi")             # chữ dùng bản mới
+            self.assertEqual((kho.KHO / "_cho-duyet" / "r" / "a" / "x.py").read_text(), "print(2)")
+        finally:
+            kho.KHO = keep
+
+
+class Lich(unittest.TestCase):
+    def setUp(self):
+        import scheduler
+        self.keep = config.REMINDERS_FILE
+        config.REMINDERS_FILE = Path(tempfile.mkdtemp()) / "reminders.json"
+        self.s = scheduler
+
+    def tearDown(self):
+        config.REMINDERS_FILE = self.keep
+
+    def test_mac_dinh_khong_ghi_de(self):
+        self.s.save([{"id": "bao-cao-tuan", "cron": "0 8 * * 1", "prompt": "của tôi", "enabled": False}])
+        viec = {v["id"]: v for v in self.s.ensure_defaults()}
+        self.assertEqual(set(viec), {"bao-cao-tuan", "soat-ho-so", "kiem-tra-kho"})
+        self.assertEqual((viec["bao-cao-tuan"]["enabled"], viec["bao-cao-tuan"]["prompt"]), (False, "của tôi"))
+
+    def test_soat_khong_co_tep_moi_thi_khong_goi_ai(self):
+        import asyncio
+        import time
+        import engine
+        goc = Path(tempfile.mkdtemp())
+        (goc / "cu.docx").write_text("x")
+        (config.STATE / "soat-ho-so.json").write_text(json.dumps({"lan_truoc": time.time() + 60}))
+
+        async def khong_duoc_goi(*a, **k):
+            raise AssertionError("không được gọi AI khi không có tệp mới")
+        keep = (engine.chat, engine.active_workspace_dir)
+        engine.chat, engine.active_workspace_dir = khong_duoc_goi, lambda: goc
+        try:
+            config.ensure_dirs()
+            store.init()
+            self.assertIn("Không có gì mới", asyncio.run(self.s.run_job(next(
+                v for v in self.s.MAC_DINH if v["id"] == "soat-ho-so"))))
+            self.assertEqual(self.s.tep_moi(goc, time.time() - 3600), ["cu.docx"])
+        finally:
+            engine.chat, engine.active_workspace_dir = keep
 
 
 if __name__ == "__main__":

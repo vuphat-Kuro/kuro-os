@@ -37,6 +37,18 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
    - Thấy dòng chữ xanh "Kết nối được" là dùng được.
    - Đổi AI lúc nào cũng được ở **⚙ Cài đặt**.
 
+## Kho skill và việc chạy ngầm
+
+- **Kho skill** (`kho/`): 230 skill lấy từ GitHub: 226 skill DDC ngành xây dựng (BIM, IFC, bóc khối lượng, dự toán,
+  tiến độ, an toàn, hợp đồng), archify (vẽ sơ đồ), anatomy (hình minh hoạ), graphify, spec-kit. Bạn hỏi bình thường,
+  Kuro tự tìm skill phù hợp và ghi rõ đã dùng skill nào.
+- **Mã trong kho chỉ chạy khi đã duyệt.** Xem và duyệt ở ⚙ Cài đặt > Kho skill. Mã bị sửa sau khi duyệt tự bị chặn.
+- **Việc theo lịch** (⚙ Cài đặt > Việc theo lịch, bật/tắt và Chạy thử được): báo cáo tiến độ tuần (7 giờ sáng thứ Hai),
+  soát hồ sơ mới trong dự án (20 giờ mỗi tối, chỉ gọi AI khi có tệp mới), kiểm tra kho có bản mới (9 giờ sáng thứ Hai).
+- **Người bảo trì cập nhật kho**: sửa `kho/nguon.json` (commit mới) rồi chạy `.venv\Scripts\python tools\dong_bo_kho.py`.
+  Chữ thay ngay; mã đổi mà chưa duyệt thì giữ bản cũ, bản mới nằm ở `kho/_cho-duyet/`. Không đóng gói mã GPL/AGPL
+  (IfcOpenShell, xeokit) và dữ liệu giá CWICR (cấm thương mại). Đặc tả: `specs/002-kho-repo-chay-ngam/`.
+
 ## Tắt Kuro
 
 Bấm đúp `tat-kuro.bat` trong thư mục Kuro. Nếu Kuro không mở được, bấm đúp `run.bat` để xem lỗi hiện trên cửa sổ đen.
@@ -63,6 +75,7 @@ Skill và agent đi kèm cũng được cập nhật theo. Riêng skill bạn đ
 
 | Skill | Nguồn | Giấy phép |
 |---|---|---|
+| Kho `kho/` (DDC, archify, anatomy, graphify, spec-kit) | Xem `kho/nguon.json` (url, commit) | MIT / Apache-2.0, giấy phép gốc trong từng thư mục |
 | `pm-hse`, `pm-investigate`, `pm-report`, `pm-rfi`, `pm-risk` | [claude-civil-pm-skills](https://github.com/ChineduNlem/claude-civil-pm-skills) | MIT (file `LICENSE` trong từng thư mục) |
 | `constructability-risk-review`, `lookahead-constraint-sweep`, `productivity-assumption-stress-test`, `load-path-sanity-check` | [constructelligence-lab/construction-agent-skills](https://github.com/constructelligence-lab/construction-agent-skills) | CC BY 4.0 |
 | Các skill còn lại và các agent | Tác giả Kuro | Dùng nội bộ |

@@ -1,0 +1,61 @@
+{
+  "_ghi_chu": "Nguồn của kho skill. Sửa ở đây rồi chạy: .venv\\Scripts\\python tools\\dong_bo_kho.py. Đặc tả: specs/002-kho-repo-chay-ngam. 'clone' là bản clone đã kiểm tra trên máy người bảo trì; không có thì công cụ tự clone url về state/kho-nguon/ và checkout đúng commit.",
+  "bo_duoi": [".html", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".webm", ".pdf", ".zip"],
+  "nguon": [
+    {
+      "id": "ddc",
+      "ten": "DDC - skill AI cho ngành xây dựng",
+      "url": "https://github.com/datadrivenconstruction/DDC_Skills_for_AI_Agents_in_Construction",
+      "commit": "410ed1e71e4a5c6fd231afd0c8d1e586a9f546e8",
+      "giay_phep": "MIT",
+      "clone": "E:/0.Code/Repo github/xay-dung/DDC_Skills_for_AI_Agents_in_Construction",
+      "chon": ["1_DDC_Toolkit", "2_DDC_Book", "3_DDC_Insights", "4_DDC_Curated", "5_DDC_Innovative", "LICENSE", "NOTICE.md"],
+      "ghi_chu": "Bỏ 6_OpenConstructionERP (phần mềm đã gỡ), sách PDF, script publish. Dữ liệu giá CWICR là CC BY-NC (cấm thương mại), không đóng gói."
+    },
+    {
+      "id": "archify",
+      "ten": "Archify - vẽ sơ đồ quy trình, kiến trúc",
+      "url": "https://github.com/tt-a1i/archify",
+      "commit": "a4065941f12be7967436261d9934784e381d423c",
+      "giay_phep": "Apache-2.0",
+      "clone": "E:/0.Code/Repo github/archify",
+      "chon": ["archify"],
+      "bo_duoi": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".webm", ".pdf", ".zip"],
+      "ghi_chu": "Chạy bằng Node có sẵn, không cần cài thêm. Mã chạy qua chay_ma_kho sau khi duyệt. Giữ .html: assets/template.html là khuôn trang bắt buộc."
+    },
+    {
+      "id": "anatomy",
+      "ten": "Anatomy - hình minh hoạ kỹ thuật isometric",
+      "url": "https://github.com/wheresryan22/anatomy",
+      "commit": "1482e8469b0a9e0d8cc18ea2740a01423d29ae80",
+      "giay_phep": "MIT",
+      "clone": "E:/0.Code/Repo github/anatomy",
+      "chon": ["SKILL.md", "references", "kit", "scripts", "examples", "LICENSE"],
+      "bo_tep": ["scripts/publish.mjs"],
+      "ghi_chu": "Bỏ scripts/publish.mjs: script đăng hình lên thư viện cộng đồng công khai bằng gh, không cho Kuro chạy ngầm."
+    },
+    {
+      "id": "graphify",
+      "ten": "Graphify - bản đồ tri thức từ thư mục tài liệu",
+      "url": "https://github.com/Graphify-Labs/graphify",
+      "commit": "a9860f70dc3cc2e9c2d8cb923484cfa0592b9067",
+      "giay_phep": "Apache-2.0",
+      "clone": "E:/0.Code/Repo github/graphify",
+      "chon": ["LICENSE"],
+      "skill_don": {"id": "graphify", "tu": "graphify/skill.md"},
+      "can_bash": "Cần gói graphifyy (uv tool install graphifyy) và bật Bash ở Cài đặt."
+    },
+    {
+      "id": "spec-kit",
+      "ten": "Spec Kit - đặc tả, kế hoạch, danh sách việc cho dự án lớn",
+      "url": "https://github.com/github/spec-kit",
+      "commit": "ba8363f8ab56b2da456a81299cfdbfee1ef7b871",
+      "giay_phep": "MIT",
+      "clone": "~/.claude/skills/spec-kit-tu-dong",
+      "chon": [],
+      "skill_don": {"id": "spec-kit-tu-dong", "tu": "SKILL.md"},
+      "can_bash": "Cần lệnh specify (uv tool install specify-cli) và bật Bash ở Cài đặt.",
+      "ghi_chu": "Hướng dẫn tiếng Việt của người dùng cho quy trình Spec Kit; repo gốc chỉ là nơi tham chiếu."
+    }
+  ]
+}

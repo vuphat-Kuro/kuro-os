@@ -2391,6 +2391,53 @@ async function openSettings() {
   }
   showProvider();
   $("settings").showModal();
+  loadKhoLich().catch(() => {});
+}
+
+// Việc theo lịch và kho skill (specs/002). Chữ từ repo gán bằng textContent, không qua innerHTML.
+function khoRow(ten, meta, btnText, onClick) {
+  const row = document.createElement("div");
+  row.className = "kho-row";
+  const left = document.createElement("div");
+  const b = document.createElement("b"); b.textContent = ten;
+  const m = document.createElement("div"); m.className = "meta"; m.textContent = meta;
+  left.append(b, m);
+  row.append(left);
+  for (const [t, fn] of btnText ? [[btnText, onClick]] : []) {
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn"; btn.textContent = t;
+    btn.onclick = async () => { btn.disabled = true; try { await fn(btn); } finally { btn.disabled = false; } };
+    row.append(btn);
+  }
+  return row;
+}
+
+async function loadKhoLich() {
+  const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const lich = await (await fetch("/api/lich")).json();
+  $("s-lich").replaceChildren(...lich.viec.map((v) => {
+    const lan = v.lan_chay ? `lần chạy gần nhất ${v.lan_chay.luc.replace("T", " ")}` : "chưa chạy lần nào";
+    const row = khoRow(v.ten || v.id, `${v.cron} · ${v.enabled ? "đang bật" : "đang tắt"} · ${lan}`, "Chạy thử", async (btn) => {
+      btn.textContent = "Đang chạy...";
+      const j = await (await post(`/api/lich/${encodeURIComponent(v.id)}/chay`)).json();
+      btn.textContent = "Chạy thử";
+      row.querySelector(".meta").textContent = (j.ket_qua || j.detail || "").slice(0, 200);
+    });
+    const tg = document.createElement("button");
+    tg.type = "button"; tg.className = "btn"; tg.textContent = v.enabled ? "Tắt" : "Bật";
+    tg.onclick = async () => { await post(`/api/lich/${encodeURIComponent(v.id)}`, { enabled: !v.enabled }); loadKhoLich(); };
+    row.append(tg);
+    return row;
+  }));
+  const k = await (await fetch("/api/kho")).json();
+  const rows = k.nguon.map((n) => khoRow(n.ten, `${n.so_skill} skill · ${n.giay_phep} · commit ${n.commit.slice(0, 7)}${n.can_bash ? " · " + n.can_bash : ""}`));
+  rows.push(...k.goi_ma.map((g) => khoRow(`Mã: ${g.id}`, g.da_duyet ? `đã duyệt ${g.ngay || "(đi kèm bản Kuro)"}` : "chưa duyệt hoặc đã đổi sau khi duyệt: Kuro không chạy",
+    g.da_duyet ? null : "Duyệt", async () => {
+      const r = await post("/api/kho/duyet", { skill: g.id });
+      if (r.ok) loadKhoLich();
+    })));
+  rows.push(...k.ban_moi_cho_duyet.map((p) => khoRow(`Bản mới chờ duyệt: ${p}`, "người bảo trì đọc ở kho/_cho-duyet/ rồi chạy lại tools/dong_bo_kho.py")));
+  $("s-kho").replaceChildren(...rows);
 }
 
 function showProvider() {
