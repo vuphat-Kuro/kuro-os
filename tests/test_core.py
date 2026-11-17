@@ -415,5 +415,49 @@ class Lich(unittest.TestCase):
             engine.chat, engine.active_workspace_dir = keep
 
 
+class DienHoa(unittest.TestCase):
+    """specs/003: nhận yêu cầu diễn hoạ, kích thước SDXL, quy trình ComfyUI nối đúng nút."""
+
+    def test_yeu_cau(self):
+        import dien_hoa
+        j = dien_hoa.yeu_cau("Diễn hoạ thành nhà phố 3 tầng [Tệp đính kèm: E:/da/mat-dung.png]")
+        self.assertEqual((j["che_do"], j["anh"].name, j["mo_ta"]), ("net", "mat-dung.png", "Diễn hoạ thành nhà phố 3 tầng"))
+        self.assertEqual(dien_hoa.yeu_cau("diễn họa ảnh hiện trạng [Tệp đính kèm: a.jpg]")["che_do"], "anh")
+        self.assertEqual(dien_hoa.yeu_cau("render mô hình Revit [Hình ảnh đính kèm: a.png]")["che_do"], "3d")
+        self.assertIsNone(dien_hoa.yeu_cau("diễn hoạ giúp mình"))                           # không có ảnh
+        self.assertIsNone(dien_hoa.yeu_cau("xem file [Tệp đính kèm: a.png]"))               # không nhờ diễn hoạ
+        self.assertIsNone(dien_hoa.yeu_cau("diễn hoạ [Tệp đính kèm: bang-tinh.xlsx]"))      # không phải ảnh
+
+    def test_kich_thuoc(self):
+        import dien_hoa
+        for w, h in ((1920, 1080), (800, 2000), (1024, 1024), (300, 300)):
+            W, H = dien_hoa.kich_thuoc(w, h)
+            self.assertTrue(W % 64 == 0 and H % 64 == 0 and 512 <= W <= 1536 and 512 <= H <= 1536)
+            self.assertAlmostEqual(W / H, w / h, delta=0.25 if w != 800 else 0.6)  # giữ gần tỉ lệ gốc
+
+    def test_workflow_noi_dung_nut(self):
+        import dien_hoa
+        for che_do in dien_hoa.CHE_DO:
+            wf = dien_hoa.workflow("a.png", "house", che_do, 1024, 1024, 2, 1)
+            for nut in wf.values():
+                for v in nut["inputs"].values():
+                    if isinstance(v, list):
+                        self.assertIn(v[0], wf)                                               # không trỏ tới nút lạ
+            self.assertEqual(wf["9"]["inputs"]["batch_size"], 2)
+
+    def test_workflow_khop_comfyui_that(self):
+        """Tên nút, tên tham số và giá trị chọn khớp /object_info đo trên bản cài thật (tests/comfyui_object_info.json)."""
+        import dien_hoa
+        oi = json.loads((Path(__file__).parent / "comfyui_object_info.json").read_text(encoding="utf-8"))
+        for che_do in dien_hoa.CHE_DO:
+            for id_, nut in dien_hoa.workflow("a.png", "house", che_do, 1024, 1024, 2, 1).items():
+                self.assertIn(nut["class_type"], oi, id_)
+                cho = oi[nut["class_type"]]
+                for ten, v in nut["inputs"].items():
+                    self.assertIn(ten, cho, f"{nut['class_type']}.{ten}")
+                    if cho[ten] is not None and not isinstance(v, list):
+                        self.assertIn(v, cho[ten], f"{nut['class_type']}.{ten}")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -129,7 +129,8 @@ Chạy kiểm tra:
     store.py       (60)  SQLite: phiên chat và tin nhắn
     engine.py     (123)  chạy một lượt qua claude-agent-sdk, nạp agent và MCP, hàm chat() dùng chung
     calc.py        (52)  tool tinh_python: chạy Python tính toán, lưu script để soát
-    scheduler.py   (74)  cron 5 trường + vòng lặp 30 giây đọc state/reminders.json
+    scheduler.py   (74)  cron 5 trường + vòng lặp 30 giây đọc state/reminders.json; tắt ComfyUI khi rảnh
+    dien_hoa.py          diễn hoạ: bật/tắt ComfyUI, quy trình SDXL + ControlNet Union qua API, nhận yêu cầu trong chat
     telegram.py    (45)  long-poll, chỉ trả lời ID chủ, lệnh /moi
     main.py        (66)  FastAPI: /ws, /api/sessions, /health, phục vụ dashboard
   dashboard/
@@ -286,3 +287,5 @@ Dữ liệu chat thử đã được xoá; brain hiện chứa đúng ký ức, 
 | Sandbox của codex trên Windows | `elevated` lỗi quyền (mã 5) trên máy thường; `unelevated` chạy được nhưng KHÔNG chặn ghi ra ngoài thư mục (đã thử) | Không coi sandbox codex là lớp bảo vệ: chỉ cho chạy lệnh khi bật Bash; luôn `--ignore-user-config` để không nạp MCP cá nhân |
 | `pip install -q` trong `setup.bat` | Máy mới thấy màn hình đen 5-15 phút, tưởng treo | In từng bước `[1/4]...` và để pip hiện tiến độ |
 | Danh sách skill quá dài (49 skill, có 21 skill lập trình) | Claude chọn skill kém chính xác hơn | Xoá bớt skill không dùng trong `.claude/skills` |
+| SDXL fp16 + ControlNet Union trên card 8 GB (laptop, card còn lo màn hình) | Tràn VRAM, 19 giây mỗi bước, 2 ảnh mất 8 phút | ComfyUI chạy với `--fp8_e4m3fn-unet`: còn 1,8 giây mỗi bước, 2 ảnh khoảng 1 phút, ảnh vẫn tốt |
+| Bản ComfyUI `nvidia` mặc định trên driver 566 | Cần CUDA mới hơn driver hỗ trợ | Trình cài đọc driver: dưới 570 thì lấy bản `cu126` |

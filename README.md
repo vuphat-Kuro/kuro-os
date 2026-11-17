@@ -49,6 +49,20 @@ Kuro chạy trên máy của bạn và trả lời tiếng Việt. Giao diện l
   Chữ thay ngay; mã đổi mà chưa duyệt thì giữ bản cũ, bản mới nằm ở `kho/_cho-duyet/`. Không đóng gói mã GPL/AGPL
   (IfcOpenShell, xeokit) và dữ liệu giá CWICR (cấm thương mại). Đặc tả: `specs/002-kho-repo-chay-ngam/`.
 
+## Diễn hoạ bản vẽ (tuỳ chọn, chạy trên máy)
+
+Gửi ảnh vào khung chat kèm câu có chữ **"diễn hoạ"** (hoặc "render"), ví dụ "diễn hoạ thành nhà phố 3 tầng, mặt tiền
+kính, buổi chiều". Kuro vẽ **2 phương án** ảnh thật giữ đúng nét bản vẽ, hiện ngay trong chat và lưu vào
+`<dự án>/dien-hoa/`. Dùng được với mọi AI; bản vẽ không gửi ra Internet (chỉ câu mô tả được gửi cho AI để dịch).
+
+- **Loại ảnh** Kuro tự nhận theo câu chữ: mặc định là bản vẽ nét; có "hiện trạng" hoặc "ảnh chụp" thì là ảnh chụp
+  công trình; có "mô hình", "3D", "Revit", "BIM" thì là ảnh mô hình.
+- **Cài**: bấm đúp `cai-dien-hoa.bat`. Cần card NVIDIA từ 8 GB VRAM, 7-Zip, khoảng 12 GB trống; tải khoảng 11,5 GB
+  (ComfyUI, RealVisXL V5, ControlNet Union SDXL). Đứt mạng thì chạy lại để tải tiếp. Cài vào thư mục `ComfyUI` cạnh
+  thư mục Kuro (đổi bằng biến `KURO_COMFYUI_DIR`).
+- **Tốc độ đo được** (RTX 4060 Laptop 8 GB): lần đầu khoảng 2 phút kể cả bật ComfyUI, các lần sau khoảng 1 phút cho 2 ảnh.
+- Kuro tự bật ComfyUI khi cần và tự tắt sau 10 phút rảnh để trả VRAM. Đặc tả: `specs/003-dien-hoa-ban-ve/`.
+
 ## Tắt Kuro
 
 Bấm đúp `tat-kuro.bat` trong thư mục Kuro. Nếu Kuro không mở được, bấm đúp `run.bat` để xem lỗi hiện trên cửa sổ đen.

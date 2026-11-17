@@ -1,5 +1,9 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.0] - 2026-11-17
+- Diễn hoạ bản vẽ chạy trên máy (ComfyUI + RealVisXL V5 + ControlNet Union SDXL): gửi ảnh vào chat kèm câu "diễn hoạ ...", Kuro vẽ 2 phương án ảnh thật giữ đúng nét, lưu vào `<dự án>/dien-hoa/`. Nhận bản vẽ nét, ảnh hiện trạng, ảnh mô hình 3D/BIM; dùng được với mọi AI.
+- Tự bật ComfyUI khi cần, tự tắt sau 10 phút rảnh. Máy khác cài bằng `cai-dien-hoa.bat` (cần card NVIDIA từ 8 GB, tải khoảng 11,5 GB).
+
 ## [1.6.1] - 2026-11-17
 - Nâng cấp toàn diện Agent "Xác nhận thanh quyết toán thầu phụ và đội thi công" phiên bản gói v2:
   - **Tích hợp trọn bộ nghiệp vụ chuyên sâu:** Soát xét và đối chiếu khối lượng đa tầng (1.XNKL), vật tư thi công theo BVTC/BPTC (2.VTC), định mức hao hụt vật tư luân chuyển (3.VTLC), đánh giá tiến độ hợp đồng (4.DGTD), và kiểm soát công nhật hiện trường.

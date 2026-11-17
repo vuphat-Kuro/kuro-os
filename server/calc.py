@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
@@ -86,5 +87,21 @@ async def chay_ma_kho(args):
     return _text(text)
 
 
-KHO_TOOLS = ["mcp__kuro__tim_skill", "mcp__kuro__doc_skill", "mcp__kuro__chay_ma_kho"]
-SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho])
+@tool("dien_hoa", "Diễn hoạ ảnh thật từ bản vẽ nét, ảnh chụp hiện trạng hoặc ảnh mô hình 3D/BIM (ComfyUI + RealVisXL "
+      "+ ControlNet Union SDXL chạy trên máy, không gửi bản vẽ ra ngoài). anh: đường dẫn ảnh (tuyệt đối hoặc trong dự án "
+      "đang mở); mo_ta: công trình, vật liệu, cảnh quan, ánh sáng (tiếng Việt được); che_do: net | anh | 3d. Ra 2 phương "
+      "án trong <dự án>/dien-hoa/. Mất 1-3 phút.", {"anh": str, "mo_ta": str, "che_do": str})
+async def dien_hoa_tool(args):
+    import engine   # nhập muộn: engine nhập calc
+    ws = engine.active_workspace_dir()
+    anh = Path(args["anh"]) if Path(args["anh"]).is_absolute() else ws / args["anh"]
+    try:
+        ra = await engine.dien_hoa_anh(anh, args.get("mo_ta", ""), args.get("che_do") or "net", str(ws))
+        return _text("Đã diễn hoạ, chèn ảnh vào câu trả lời bằng markdown:\n" +
+                     "\n".join(f"![Phương án {i}](/api/attachments/{p.name})  ({p})" for i, p in enumerate(ra, 1)))
+    except Exception as e:
+        return _text(f"[LỖI] {e}")
+
+
+KHO_TOOLS = ["mcp__kuro__tim_skill", "mcp__kuro__doc_skill", "mcp__kuro__chay_ma_kho", "mcp__kuro__dien_hoa"]
+SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho, dien_hoa_tool])

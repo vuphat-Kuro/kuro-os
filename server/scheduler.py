@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 import config
+import dien_hoa
 import engine
 import kho
 import store
@@ -175,4 +176,6 @@ async def loop(notify=None) -> None:
                     asyncio.create_task(_fire(r, notify))
         except Exception as e:  # file hỏng hoặc cron sai: báo log, không làm chết vòng lặp
             print(f"[nhắc hẹn] {type(e).__name__}: {e}")
+        if dien_hoa.tat_neu_ranh():   # trả VRAM/RAM: ComfyUI do Kuro bật, rảnh 10 phút thì tắt (specs/003)
+            print("[diễn hoạ] ComfyUI rảnh 10 phút, đã tắt")
         await asyncio.sleep(30)

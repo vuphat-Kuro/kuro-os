@@ -8,6 +8,7 @@ Luồng sự kiện gửi cho giao diện:
 """
 import asyncio
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOpti
 import calc
 import kho
 import cli_engines
+import dien_hoa
 import config
 import store
 
@@ -334,17 +336,36 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
             "Câu hỏi của người dùng:\n" + text)
 
 
+async def mot_lan(prompt: str, timeout: int = 120) -> tuple[str, str]:
+    """Hỏi AI đang chọn một câu, không tool, không lưu phiên; trả (chữ, lỗi). Dùng cho ping và dịch prompt diễn hoạ."""
+    text, err = "", ""
+    try:
+        async with asyncio.timeout(timeout):
+            if kind := cli_kind():
+                async for ev in cli_engines.run(kind, prompt, None):
+                    text += ev["text"] if ev["type"] == "text" else ""
+                    err = ev["text"] if ev["type"] == "error" else err
+            else:
+                opts = ClaudeAgentOptions(model=config.MODEL or None, env=config.provider_env(), max_turns=1, tools=[],
+                                          setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
+                async for m in query(prompt=prompt, options=opts):
+                    if isinstance(m, ResultMessage):
+                        text = m.result or ""
+                        if m.is_error:
+                            err = text or "; ".join(map(str, m.errors or [])) or m.subtype
+    except TimeoutError:
+        err = f"Quá {timeout} giây không thấy trả lời."
+    except Exception as e:  # chưa cài CLI, sai địa chỉ...
+        err = f"{type(e).__name__}: {e}"
+    return text, err
+
+
 async def ping() -> dict:
     """Hỏi AI đã chọn một câu ngắn, không tool, để màn hình chọn AI báo kết nối được hay chưa."""
     if kind := cli_kind():
-        text, err = "", ""
-        try:
-            async with asyncio.timeout(120):
-                async for ev in cli_engines.run(kind, "Trả lời đúng một từ: OK", None):
-                    text += ev["text"] if ev["type"] == "text" else ""
-                    err = ev["text"] if ev["type"] == "error" else err
-        except TimeoutError:
-            err = f"Quá 120 giây không thấy trả lời. Thử mở PowerShell gõ `{kind}` xem đã đăng nhập chưa."
+        text, err = await mot_lan("Trả lời đúng một từ: OK", 120)
+        if err.startswith("Quá"):
+            err += f" Thử mở PowerShell gõ `{kind}` xem đã đăng nhập chưa."
         return {"ok": bool(text) and not err, "text": text[:200], "error": loi_tieng_viet(err)[:600]}
     opts = ClaudeAgentOptions(model=config.MODEL or None, env=config.provider_env(), max_turns=1, tools=[],
                               setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
@@ -441,6 +462,50 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
         yield {"type": "error", "text": f"{type(e).__name__}: {e}"}
 
 
+DICH_PROMPT = ("Viết MỘT prompt tiếng Anh (dưới 60 từ) cho Stable Diffusion SDXL để diễn hoạ ảnh thật công trình xây "
+               "dựng từ mô tả dưới đây: loại công trình, vật liệu, màu, cảnh quan, ánh sáng, thời điểm. Chỉ trả đúng "
+               "prompt trên một dòng, không giải thích. Mô tả trống thì viết prompt chung cho công trình hoàn thiện.\n"
+               "Mô tả: {mo_ta}")
+
+
+async def dien_hoa_anh(anh: Path, mo_ta: str, che_do: str, ws_path: str) -> list[Path]:
+    """Dịch mô tả sang prompt SDXL bằng AI đang chọn (lỗi thì dùng nguyên văn), vẽ, chép ảnh vào dự án."""
+    prompt_en, err = await mot_lan(DICH_PROMPT.format(mo_ta=mo_ta), 120)
+    prompt_en = (prompt_en.strip().splitlines() or [""])[0].strip(' "') if not err else ""
+    ra = await asyncio.to_thread(dien_hoa.ve, anh, prompt_en or mo_ta or "finished building exterior", che_do,
+                                 Path(ws_path) / "dien-hoa")
+    for p in ra:   # bản sao trong .attachments để khung chat hiện ảnh qua /api/attachments
+        att = Path(ws_path) / ".attachments"
+        att.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(p, att / p.name)
+    return ra
+
+
+async def _dien_hoa_turn(job: dict, ws_path: str, emit) -> str:
+    async def say(t: str):
+        if emit:
+            await emit({"type": "text", "text": t})
+    if loi := dien_hoa.thieu():
+        await say(loi)
+        if emit:
+            await emit({"type": "final", "text": ""})
+        return loi
+    ten = {"net": "bản vẽ nét", "anh": "ảnh chụp hiện trạng", "3d": "ảnh mô hình 3D/BIM"}[job["che_do"]]
+    head = (f"Đang diễn hoạ {dien_hoa.SO_ANH} phương án từ {ten} `{job['anh'].name}` "
+            "(ComfyUI + RealVisXL + ControlNet Union SDXL, lần đầu khoảng 1-3 phút)...\n\n")
+    await say(head)
+    try:
+        ra = await dien_hoa_anh(job["anh"], job["mo_ta"], job["che_do"], ws_path)
+        body = "".join(f"**Phương án {i}**\n\n![Phương án {i}](/api/attachments/{p.name})\n\n`{p}`\n\n"
+                       for i, p in enumerate(ra, 1)) or "ComfyUI không trả ảnh nào."
+    except Exception as e:  # thiếu model, ComfyUI lỗi...: báo rõ, không im lặng
+        body = f"[Lỗi diễn hoạ] {e}"
+    await say(body)
+    if emit:
+        await emit({"type": "final", "text": ""})
+    return head + body
+
+
 async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None, model: str | None = None) -> str:
     """Một lượt hoàn chỉnh: lưu câu hỏi, chạy, đẩy sự kiện qua emit (nếu có), lưu câu trả lời."""
     ws_path = workspace or str(active_workspace_dir())
@@ -450,6 +515,10 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
     if chosen_model and chosen_model != sess.get("model"):
         store.set_model(sid, chosen_model)
     store.add(sid, "user", text)
+    if job := dien_hoa.yeu_cau(text):   # "diễn hoạ" + ảnh đính kèm: Kuro tự làm, dùng được với mọi AI (specs/003)
+        answer = await _dien_hoa_turn(job, ws_path, emit)
+        store.add(sid, "assistant", answer)
+        return answer
     shown, final = [], ""
     async for ev in run_turn(text, sess.get("claude_id"), agent=agent, cwd=ws_path, model=chosen_model):
         if ev["type"] == "text":
