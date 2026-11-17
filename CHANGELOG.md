@@ -1,5 +1,8 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.4] - 2026-11-17
+- Giao diện dễ đọc hơn: mọi chữ chức năng (huy hiệu, giờ phiên, số đếm nhóm, phím tắt) tối thiểu 11px; bỏ viền màu dày một bên ở bong bóng tin nhắn và thẻ phiên bản, thay bằng viền mảnh đều.
+
 ## [1.7.3] - 2026-11-17
 - Sửa lỗi công thức hiện nguyên văn kiểu `$L = 36.2\text{ m}$`: khung chat dựng công thức LaTeX (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) bằng KaTeX, với mọi AI. Giá tiền kiểu "$5" và khối code giữ nguyên.
 
