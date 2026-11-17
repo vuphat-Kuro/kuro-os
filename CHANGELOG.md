@@ -1,5 +1,8 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.3] - 2026-11-17
+- Sửa lỗi công thức hiện nguyên văn kiểu `$L = 36.2\text{ m}$`: khung chat dựng công thức LaTeX (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) bằng KaTeX, với mọi AI. Giá tiền kiểu "$5" và khối code giữ nguyên.
+
 ## [1.7.2] - 2026-11-17
 - Cải tiến toàn diện thanh lọc nhóm cộng sự (Agent Filter Bar) chuẩn UX gọn gàng & linh hoạt:
   - **Chế độ hiển thị thu gọn bằng Biểu tượng (Icon-only mode):** Mặc định các chip nhóm chỉ hiển thị biểu tượng đặc trưng (🛡️ Hệ thống, 🏗️ Kỹ thuật & Thi công, 📋 Quản lý & Hồ sơ, 🌐 BIM & Số hóa, 👥 Tổ đội...), kích thước nhỏ gọn 28x26px.

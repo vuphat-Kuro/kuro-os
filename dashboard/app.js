@@ -1,5 +1,18 @@
 const $ = (id) => document.getElementById(id);
-const md = (t) => DOMPurify.sanitize(marked.parse(t || ""));
+// Công thức LaTeX ($...$, $$...$$, \(...\), \[...\]) dựng bằng KaTeX trước khi qua marked, để marked không ăn mất
+// dấu "\" và "_". Khối code giữ nguyên. "$" phải sát chữ hai đầu và không theo sau là số, để "$5 và $10" không bị nhận nhầm.
+const MATH_RE = /(```[\s\S]*?```|`[^`\n]*`)|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g;
+const md = (t) => {
+  const math = [];
+  const src = (t || "").replace(MATH_RE, (m, code, d1, d2, i1, i2) => {
+    if (code || typeof katex === "undefined") return m;
+    try {
+      math.push(katex.renderToString(d1 ?? d2 ?? i1 ?? i2, { displayMode: (d1 ?? d2) != null, throwOnError: false }));
+    } catch { return m; }
+    return `@@KM${math.length - 1}@@`;
+  });
+  return DOMPurify.sanitize(marked.parse(src).replace(/@@KM(\d+)@@/g, (_, i) => math[i]));
+};
 
 let session = null;
 let ws;
