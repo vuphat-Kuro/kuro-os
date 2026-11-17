@@ -4825,7 +4825,8 @@ if ("serviceWorker" in navigator) {
 }
 
 // ========================================================
-// THANH VẠCH ĐIỀU HƯỚNG CÂU HỎI & NÚT CUỘN XUỐNG ĐÁY (THEO UI JAVIS)
+// ========================================================
+// THANH VẠCH ĐIỀU HƯỚNG CÂU HỎI TẬP TRUNG (CHAT NAV HUB)
 // ========================================================
 let navPopoverTimer = null;
 
@@ -4833,6 +4834,8 @@ function updateChatNavTicks() {
   const rail = $("chat-nav-rail");
   const log = $("log");
   const popover = $("chat-nav-popover");
+  const countEl = $("chat-nav-hub-count");
+  const container = $("chat-nav-ticks-container");
   if (!rail || !log) return;
 
   const userMsgs = Array.from(log.querySelectorAll(".msg.user"));
@@ -4842,18 +4845,16 @@ function updateChatNavTicks() {
     return;
   }
 
-  rail.style.display = "block";
-  rail.innerHTML = "";
+  rail.style.display = "flex";
+  if (countEl) countEl.textContent = userMsgs.length;
 
-  const logHeight = Math.max(log.scrollHeight, 1);
+  const targetContainer = container || rail;
+  targetContainer.innerHTML = "";
 
   userMsgs.forEach((msgEl, idx) => {
     const tick = document.createElement("div");
     tick.className = "chat-nav-tick";
     tick.dataset.idx = idx;
-
-    const pct = Math.min(Math.max((msgEl.offsetTop / logHeight) * 100, 2), 97);
-    tick.style.top = `${pct}%`;
 
     const rawSnippet = (msgEl.textContent || "").trim().replace(/^BẠN \(KỸ SƯ\)\s*/i, "").replace(/\s+/g, " ");
     tick.title = `Câu hỏi #${idx + 1}: ${rawSnippet.slice(0, 50)}`;
@@ -4870,7 +4871,52 @@ function updateChatNavTicks() {
       hideChatNavPopover();
     });
 
-    rail.appendChild(tick);
+    targetContainer.appendChild(tick);
+  });
+
+  // Bắt sự kiện nút bấm Hub Icon để mở/đóng danh sách
+  const hubBtn = $("chat-nav-hub-btn");
+  if (hubBtn && !hubBtn._bound) {
+    hubBtn._bound = true;
+    hubBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (popover && popover.style.display !== "none") {
+        hideChatNavPopover();
+      } else {
+        const msgs = Array.from($("log").querySelectorAll(".msg.user"));
+        showChatNavPopover(0, msgs, hubBtn);
+      }
+    };
+  }
+
+  updateActiveTickOnScroll();
+}
+
+// Cập nhật vạch đang active khi người dùng cuộn nội dung chat
+function updateActiveTickOnScroll() {
+  const log = $("log");
+  const container = $("chat-nav-ticks-container") || $("chat-nav-rail");
+  if (!log || !container) return;
+
+  const userMsgs = Array.from(log.querySelectorAll(".msg.user"));
+  const ticks = Array.from(container.querySelectorAll(".chat-nav-tick"));
+  if (userMsgs.length === 0 || ticks.length === 0) return;
+
+  const viewTop = log.scrollTop;
+  const viewBottom = viewTop + log.clientHeight;
+
+  let activeIdx = 0;
+  for (let i = 0; i < userMsgs.length; i++) {
+    const m = userMsgs[i];
+    if (m.offsetTop <= viewTop + log.clientHeight * 0.45) {
+      activeIdx = i;
+    } else {
+      break;
+    }
+  }
+
+  ticks.forEach((t, i) => {
+    t.classList.toggle("active", i === activeIdx);
   });
 }
 
@@ -4880,37 +4926,29 @@ function showChatNavPopover(centerIdx, userMsgs, targetTick) {
   const rail = $("chat-nav-rail");
   if (!popover || !rail) return;
 
-  const maxItems = 15;
   const total = userMsgs.length;
-  let start = Math.max(0, centerIdx - Math.floor(maxItems / 2));
-  let end = Math.min(total, start + maxItems);
-  if (end - start < maxItems) {
-    start = Math.max(0, end - maxItems);
-  }
-
   const itemsHtml = [];
-  for (let i = start; i < end; i++) {
+  for (let i = 0; i < total; i++) {
     const el = userMsgs[i];
     const text = (el.textContent || "").trim().replace(/^BẠN \(KỸ SƯ\)\s*/i, "").replace(/\s+/g, " ");
     const isCenter = (i === centerIdx);
     itemsHtml.push(`
       <div class="chat-nav-item ${isCenter ? 'highlighted' : ''}" data-idx="${i}" title="${escapeHtml(text)}">
-        ${i + 1}. ${escapeHtml(text.slice(0, 50))}${text.length > 50 ? '...' : ''}
+        <span style="color:var(--amber); font-weight:600; margin-right:4px;">#${i + 1}</span> ${escapeHtml(text.slice(0, 50))}${text.length > 50 ? '...' : ''}
       </div>
     `);
   }
 
   popover.innerHTML = `
     <div class="chat-nav-popover-header">
-      <span>CÂU HỎI TRONG ĐOẠN NÀY (${start + 1}-${end}/${total})</span>
-      <span style="font-size:10px; color:var(--muted); font-family:var(--body);">Bấm để nhảy</span>
+      <span>MỤC LỤC CÂU HỎI (${total})</span>
+      <span style="font-size:10px; color:var(--muted); font-family:var(--body);">Bấm để cuộn đến</span>
     </div>
     <div class="chat-nav-list">${itemsHtml.join("")}</div>
   `;
 
-  const tickRect = targetTick.getBoundingClientRect();
-  const popTop = Math.max(10, Math.min(tickRect.top - 60, window.innerHeight - 420));
-  popover.style.top = `${popTop}px`;
+  popover.style.top = `65px`;
+  popover.style.right = `48px`;
   popover.style.display = "flex";
 
   popover.querySelectorAll(".chat-nav-item").forEach(item => {
@@ -4934,7 +4972,7 @@ function scheduleHideChatNavPopover() {
   clearTimeout(navPopoverTimer);
   navPopoverTimer = setTimeout(() => {
     hideChatNavPopover();
-  }, 220);
+  }, 280);
 }
 
 function hideChatNavPopover() {
@@ -4965,6 +5003,9 @@ if (scrollBottomBtn && logContainer) {
       scrollBottomBtn.style.display = "flex";
     } else {
       scrollBottomBtn.style.display = "none";
+    }
+    if (typeof updateActiveTickOnScroll === "function") {
+      updateActiveTickOnScroll();
     }
   });
 

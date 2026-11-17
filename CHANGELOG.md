@@ -2,6 +2,11 @@
 
 ## [1.7.4] - 2026-11-17
 - Giao diện dễ đọc hơn: mọi chữ chức năng (huy hiệu, giờ phiên, số đếm nhóm, phím tắt) tối thiểu 11px; bỏ viền màu dày một bên ở bong bóng tin nhắn và thẻ phiên bản, thay bằng viền mảnh đều.
+- Tối ưu hóa thanh mục lục nhật ký câu hỏi (Chat Nav Hub) gom gọn tập trung:
+  - **Khắc phục triệt để lỗi vạch rải rác:** Xóa bỏ cơ chế dàn trải vạch câu hỏi theo tỷ lệ chiều cao trang (`offsetTop / scrollHeight`) vốn khiến các thanh bị rải rác lộn xộn hoặc đè chồng lên nhau dọc toàn bộ mép phải màn hình.
+  - **Gom toàn bộ vạch về Dock tập trung (Chat Nav Hub):** Tập trung các thanh đánh dấu vào một khung HUD nhỏ gọn, cố định ở góc trên bên phải khung chat (`top: 65px; right: 12px;`).
+  - **Hiển thị trực quan và có trật tự:** Gồm biểu tượng `📑` kèm huy hiệu đếm số lượng câu hỏi, các vạch được xếp thẳng hàng, cách đều nhau ($3$ px), tự động làm sáng vạch tương ứng (màu cyan) khi kỹ sư cuộn đến câu hỏi đó.
+  - **Bảng mục lục câu hỏi nhanh (Table of Contents Popover):** Nhấp vào nút `📑` hoặc hover vào vạch để mở danh sách mục lục tập trung toàn bộ các câu hỏi trong phiên, bấm vào câu nào sẽ cuộn mượt đến ngay vị trí đó kèm hiệu ứng highlight.
 
 ## [1.7.3] - 2026-11-17
 - Sửa lỗi công thức hiện nguyên văn kiểu `$L = 36.2\text{ m}$`: khung chat dựng công thức LaTeX (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) bằng KaTeX, với mọi AI. Giá tiền kiểu "$5" và khối code giữ nguyên.
