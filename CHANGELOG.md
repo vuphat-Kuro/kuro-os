@@ -1,5 +1,16 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.6.1] - 2026-11-17
+- Nâng cấp toàn diện Agent "Xác nhận thanh quyết toán thầu phụ và đội thi công" phiên bản gói v2:
+  - **Tích hợp trọn bộ nghiệp vụ chuyên sâu:** Soát xét và đối chiếu khối lượng đa tầng (1.XNKL), vật tư thi công theo BVTC/BPTC (2.VTC), định mức hao hụt vật tư luân chuyển (3.VTLC), đánh giá tiến độ hợp đồng (4.DGTD), và kiểm soát công nhật hiện trường.
+  - **Đóng gói 2 bộ mẫu Excel chính thức:** `MAU_XNKL-DOT_KTTC.xlsx` (phiếu đợt) và `MAU_XNKL-QT_KTTC.xlsx` (phiếu quyết toán 5 sheet đầy đủ) tại `tools/XacNhanThanhQuyetToan/mau/` và `QLDA/03-MauBieu/02-Excel/`.
+  - **Bổ sung 6 kỹ năng (skills) ngành mới:** `so-sanh-phu-luc-hop-dong` (BoQ Comparator), `duyet-vat-tu-thi-cong` (hệ thống 4 mẫu DNVT-01..04), `kiem-tra-dong-bo-bvtc`, `kiem-tra-khoi-luong`, `soan-thao-cong-van`, và `xlsx`.
+  - **Tích hợp bộ công cụ tự động hóa:** `BoQ_Comparator`, `kiem_tra_san_pham.py`, `tinh_lai_excel.py` (tính lại công thức qua Excel COM).
+  - **Tuân thủ tuyệt đối các nguyên tắc đã thống nhất:**
+    - Kho dữ liệu công ty `\\phuongthanhtranconsin.data.com\` (hoặc ổ Y:) là Read-Only chỉ để tra cứu tài liệu và lấy mẫu.
+    - Tra cứu hợp đồng bắt buộc qua file Excel đầu mục `TỔNG HỢP.xlsx` và `DANH MỤC HỌP ĐỒNG, PHỤ LỤC HỢP ĐỒNG DỰ ÁN.xls`, tuyệt đối không quét đệ quy.
+    - Mọi tệp bảng tính kết quả bắt buộc lưu vào thư mục dự án hiện hành trên máy người dùng (Active Workspace), cấm lưu vào `QLDA/99-Temp/` hay đường dẫn ảo; hỏi lại người dùng nếu chưa rõ cấu trúc lưu.
+
 ## [1.5.18] - 2026-11-17
 - Thiết lập rào chắn quy tắc lưu tệp kết quả và bảo vệ kho dữ liệu công ty:
   - **Kho mạng UNC công ty là kho Read-Only (Chỉ đọc & Tra cứu):** Xác lập nguyên tắc bất khả xâm phạm trên toàn hệ thống (`AGENTS.md`, `CLAUDE.md`, `facts/kho-du-lieu-phuong-thanh.md`, `server/engine.py`): Thư mục mạng `\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng chỉ phục vụ đọc, tra cứu tài liệu và lấy file mẫu. Tuyệt đối không tự ý lưu tệp kết quả, tạo thư mục rác hay ghi đè lên kho mạng chung công ty (trừ khi có chỉ đạo rõ ràng từ người dùng).
