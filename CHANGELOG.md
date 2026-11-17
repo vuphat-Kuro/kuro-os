@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.6.2] - 2026-11-17
+- Nâng cấp nút dừng phản hồi & Đa luồng phiên hội thoại độc lập (Multi-Session Concurrent Stream):
+  - **Nút Dừng phản hồi (Stop button):** Khi AI đang phản hồi, biểu tượng gửi tin tự động chuyển thành biểu tượng Stop vuông nổi bật (`⏹`), màu đỏ cam cảnh báo. Nhấn vào sẽ lập tức dừng phản hồi của phiên đó, ngắt process CLI nền và hiển thị thông báo `_(Đã dừng phản hồi theo yêu cầu)_`.
+  - **Đa phiên xử lý độc lập, song song:** Chuyển đổi cơ chế chạy phản hồi sang các Task asyncio nền riêng biệt theo từng phiên (`session_id`), giải phóng hoàn toàn vòng lặp WebSocket. Kỹ sư có thể chuyển qua lại giữa các phiên khác nhau, gõ và gửi tin nhắn đồng thời mà không phải chờ đợi phiên trước xong.
+  - **Chỉ báo trạng thái trực quan:** Thẻ phiên ở cột Lịch sử tự động hiển thị huy hiệu `Đang xử lý` khi đang chạy ngầm; thanh trạng thái hiển thị số lượng phiên đang xử lý song song.
+  - **Chuẩn hóa hiển thị tên Agent:** Sửa đổi dấu gạch chéo kép `//` thành dấu hai chấm `:` chuẩn mực (ví dụ: `KURO CORE:`).
+
 ## [1.7.0] - 2026-11-17
 - Diễn hoạ bản vẽ chạy trên máy (ComfyUI + RealVisXL V5 + ControlNet Union SDXL): gửi ảnh vào chat kèm câu "diễn hoạ ...", Kuro vẽ 2 phương án ảnh thật giữ đúng nét, lưu vào `<dự án>/dien-hoa/`. Nhận bản vẽ nét, ảnh hiện trạng, ảnh mô hình 3D/BIM; dùng được với mọi AI.
 - Tự bật ComfyUI khi cần, tự tắt sau 10 phút rảnh. Máy khác cài bằng `cai-dien-hoa.bat` (cần card NVIDIA từ 8 GB, tải khoảng 11,5 GB).

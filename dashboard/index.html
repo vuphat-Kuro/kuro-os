@@ -713,7 +713,7 @@
   }
   .user::before { content:"BẠN (KỸ SƯ)"; color:var(--amber); text-align:right; }
   .bot { position:relative; padding:16px 20px; background:var(--panel); border:1px solid var(--line); backdrop-filter:blur(6px); }
-  .bot::before { content:attr(data-sender) " //"; color:var(--cyan); }
+  .bot::before { content:attr(data-sender) ":"; color:var(--cyan); }
   .bot::after {
     content:""; position:absolute; inset:-1px; pointer-events:none;
     background:
@@ -736,7 +736,7 @@
     color:var(--cyan-soft); border:1px solid var(--line-hi); background:rgba(34,211,238,.06);
   }
   .tool::before { content:"▸ "; color:var(--amber); }
-  body.busy .bot:last-child::before { content:attr(data-sender) " // ĐANG XỬ LÝ..."; animation:blink 1s steps(2) infinite; }
+  body.busy .bot:last-child::before { content:attr(data-sender) ": ĐANG XỬ LÝ..."; animation:blink 1s steps(2) infinite; }
 
   /* Form nhập tin nhắn - Phong cách Claude Code & Antigravity 2.0 */
   form {
@@ -941,12 +941,28 @@
   .btn-send-round:hover svg {
     transform: translateX(1px);
   }
-  body.busy .btn-send-round {
-    background: #334155;
-    color: #94a3b8;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
+  /* Trạng thái nút dừng phản hồi khi phiên chat đang xử lý */
+  .btn-send-round.is-stopping {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.65) !important;
+    transform: none !important;
+    animation: stopPulse 1.6s infinite ease-in-out;
+  }
+  .btn-send-round.is-stopping:hover {
+    background: #dc2626 !important;
+    transform: scale(1.08) !important;
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.9) !important;
+  }
+  .btn-send-round.is-stopping svg {
+    stroke-width: 0;
+    fill: currentColor;
+    transform: none !important;
+  }
+  @keyframes stopPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+    50% { box-shadow: 0 0 18px rgba(239, 68, 68, 0.9); }
   }
 
   /* Menu Popover khi bấm nút dấu cộng (+) */
@@ -2168,7 +2184,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.6.1</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.6.2</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -2322,7 +2338,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.6.1</span>
+        <span class="btn-text" id="header-version-text">v1.6.2</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -3052,12 +3068,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.6.1</div>
+        <div class="vc-val" id="vd-current-ver">v1.6.2</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.6.1</div>
+        <div class="vc-val" id="vd-latest-ver">v1.6.2</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
           <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>

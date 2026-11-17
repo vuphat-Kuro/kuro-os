@@ -140,22 +140,32 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
         await proc.stdin.drain()
         proc.stdin.close()
     parse = _codex_event if kind == "codex" else _agy_event
-    async for raw in proc.stdout:
-        line = raw.decode("utf-8", "replace").strip()
-        try:
-            e = json.loads(line)
-        except ValueError:
-            if line:
-                st["notes"].append(line)
-            continue
-        for out in parse(e, st):
-            yield out
-    err = (await proc.stderr.read()).decode("utf-8", "replace")
-    code = await proc.wait()
-    # Không bao giờ trả bong bóng rỗng: không có chữ thì phải có lý do (stderr, dòng lạ, hoặc câu mặc định).
-    if (code or not st["text"]) and not st["error"]:
-        st["error"] = (err.strip().splitlines() or st["notes"] or
-                       [f"{kind} thoát mã {code}" if code else "AI không trả lời gì."])[-1][:500]
-    if st["error"]:
-        yield {"type": "error", "text": st["error"]}
-    yield {"type": "final", "text": "", "claude_id": st["id"]}   # engine gắn tiền tố <id AI>:
+    try:
+        async for raw in proc.stdout:
+            line = raw.decode("utf-8", "replace").strip()
+            try:
+                e = json.loads(line)
+            except ValueError:
+                if line:
+                    st["notes"].append(line)
+                continue
+            for out in parse(e, st):
+                yield out
+        err = (await proc.stderr.read()).decode("utf-8", "replace")
+        code = await proc.wait()
+        # Không bao giờ trả bong bóng rỗng: không có chữ thì phải có lý do (stderr, dòng lạ, hoặc câu mặc định).
+        if (code or not st["text"]) and not st["error"]:
+            st["error"] = (err.strip().splitlines() or st["notes"] or
+                           [f"{kind} thoát mã {code}" if code else "AI không trả lời gì."])[-1][:500]
+        if st["error"]:
+            yield {"type": "error", "text": st["error"]}
+        yield {"type": "final", "text": "", "claude_id": st["id"]}   # engine gắn tiền tố <id AI>:
+    finally:
+        if proc.returncode is None:
+            try:
+                proc.terminate()
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass

@@ -571,6 +571,25 @@ def set_session_model(sid: str, body: dict):
     return {"ok": True, "model": model}
 
 
+# Quản lý task chat theo từng session (xử lý độc lập, song song)
+session_chat_tasks: dict[str, asyncio.Task] = {}
+
+
+@app.post("/api/sessions/{sid}/stop")
+async def stop_session_chat(sid: str):
+    task = session_chat_tasks.get(sid)
+    if task and not task.done():
+        task.cancel()
+        session_chat_tasks.pop(sid, None)
+        await manager.broadcast({
+            "type": "turn_stopped",
+            "session": sid,
+            "message": "_(Đã dừng phản hồi theo yêu cầu)_"
+        })
+        return {"ok": True, "stopped": True, "session": sid}
+    return {"ok": True, "stopped": False, "session": sid}
+
+
 @app.post("/api/upload-file")
 async def upload_general_file(file: UploadFile = File(...)):
     filename = file.filename or "file.dat"
@@ -1735,6 +1754,20 @@ async def ws(sock: WebSocket):
                 await sock.send_json({"type": "pong"})
                 continue
 
+            if req_type == "stop":
+                target_sid = req.get("session")
+                if target_sid and target_sid in session_chat_tasks:
+                    task = session_chat_tasks.get(target_sid)
+                    if task and not task.done():
+                        task.cancel()
+                    session_chat_tasks.pop(target_sid, None)
+                    await manager.broadcast({
+                        "type": "turn_stopped",
+                        "session": target_sid,
+                        "message": "_(Đã dừng phản hồi theo yêu cầu)_"
+                    })
+                continue
+
             if req_type == "sync_active":
                 st = get_active_state()
                 if req.get("agent"):
@@ -1796,33 +1829,63 @@ async def ws(sock: WebSocket):
                 "model": effective_model
             })
 
-            # Broadcast từng token streaming tới tất cả thiết bị
-            async def broadcast_chunk(chunk: dict):
-                payload = dict(chunk)
-                payload["session"] = sid
-                payload["agent"] = agent
-                payload["workspace"] = workspace
-                await manager.broadcast(payload)
+            # Chạy phản hồi trong Task nền riêng biệt cho từng phiên (không làm nghẽn socket!)
+            # Cho phép các phiên khác gửi tin nhắn và xử lý đồng thời hoàn toàn độc lập!
+            async def run_session_turn(session_id: str, prompt_text: str, session_agent: str, session_ws: str, session_model: str | None):
+                try:
+                    async def broadcast_chunk(chunk: dict):
+                        payload = dict(chunk)
+                        payload["session"] = session_id
+                        payload["agent"] = session_agent
+                        payload["workspace"] = session_ws
+                        await manager.broadcast(payload)
 
-            answer = await engine.chat(sid, text, agent=agent, emit=broadcast_chunk, workspace=workspace, model=effective_model)
+                    answer = await engine.chat(session_id, prompt_text, agent=session_agent, emit=broadcast_chunk, workspace=session_ws, model=session_model)
 
-            # Broadcast sự kiện hoàn tất lượt với toàn bộ nội dung câu trả lời hoàn chỉnh
-            await manager.broadcast({
-                "type": "turn_complete",
-                "session": sid,
-                "agent": agent,
-                "workspace": workspace,
-                "answer": answer
-            })
+                    # Broadcast sự kiện hoàn tất lượt với toàn bộ nội dung câu trả lời hoàn chỉnh
+                    await manager.broadcast({
+                        "type": "turn_complete",
+                        "session": session_id,
+                        "agent": session_agent,
+                        "workspace": session_ws,
+                        "answer": answer
+                    })
 
-            # Broadcast kết thúc phiên để đồng bộ lịch sử trên cả 2 màn hình
-            await manager.broadcast({
-                "type": "session_saved",
-                "id": sid,
-                "agent": agent,
-                "workspace": workspace,
-                "title": text
-            })
+                    # Broadcast kết thúc phiên để đồng bộ lịch sử
+                    await manager.broadcast({
+                        "type": "session_saved",
+                        "id": session_id,
+                        "agent": session_agent,
+                        "workspace": session_ws,
+                        "title": prompt_text
+                    })
+                except asyncio.CancelledError:
+                    # Người dùng bấm dừng phản hồi
+                    await manager.broadcast({
+                        "type": "turn_stopped",
+                        "session": session_id,
+                        "agent": session_agent,
+                        "workspace": session_ws,
+                        "message": "_(Đã dừng phản hồi theo yêu cầu)_"
+                    })
+                except Exception as ex:
+                    await manager.broadcast({
+                        "type": "turn_error",
+                        "session": session_id,
+                        "agent": session_agent,
+                        "workspace": session_ws,
+                        "error": str(ex)
+                    })
+                finally:
+                    if session_chat_tasks.get(session_id) == this_turn_task:
+                        session_chat_tasks.pop(session_id, None)
+
+            # Nếu phiên này đang có task chạy trước đó thì dừng task cũ
+            if sid in session_chat_tasks and not session_chat_tasks[sid].done():
+                session_chat_tasks[sid].cancel()
+
+            this_turn_task = asyncio.create_task(run_session_turn(sid, text, agent, workspace, effective_model))
+            session_chat_tasks[sid] = this_turn_task
     except WebSocketDisconnect:
         manager.disconnect(sock)
     except Exception:
