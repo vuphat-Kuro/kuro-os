@@ -58,7 +58,8 @@ except ImportError:
         import subprocess
         print("[Desktop App] Đang bổ sung gói pywebview cho ứng dụng Desktop...")
         py_exe = sys.executable
-        subprocess.run([py_exe, "-m", "pip", "install", "pywebview", "pywin32", "pythonnet"], check=False)
+        no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        subprocess.run([py_exe, "-m", "pip", "install", "pywebview", "pywin32", "pythonnet"], check=False, creationflags=no_win)
         import webview
     except Exception as e:
         print(f"[Desktop App] Không nạp được pywebview: {e}")
@@ -118,17 +119,18 @@ class DesktopApi:
 
 
 def free_port(port: int = 7788):
-    """Giải phóng cổng nếu có tiến trình zombie cũ chiếm giữ."""
+    """Giải phóng cổng nếu có tiến trình zombie cũ chiếm giữ (chạy ngầm 100%, không nháy cửa sổ console)."""
     try:
         import subprocess
+        no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         cmd = f'netstat -ano | findstr /r /c:":{port} .*LISTENING"'
-        out = subprocess.check_output(cmd, shell=True, text=True, encoding="utf-8", errors="ignore")
+        out = subprocess.check_output(cmd, shell=True, text=True, encoding="utf-8", errors="ignore", creationflags=no_win)
         for line in out.strip().splitlines():
             parts = line.strip().split()
             if len(parts) >= 5:
                 pid = int(parts[-1])
                 if pid > 0 and pid != os.getpid():
-                    os.system(f"taskkill /PID {pid} /F >nul 2>&1")
+                    subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, creationflags=no_win)
     except Exception:
         pass
 

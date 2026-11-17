@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.8] - 2026-11-17
+- Triệt tiêu hoàn toàn hiện tượng nhấp nháy cửa sổ terminal (Command Prompt console đen) khi mở Kuro và khi thực hiện tác vụ:
+  - **Khởi động 100% ngầm (Zero-Flash Startup):** Tối ưu hóa file `run.bat` tự động ủy quyền thực thi sang `kuro.vbs` chạy qua `wscript.exe` / `pythonw.exe`, đóng cửa sổ cmd ngay lập tức sau 0 giây, không còn bất kỳ màn hình console đen nào xuất hiện.
+  - **Chạy lệnh ngầm không tạo Console (`CREATE_NO_WINDOW`):** Sửa đổi toàn bộ các hàm gọi lệnh con của hệ điều hành Windows (`subprocess.run`, `subprocess.check_output`, `subprocess.Popen`) trên toàn bộ hệ thống (`app_desktop.py`, `server/calc.py`, `server/main.py`, `server/update.py`), gán cờ `creationflags=0x08000000` (`CREATE_NO_WINDOW`).
+  - **Loại bỏ `os.system` gây nháy:** Thay thế triệt để các lệnh gọi `os.system(...)` (như kiểm tra giải phóng cổng `taskkill`, `netstat`) vốn luôn tạo tiến trình `cmd.exe` mới trên màn hình bằng `subprocess.run` ngầm hoàn toàn.
+  - **Trải nghiệm mượt mà:** Khắc phục triệt để hiện tượng nháy đen màn hình mỗi khi: khởi động Kuro, AI tính toán kỹ thuật Python (`tinh_python`), kiểm tra trạng thái Tailscale/Mạng nội bộ, kiểm tra cập nhật git định kỳ mỗi giờ, hoặc mở hộp thoại chọn tệp/thư mục.
+
 ## [1.7.7] - 2026-11-17
 - Khôi phục và nâng cấp toàn diện nút vòng tròn Hạn mức sử dụng AI (Quota Ring & Rate Limit):
   - **Vòng tròn tiến độ trực quan (Quota Ring):** Chuyển đổi biểu tượng trạng thái sẵn sàng tĩnh thành vòng tròn tiến độ động (SVG Circular Progress), biểu thị % hạn mức sử dụng theo block 5 giờ của model AI đang dùng. Tự động đổi màu (Cyan: dồi dào, Vàng: mức cao, Đỏ: gần chạm ngưỡng).

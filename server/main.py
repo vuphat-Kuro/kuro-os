@@ -772,7 +772,8 @@ async def pick_native_file():
             return subprocess.run(
                 cmd,
                 capture_output=True,
-                timeout=300
+                timeout=300,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
             )
         proc = await loop.run_in_executor(None, _run)
         lines = [line.strip() for line in proc.stdout.decode("utf-8", errors="ignore").splitlines() if line.strip()]
@@ -862,7 +863,8 @@ def get_tailscale_info() -> dict:
         return {"installed": False, "running": False}
 
     try:
-        res = subprocess.run([ts_bin, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
+        no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        res = subprocess.run([ts_bin, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, creationflags=no_win)
         if res.returncode != 0 or not res.stdout.strip():
             return {"installed": True, "running": False}
         data = json.loads(res.stdout)
@@ -1193,7 +1195,8 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     # 9. Git branch
     branch = "main"
     try:
-        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=2)
+        no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=2, creationflags=no_win)
         if r.returncode == 0 and r.stdout.strip():
             branch = r.stdout.strip()
     except Exception:
@@ -1526,7 +1529,8 @@ async def browse_native_workspace():
             return subprocess.run(
                 cmd,
                 capture_output=True,
-                timeout=300
+                timeout=300,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
             )
         proc = await loop.run_in_executor(None, _run)
         lines = [line.strip() for line in proc.stdout.decode("utf-8", errors="ignore").splitlines() if line.strip()]

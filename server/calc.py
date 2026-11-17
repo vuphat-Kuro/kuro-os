@@ -33,9 +33,11 @@ def run_python(code: str, muc_dich: str = "") -> str:
     f = d / f"{datetime.now():%Y%m%d-%H%M%S-%f}.py"
     f.write_text((f"# {muc_dich}\n" if muc_dich else "") + code, encoding="utf-8")
     try:
-        # -I: không nạp module lạ từ thư mục làm việc; -X utf8: in tiếng Việt không lỗi mã
+        # -I: không nạp module lạ từ thư mục làm việc; -X utf8: in tiếng Việt không lỗi mã; CREATE_NO_WINDOW: không nháy console
+        no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         r = subprocess.run([sys.executable, "-I", "-X", "utf8", str(f)], cwd=d, capture_output=True,
                            text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT_S,
+                           creationflags=no_win,
                            env={**os.environ, "MPLBACKEND": "Agg"})
         status = "OK" if r.returncode == 0 else f"LỖI exit={r.returncode}"
         out = r.stdout + (f"\n[stderr]\n{r.stderr}" if r.stderr.strip() else "")

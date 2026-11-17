@@ -75,6 +75,7 @@ STATUS = {
 
 def _git(*args: str) -> str:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never"}
+    no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     r = subprocess.run(
         ["git", *args],
         cwd=config.ROOT,
@@ -83,6 +84,7 @@ def _git(*args: str) -> str:
         encoding="utf-8",
         errors="replace",
         timeout=60,
+        creationflags=no_win,
         env=env,
     )
     if r.returncode:

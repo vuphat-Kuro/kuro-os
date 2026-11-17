@@ -1,6 +1,19 @@
 @echo off
 cd /d "%~dp0"
 title Kuro OS
+
+REM Uu tien khoi chay ngam khong hien cua so den console bang kuro.vbs
+if exist "kuro.vbs" (
+    start "" wscript.exe //nologo "kuro.vbs"
+    exit /b 0
+)
+
+REM Fallback neu khong co kuro.vbs: dung pythonw.exe de khong nhay console
+if exist ".venv\Scripts\pythonw.exe" (
+    start "" ".venv\Scripts\pythonw.exe" app_desktop.py
+    exit /b 0
+)
+
 echo ========================================================
 echo   KURO OS - TRO LY KY SU HA TANG (WINDOWS DESKTOP APP)
 echo ========================================================
