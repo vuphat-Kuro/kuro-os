@@ -2687,8 +2687,118 @@ async function openSettings() {
     delete el.dataset.clear;
   }
   showProvider();
+  await updateSettingModels(sel.value || "claude");
   $("settings").showModal();
   loadKhoLich().catch(() => {});
+}
+
+// Cập nhật danh sách model gợi ý theo từng AI trong Cài đặt hệ thống
+async function updateSettingModels(provider) {
+  const modelSel = $("s-KURO_MODEL_SELECT");
+  const modelInput = $("s-KURO_MODEL");
+  const datalist = $("s-model-datalist");
+  const hint = $("s-model-hint");
+  if (!modelSel || !modelInput) return;
+
+  const p = provider || "claude";
+  try {
+    const res = await fetch(`/api/models?provider=${encodeURIComponent(p)}`);
+    const data = await res.json();
+    const models = data.models || [];
+
+    if (models.length > 0) {
+      modelSel.innerHTML = "";
+      const defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = `-- Chọn nhanh model có sẵn (${models.length} model) --`;
+      modelSel.appendChild(defaultOpt);
+
+      models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = `${m.ten} ${m.id ? `(${m.id})` : "[Mặc định]"}`;
+        modelSel.appendChild(opt);
+      });
+
+      const customOpt = document.createElement("option");
+      customOpt.value = "__custom__";
+      customOpt.textContent = "✏️ Nhập model tùy biến khác...";
+      modelSel.appendChild(customOpt);
+
+      if (datalist) {
+        datalist.innerHTML = "";
+        models.forEach((m) => {
+          if (m.id) {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.label = m.ten;
+            datalist.appendChild(opt);
+          }
+        });
+      }
+
+      modelSel.style.display = "block";
+
+      // Đồng bộ giá trị hiện tại
+      let currentVal = (modelInput.value || "").trim();
+      if (!currentVal && p === "antigravity") {
+        currentVal = data.current || "gemini-3.8-flash-medium";
+        modelInput.value = currentVal;
+      }
+
+      const matchOption = Array.from(modelSel.options).find(o => o.value.toLowerCase() === currentVal.toLowerCase());
+      if (matchOption) {
+        modelSel.value = matchOption.value;
+      } else if (currentVal) {
+        modelSel.value = "__custom__";
+      } else {
+        modelSel.value = "";
+      }
+
+      if (hint) {
+        if (p === "antigravity") {
+          hint.textContent = "Google Antigravity: Chọn model từ danh sách trên (khuyên dùng Gemini 3.8 Flash hoặc Gemini 4 Argon) hoặc tự nhập.";
+        } else if (p === "claude") {
+          hint.textContent = "Claude: Chọn sonnet, opus, haiku hoặc để trống = mặc định.";
+        }
+      }
+    } else {
+      modelSel.style.display = "none";
+      if (datalist) datalist.innerHTML = "";
+      if (hint) {
+        hint.textContent = "Để trống = model mặc định của hãng. Xem hướng dẫn điền model ở tài liệu nhà cung cấp.";
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi tải models cho provider:", err);
+    modelSel.style.display = "none";
+  }
+
+  // Gán sự kiện đồng bộ giữa select và input (chỉ gán 1 lần)
+  if (!modelSel._bound) {
+    modelSel._bound = true;
+    modelSel.onchange = () => {
+      const v = modelSel.value;
+      if (v === "__custom__") {
+        modelInput.focus();
+        modelInput.select();
+      } else if (v !== "") {
+        modelInput.value = v;
+      }
+    };
+
+    modelInput.addEventListener("input", () => {
+      const v = modelInput.value.trim().toLowerCase();
+      const match = Array.from(modelSel.options).find(o => o.value.toLowerCase() === v);
+      if (match) {
+        modelSel.value = match.value;
+      } else if (v) {
+        modelSel.value = "__custom__";
+      } else {
+        modelSel.value = "";
+      }
+    });
+  }
 }
 
 // Việc theo lịch và kho skill (specs/002). Chữ từ repo gán bằng textContent, không qua innerHTML.
@@ -2743,10 +2853,12 @@ function showProvider() {
   $("s-keyrow").style.display = p === "antigravity" || p === "codex" || !p ? "none" : "block";
 }
 
-$("s-KURO_PROVIDER").onchange = () => {
+$("s-KURO_PROVIDER").onchange = async () => {
+  const p = $("s-KURO_PROVIDER").value || "claude";
   const m = $("s-KURO_MODEL");
-  m.value = m.dataset.orig = modelTheoAi[$("s-KURO_PROVIDER").value || "claude"] || "";
+  m.value = m.dataset.orig = modelTheoAi[p] || "";
   showProvider();
+  await updateSettingModels(p);
 };
 
 async function saveSettings() {

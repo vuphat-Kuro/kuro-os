@@ -216,11 +216,38 @@ async def save_settings(body: dict[str, str]):
     return {"ok": True, "restart": (config.TG_TOKEN, config.TG_OWNERS) != old_tg}
 
 
+DEFAULT_AGY_MODELS = [
+    {"id": "gemini-3.8-flash-medium", "ten": "Gemini 3.8 Flash (Medium - Khuyên dùng)"},
+    {"id": "gemini-3.8-flash-high", "ten": "Gemini 3.8 Flash (High)"},
+    {"id": "gemini-3.8-flash-low", "ten": "Gemini 3.8 Flash (Low)"},
+    {"id": "gemini-4-argon-high", "ten": "Gemini 4 Argon (High - Rất mạnh)"},
+    {"id": "gemini-4-argon-medium", "ten": "Gemini 4 Argon (Medium)"},
+    {"id": "gemini-4-argon-low", "ten": "Gemini 4 Argon (Low)"},
+    {"id": "gemini-4-hydrogen-high", "ten": "Gemini 4 Hydrogen (High)"},
+    {"id": "gemini-4-hydrogen-medium", "ten": "Gemini 4 Hydrogen (Medium)"},
+    {"id": "gemini-4-hydrogen-low", "ten": "Gemini 4 Hydrogen (Low)"},
+    {"id": "claude-sonnet-5-5-high", "ten": "Claude Sonnet 5.5 (High)"},
+    {"id": "claude-sonnet-5-5-medium", "ten": "Claude Sonnet 5.5 (Medium)"},
+    {"id": "claude-opus-5-5-medium", "ten": "Claude Opus 5.5 (Medium)"},
+]
+
+
 @app.get("/api/models", dependencies=[Depends(local_only)])
-async def get_models():
-    kind = engine.cli_kind()
-    found = config.CLAUDE_MODELS if config.PROVIDER in ("", "claude") else await cli_engines.models(kind) if kind else []
-    return {"models": found, "current": config.MODEL}
+async def get_models(provider: str | None = None):
+    p = provider if provider is not None else config.PROVIDER
+    kind = "agy" if p == "antigravity" else "codex" if p in ("chatgpt", "codex") else (engine.cli_kind() if not provider else None)
+    if p in ("", "claude"):
+        found = config.CLAUDE_MODELS
+    elif kind == "agy":
+        found = await cli_engines.models("agy")
+        if not found:
+            found = DEFAULT_AGY_MODELS
+    elif kind:
+        found = await cli_engines.models(kind)
+    else:
+        found = []
+    curr = os.getenv(config.model_key(p), "") if provider else config.MODEL
+    return {"models": found, "current": curr}
 
 
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])

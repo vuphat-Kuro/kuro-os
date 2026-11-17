@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.6] - 2026-11-17
+- Tự động tải danh sách Model chọn nhanh khi cấu hình Google Antigravity (agy) và các AI:
+  - **Tải danh sách model trực quan:** Khi mở Cài đặt hệ thống và chọn `Google Antigravity (agy)` (hoặc Claude), Kuro tự động nạp toàn bộ danh sách các model khả dụng tương ứng (`Gemini 3.8 Flash`, `Gemini 4 Argon`, `Gemini 4 Hydrogen`, `Claude Sonnet 5.5`...) vào hộp chọn dropdown.
+  - **Tránh sai sót khi nhập tay:** Người dùng không còn phải tự gõ tên model hay lo gõ sai chính tả. Mặc định tự động chọn model khuyên dùng `gemini-3.8-flash-medium` khi cài mới lần đầu.
+  - **Linh hoạt tùy biến:** Vẫn giữ nguyên ô nhập tùy biến và danh sách gợi ý tự động (datalist) cho người dùng nâng cao muốn dùng model đặc biệt.
+
 ## [1.7.5] - 2026-11-17
 - Bảo mật kết nối: mặc định Kuro chỉ cho máy này dùng (127.0.0.1). Trước đây bản Desktop luôn mở cho cả mạng LAN, ai cùng mạng cũng mở được Kuro, đọc tệp và chat với AI trên máy bạn.
 - Muốn dùng điện thoại: gõ /remote, bấm "Bật cho điện thoại kết nối", mở lại Kuro rồi quét mã QR. Mã QR có mã ghép bí mật; thiết bị chưa quét bị chặn. **Điện thoại đã kết nối trước đây phải quét lại mã QR một lần.**

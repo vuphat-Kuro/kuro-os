@@ -2364,7 +2364,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.7.4</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.7.6</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -2524,7 +2524,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.7.4</span>
+        <span class="btn-text" id="header-version-text">v1.7.6</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -3176,8 +3176,12 @@
         <small>Để trống = địa chỉ mặc định của hãng.</small>
       </div>
       <label for="s-KURO_MODEL">Model</label>
-      <input id="s-KURO_MODEL" name="KURO_MODEL" spellcheck="false">
-      <small>Để trống = model mặc định. Với Claude có thể ghi: sonnet, opus, haiku.</small>
+      <select id="s-KURO_MODEL_SELECT" style="display:none; margin-bottom:6px; width:100%;" class="dialog-select" aria-label="Chọn model có sẵn"></select>
+      <div id="s-model-input-wrap">
+        <input id="s-KURO_MODEL" name="KURO_MODEL" spellcheck="false" placeholder="Nhập tên model hoặc chọn từ danh sách..." list="s-model-datalist">
+        <datalist id="s-model-datalist"></datalist>
+      </div>
+      <small id="s-model-hint">Để trống = model mặc định. Với Claude có thể ghi: sonnet, opus, haiku.</small>
       <div class="test">
         <button class="btn" type="button" id="s-test">Lưu và kiểm tra kết nối</button>
         <span id="s-test-msg" role="status"></span>
@@ -3262,12 +3266,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.7.4</div>
+        <div class="vc-val" id="vd-current-ver">v1.7.6</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.7.4</div>
+        <div class="vc-val" id="vd-latest-ver">v1.7.6</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
           <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>
