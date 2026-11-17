@@ -1,6 +1,15 @@
 # Nhật ký phiên bản Kuro OS
 
-## [1.7.1] - 2026-11-17
+## [1.7.2] - 2026-11-17
+- Cải tiến toàn diện thanh lọc nhóm cộng sự (Agent Filter Bar) chuẩn UX gọn gàng & linh hoạt:
+  - **Chế độ hiển thị thu gọn bằng Biểu tượng (Icon-only mode):** Mặc định các chip nhóm chỉ hiển thị biểu tượng đặc trưng (🛡️ Hệ thống, 🏗️ Kỹ thuật & Thi công, 📋 Quản lý & Hồ sơ, 🌐 BIM & Số hóa, 👥 Tổ đội...), kích thước nhỏ gọn 28x26px.
+  - **Tooltip thông minh:** Khi rê chuột vào biểu tượng nhóm, tooltip hiển thị đầy đủ tên nhóm và số lượng cộng sự (ví dụ: `Kỹ thuật & Thi công (4 cộng sự)`).
+  - **Bung chi tiết khi kích hoạt (Expand-on-active):** Khi click chọn nhóm bất kỳ (hoặc nhóm Tất cả), chip đang chọn sẽ tự động bung rộng hiển thị trọn vẹn biểu tượng, tên nhóm và số lượng với nền cyan phát sáng nổi bật. Click lại vào chính chip đó sẽ hủy lọc (quay về Tất cả).
+  - **Cơ chế xử lý danh sách nhóm dài:**
+    - **Cuộn ngang bằng con lăn chuột (`wheel`):** Hỗ trợ lăn chuột trực tiếp trên thanh filter để cuộn ngang mượt mà, không lo danh sách nhóm bị tràn hay cắt xén.
+    - **Nút trượt điều hướng trái/phải (`‹` và `›`):** Tự động xuất hiện khi danh sách nhóm vượt quá chiều rộng sidebar, tự động vô hiệu hóa (disable mờ) khi chạm đầu/cuối danh sách.
+    - **Menu thả xuống nhanh (`▾` Dropdown):** Nút danh mục ở góc phải cho phép mở popover dọc xem toàn bộ danh sách nhóm và số lượng, bấm chọn nhảy thẳng tới nhóm cần lọc ngay lập tức.
+    - **Tự động cuộn tới chip active:** Khi chọn một nhóm, chip đó được tự động cuộn vào trung tâm tầm nhìn.
 - Nâng cấp nút dừng phản hồi & Đa luồng phiên hội thoại độc lập (Multi-Session Concurrent Stream):
   - **Nút Dừng phản hồi (Stop button):** Khi AI đang phản hồi, biểu tượng gửi tin tự động chuyển thành biểu tượng Stop vuông nổi bật (`⏹`), màu đỏ cam cảnh báo. Nhấn vào sẽ lập tức dừng phản hồi của phiên đó, ngắt process CLI nền và hiển thị thông báo `_(Đã dừng phản hồi theo yêu cầu)_`.
   - **Đa phiên xử lý độc lập, song song:** Chuyển đổi cơ chế chạy phản hồi sang các Task asyncio nền riêng biệt theo từng phiên (`session_id`), giải phóng hoàn toàn vòng lặp WebSocket. Kỹ sư có thể chuyển qua lại giữa các phiên khác nhau, gõ và gửi tin nhắn đồng thời mà không phải chờ đợi phiên trước xong.

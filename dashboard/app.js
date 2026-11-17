@@ -333,20 +333,10 @@ function saveCollapsedGroups() {
 function renderGroupFilterChips() {
   const bar = $("agent-filter-chips");
   const datalist = $("agent-groups-datalist");
+  const btnMore = $("agent-filter-dropdown-btn");
+  const dropMenu = $("agent-filter-dropdown-menu");
   if (!bar) return;
   bar.innerHTML = "";
-
-  // Tạo chip "Tất cả"
-  const allChip = document.createElement("button");
-  allChip.type = "button";
-  allChip.className = "filter-chip" + (currentGroupFilter === "all" ? " active" : "");
-  allChip.textContent = `Tất cả (${agents.length})`;
-  allChip.onclick = () => {
-    currentGroupFilter = "all";
-    renderGroupFilterChips();
-    renderAgentList();
-  };
-  bar.appendChild(allChip);
 
   // Thu thập các nhóm duy nhất và đếm số lượng
   const groupCounts = {};
@@ -377,17 +367,147 @@ function renderGroupFilterChips() {
     return a.localeCompare(b, "vi");
   });
 
+  // Tạo chip "Tất cả"
+  const isAllActive = (currentGroupFilter === "all");
+  const allChip = document.createElement("button");
+  allChip.type = "button";
+  allChip.className = "filter-chip" + (isAllActive ? " active" : "");
+  allChip.title = `Tất cả cộng sự (${agents.length})`;
+  allChip.innerHTML = `<span class="chip-icon">❖</span><span class="chip-label">Tất cả</span><span class="chip-count">(${agents.length})</span>`;
+  allChip.onclick = () => {
+    currentGroupFilter = "all";
+    renderGroupFilterChips();
+    renderAgentList();
+  };
+  bar.appendChild(allChip);
+
   sortedGroups.forEach((grp) => {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "filter-chip" + (currentGroupFilter === grp ? " active" : "");
-    chip.textContent = `${getGroupIcon(grp)} ${grp} (${groupCounts[grp]})`;
+    const isActive = (currentGroupFilter === grp);
+    chip.className = "filter-chip" + (isActive ? " active" : "");
+    chip.title = `${grp} (${groupCounts[grp]} cộng sự)`;
+    chip.innerHTML = `<span class="chip-icon">${getGroupIcon(grp)}</span><span class="chip-label">${escapeHtml(grp)}</span><span class="chip-count">(${groupCounts[grp]})</span>`;
     chip.onclick = () => {
       currentGroupFilter = (currentGroupFilter === grp) ? "all" : grp;
       renderGroupFilterChips();
       renderAgentList();
     };
     bar.appendChild(chip);
+  });
+
+  // Xây dựng menu thả xuống xem toàn bộ danh sách nhóm
+  if (dropMenu) {
+    dropMenu.innerHTML = "";
+    const allItem = document.createElement("div");
+    allItem.className = "filter-dropdown-item" + (isAllActive ? " active" : "");
+    allItem.innerHTML = `<span>❖ Tất cả</span><span style="opacity:0.6;font-size:11px;">${agents.length}</span>`;
+    allItem.onclick = () => {
+      currentGroupFilter = "all";
+      dropMenu.style.display = "none";
+      renderGroupFilterChips();
+      renderAgentList();
+    };
+    dropMenu.appendChild(allItem);
+
+    sortedGroups.forEach((grp) => {
+      const item = document.createElement("div");
+      item.className = "filter-dropdown-item" + (currentGroupFilter === grp ? " active" : "");
+      item.innerHTML = `<span>${getGroupIcon(grp)} ${escapeHtml(grp)}</span><span style="opacity:0.6;font-size:11px;">${groupCounts[grp]}</span>`;
+      item.onclick = () => {
+        currentGroupFilter = (currentGroupFilter === grp) ? "all" : grp;
+        dropMenu.style.display = "none";
+        renderGroupFilterChips();
+        renderAgentList();
+      };
+      dropMenu.appendChild(item);
+    });
+  }
+
+  // Tự động cuộn chip đang active vào tầm nhìn
+  const activeChip = bar.querySelector(".filter-chip.active");
+  if (activeChip) {
+    setTimeout(() => {
+      activeChip.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }, 50);
+  }
+
+  // Khởi tạo sự kiện cuộn và cập nhật trạng thái nút
+  initFilterBarEvents();
+  updateFilterScrollButtons();
+}
+
+// Cập nhật hiển thị và trạng thái nút điều hướng cuộn ‹ và ›
+function updateFilterScrollButtons() {
+  const bar = $("agent-filter-chips");
+  const btnLeft = $("agent-filter-scroll-left");
+  const btnRight = $("agent-filter-scroll-right");
+  if (!bar || !btnLeft || !btnRight) return;
+  const isOverflow = bar.scrollWidth > bar.clientWidth + 2;
+  if (!isOverflow) {
+    btnLeft.style.display = "none";
+    btnRight.style.display = "none";
+  } else {
+    btnLeft.style.display = "flex";
+    btnRight.style.display = "flex";
+    btnLeft.classList.toggle("disabled", bar.scrollLeft <= 2);
+    btnRight.classList.toggle("disabled", bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 3);
+  }
+}
+
+// Gán sự kiện cho thanh lọc nhóm (chỉ gán 1 lần)
+function initFilterBarEvents() {
+  const bar = $("agent-filter-chips");
+  const btnLeft = $("agent-filter-scroll-left");
+  const btnRight = $("agent-filter-scroll-right");
+  const btnMore = $("agent-filter-dropdown-btn");
+  const dropMenu = $("agent-filter-dropdown-menu");
+  if (!bar || bar._filterEventsBound) return;
+  bar._filterEventsBound = true;
+
+  // 1. Cuộn ngang bằng con lăn chuột (wheel)
+  bar.addEventListener("wheel", (e) => {
+    if (e.deltaY !== 0) {
+      e.preventDefault();
+      bar.scrollLeft += e.deltaY;
+      updateFilterScrollButtons();
+    }
+  }, { passive: false });
+
+  // 2. Theo dõi cuộn ngang để cập nhật nút ‹ và ›
+  bar.addEventListener("scroll", () => {
+    updateFilterScrollButtons();
+  }, { passive: true });
+
+  // 3. Nút cuộn trái / phải
+  if (btnLeft) {
+    btnLeft.onclick = () => {
+      bar.scrollBy({ left: -90, behavior: "smooth" });
+      setTimeout(updateFilterScrollButtons, 150);
+    };
+  }
+  if (btnRight) {
+    btnRight.onclick = () => {
+      bar.scrollBy({ left: 90, behavior: "smooth" });
+      setTimeout(updateFilterScrollButtons, 150);
+    };
+  }
+
+  // 4. Menu thả xuống xem tất cả các nhóm
+  if (btnMore && dropMenu) {
+    btnMore.onclick = (e) => {
+      e.stopPropagation();
+      dropMenu.style.display = (dropMenu.style.display === "none" || !dropMenu.style.display) ? "block" : "none";
+    };
+    document.addEventListener("click", (e) => {
+      if (dropMenu.style.display !== "none" && !btnMore.contains(e.target) && !dropMenu.contains(e.target)) {
+        dropMenu.style.display = "none";
+      }
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    updateFilterScrollButtons();
   });
 }
 

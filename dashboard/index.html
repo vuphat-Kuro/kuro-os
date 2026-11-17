@@ -379,19 +379,141 @@
   .search-box input::placeholder { color:var(--muted); font-size:12.5px; }
 
   /* Bộ lọc nhóm và Accordion cho Agent List */
+  .agent-filter-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 10px 6px;
+    gap: 4px;
+  }
+  .agent-filter-scroll-btn, .agent-filter-more-btn {
+    width: 22px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    flex: none;
+    transition: all .15s ease;
+    padding: 0;
+  }
+  .agent-filter-scroll-btn:hover, .agent-filter-more-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
+    background: rgba(34, 211, 238, .1);
+  }
+  .agent-filter-scroll-btn.disabled {
+    opacity: 0.2;
+    cursor: default;
+    pointer-events: none;
+  }
   .agent-filter-bar {
-    display:flex; align-items:center; gap:5px; padding:0 14px 6px; overflow-x:auto; scrollbar-width:none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+    flex: 1;
+    min-width: 0;
   }
-  .agent-filter-bar::-webkit-scrollbar { display:none; }
+  .agent-filter-bar::-webkit-scrollbar { display: none; }
   .filter-chip {
-    padding:3px 9px; font:600 10px/1 var(--hud); letter-spacing:.04em; border-radius:12px;
-    background:rgba(255,255,255,.04); border:1px solid var(--line); color:var(--muted);
-    cursor:pointer; white-space:nowrap; transition:all .15s ease; flex:none;
+    min-width: 28px;
+    height: 26px;
+    padding: 0 6px;
+    font: 600 11px/1 var(--hud);
+    letter-spacing: .03em;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .18s ease;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-sizing: border-box;
   }
-  .filter-chip:hover { border-color:var(--cyan); color:var(--text); }
+  .filter-chip:hover {
+    border-color: var(--cyan);
+    color: var(--text);
+    background: rgba(255, 255, 255, .08);
+  }
   .filter-chip.active {
-    background:rgba(34,211,238,.14); border-color:var(--cyan); color:var(--cyan-soft);
-    box-shadow:0 0 8px rgba(34,211,238,.15);
+    background: rgba(34, 211, 238, .16);
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
+    box-shadow: 0 0 8px rgba(34, 211, 238, .2);
+    border-radius: 13px;
+    padding: 0 10px;
+    font-weight: 700;
+  }
+  .filter-chip .chip-icon {
+    font-size: 13px;
+    line-height: 1;
+    display: inline-block;
+  }
+  .filter-chip .chip-label {
+    display: none;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .filter-chip.active .chip-label {
+    display: inline-block;
+  }
+  .filter-chip .chip-count {
+    display: none;
+    font-size: 10px;
+    opacity: 0.75;
+  }
+  .filter-chip.active .chip-count {
+    display: inline-block;
+  }
+
+  .agent-filter-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 10px;
+    background: #0d1520;
+    border: 1px solid var(--cyan-dim, #1e3a5f);
+    border-radius: 6px;
+    padding: 4px 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    z-index: 100;
+    max-height: 240px;
+    overflow-y: auto;
+    min-width: 175px;
+  }
+  .filter-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    color: var(--text);
+    font: 500 12px var(--body);
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    gap: 8px;
+  }
+  .filter-dropdown-item:hover {
+    background: rgba(34, 211, 238, .12);
+    color: var(--cyan-soft);
+  }
+  .filter-dropdown-item.active {
+    color: var(--cyan);
+    font-weight: 600;
+    background: rgba(34, 211, 238, .08);
   }
   .agent-actions-row {
     display:flex; align-items:center; justify-content:space-between; padding:4px 14px 6px;
@@ -2184,7 +2306,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.7.1</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.7.2</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -2210,9 +2332,15 @@
       </div>
     </div>
 
-    <!-- Thanh lọc nhanh theo nhóm (Filter Pills) -->
-    <div class="agent-filter-bar" id="agent-filter-chips">
-      <!-- Sinh động: Tất cả, Kỹ thuật & Thi công, Quản lý & Hồ sơ... -->
+    <!-- Thanh lọc nhanh theo nhóm (Filter Pills với Icon & Điều hướng cuộn) -->
+    <div class="agent-filter-wrapper">
+      <button id="agent-filter-scroll-left" class="agent-filter-scroll-btn" type="button" title="Cuộn sang trái" aria-label="Cuộn trái" style="display:none;">‹</button>
+      <div class="agent-filter-bar" id="agent-filter-chips">
+        <!-- Render động: Chỉ hiện icon, click chọn mới bung tên nhóm -->
+      </div>
+      <button id="agent-filter-scroll-right" class="agent-filter-scroll-btn" type="button" title="Cuộn sang phải" aria-label="Cuộn phải" style="display:none;">›</button>
+      <button id="agent-filter-dropdown-btn" class="agent-filter-more-btn" type="button" title="Danh sách các nhóm" aria-label="Danh sách nhóm">▾</button>
+      <div id="agent-filter-dropdown-menu" class="agent-filter-dropdown-menu" style="display:none;"></div>
     </div>
 
     <!-- Thanh điều khiển mở/thu gọn nhóm -->
@@ -2338,7 +2466,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.7.1</span>
+        <span class="btn-text" id="header-version-text">v1.7.2</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -3068,12 +3196,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.7.1</div>
+        <div class="vc-val" id="vd-current-ver">v1.7.2</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.7.1</div>
+        <div class="vc-val" id="vd-latest-ver">v1.7.2</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
           <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>
