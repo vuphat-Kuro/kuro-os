@@ -1287,24 +1287,182 @@
     animation: rise .2s ease;
   }
 
-  /* Vòng tròn trạng thái hoạt động (Spinner / Status Ring) */
-  .status-indicator-ring {
-    width: 14px;
-    height: 14px;
+  /* NÚT VÒNG TRÒN HẠN MỨC (QUOTA RING) */
+  .quota-pill-btn {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
-    border: 2px solid rgba(34, 211, 238, 0.25);
-    border-top-color: var(--cyan);
-    display: inline-block;
-    transition: all .2s;
     margin-left: 2px;
-    flex: none;
+    transition: transform .15s ease;
   }
-  body.busy .status-indicator-ring {
-    border-top-color: var(--amber);
+  .quota-pill-btn:hover {
+    transform: scale(1.15);
+  }
+  .quota-ring-wrap {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .quota-svg {
+    width: 18px;
+    height: 18px;
+    transform: rotate(-90deg);
+  }
+  .quota-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 2.2;
+  }
+  .quota-progress {
+    fill: none;
+    stroke: var(--cyan);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-dasharray: 47.12;
+    stroke-dashoffset: 47.12;
+    transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;
+  }
+  .quota-dot {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 4px var(--cyan);
+    pointer-events: none;
+  }
+  body.busy .quota-svg {
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* POPOVER HẠN MỨC AI (BLOCK 5H & TUẦN) */
+  .quota-menu-popover {
+    position: absolute;
+    bottom: 50px;
+    left: 170px;
+    width: 280px;
+    background: #0b1523;
+    border: 1px solid var(--cyan-dim, #1e3a5f);
+    border-radius: 8px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.85);
+    z-index: 60;
+    overflow: hidden;
+    user-select: none;
+  }
+  .quota-popover-header {
+    padding: 10px 14px 8px;
+    background: rgba(34, 211, 238, 0.08);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .quota-hdr-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 700 11px/1 var(--hud);
+    letter-spacing: .08em;
+    color: var(--cyan-soft);
+  }
+  .quota-hdr-icon { font-size: 13px; }
+  .quota-hdr-model {
+    font: 600 10.5px/1 var(--body);
+    color: var(--muted);
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .quota-popover-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .quota-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .quota-sec-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+  }
+  .quota-sec-title {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .quota-sec-val {
+    font: 700 12px/1 var(--hud);
+    color: var(--cyan);
+  }
+  .quota-progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .quota-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #06b6d4, #22d3ee);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .quota-progress-fill.week {
+    background: linear-gradient(90deg, #818cf8, #a855f7);
+  }
+  .quota-progress-fill.warn {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  }
+  .quota-progress-fill.danger {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+  }
+  .quota-sec-sub {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .quota-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 2px;
+  }
+  .quota-status-badge {
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .quota-refresh-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .quota-refresh-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
   }
 
   /* Submenu Flyout cho Menu Dấu cộng (+) */
@@ -2364,7 +2522,7 @@
     <div>
       <div style="display:flex; align-items:center; gap:8px;">
         <b>KURO</b>
-        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.7.6</span>
+        <span class="version-tag" id="sidebar-version-badge" title="Quản lý phiên bản & cập nhật">v1.7.7</span>
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
@@ -2524,7 +2682,7 @@
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
         <span class="btn-icon">🚀</span>
-        <span class="btn-text" id="header-version-text">v1.7.6</span>
+        <span class="btn-text" id="header-version-text">v1.7.7</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
         <span class="btn-icon">📱</span>
@@ -2804,6 +2962,49 @@
         </button>
       </div>
 
+      <!-- Popover Menu chi tiết Hạn mức Quota AI (Block 5h & Tuần) -->
+      <div id="quota-menu-popover" class="quota-menu-popover" style="display:none;">
+        <div class="quota-popover-header">
+          <div class="quota-hdr-title">
+            <span class="quota-hdr-icon">⚡</span>
+            <span>HẠN MỨC SỬ DỤNG AI</span>
+          </div>
+          <span class="quota-hdr-model" id="quota-model-name">Gemini 3.8 Flash</span>
+        </div>
+        <div class="quota-popover-body">
+          <div class="quota-section">
+            <div class="quota-sec-header">
+              <span class="quota-sec-title">Phiên hiện tại (Block 5 giờ)</span>
+              <span class="quota-sec-val" id="quota-5h-val">0%</span>
+            </div>
+            <div class="quota-progress-track">
+              <div class="quota-progress-fill" id="quota-5h-bar" style="width:0%;"></div>
+            </div>
+            <div class="quota-sec-sub">
+              <span id="quota-5h-reset">Làm mới lúc --:--</span>
+              <span id="quota-5h-count">0 lượt hỏi</span>
+            </div>
+          </div>
+          <div class="quota-section">
+            <div class="quota-sec-header">
+              <span class="quota-sec-title">Hạn mức theo tuần</span>
+              <span class="quota-sec-val" id="quota-week-val">0%</span>
+            </div>
+            <div class="quota-progress-track">
+              <div class="quota-progress-fill week" id="quota-week-bar" style="width:0%;"></div>
+            </div>
+            <div class="quota-sec-sub">
+              <span id="quota-week-reset">Làm mới vào Thứ Hai 07:00</span>
+              <span id="quota-week-count">0 lượt tuần này</span>
+            </div>
+          </div>
+          <div class="quota-status-row">
+            <span class="quota-status-badge" id="quota-status-badge">🟢 Hạn mức dồi dào</span>
+            <button type="button" class="quota-refresh-btn" id="btn-refresh-quota" title="Làm mới số liệu">🔄 Cập nhật</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Input ẩn cho chọn file từ trình duyệt máy tính -->
       <input type="file" id="general-file-input" style="display:none;" multiple>
 
@@ -2837,8 +3038,16 @@
             <span aria-hidden="true" style="font-size:11px; opacity:0.7;">▼</span>
           </button>
 
-          <!-- Trạng thái hoạt động spinner -->
-          <span class="status-indicator-ring" id="chat-status-ring" title="Trạng thái Kuro: Sẵn sàng"></span>
+          <!-- Nút hiển thị Hạn mức Quota (Block 5 giờ & Tuần) -->
+          <button type="button" class="quota-pill-btn" id="btn-quota-ring" title="Hạn mức AI: Block 5 giờ & Tuần (Bấm để xem chi tiết)">
+            <div class="quota-ring-wrap">
+              <svg class="quota-svg" viewBox="0 0 20 20">
+                <circle class="quota-bg" cx="10" cy="10" r="7.5"></circle>
+                <circle class="quota-progress" id="quota-circle-bar" cx="10" cy="10" r="7.5"></circle>
+              </svg>
+              <span class="quota-dot" id="quota-center-dot"></span>
+            </div>
+          </button>
         </div>
 
         <div class="chat-toolbar-right">
@@ -3266,12 +3475,12 @@
     <div class="version-grid">
       <div class="version-card current">
         <div class="vc-label">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="vc-val" id="vd-current-ver">v1.7.6</div>
+        <div class="vc-val" id="vd-current-ver">v1.7.7</div>
         <div class="vc-sub" id="vd-current-sub">Đang hoạt động trên máy</div>
       </div>
       <div class="version-card latest" id="vd-latest-card">
         <div class="vc-label">BẢN MỚI NHẤT TRÊN GITHUB</div>
-        <div class="vc-val" id="vd-latest-ver">v1.7.6</div>
+        <div class="vc-val" id="vd-latest-ver">v1.7.7</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
           <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>

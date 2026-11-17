@@ -1,5 +1,14 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.7] - 2026-11-17
+- Khôi phục và nâng cấp toàn diện nút vòng tròn Hạn mức sử dụng AI (Quota Ring & Rate Limit):
+  - **Vòng tròn tiến độ trực quan (Quota Ring):** Chuyển đổi biểu tượng trạng thái sẵn sàng tĩnh thành vòng tròn tiến độ động (SVG Circular Progress), biểu thị % hạn mức sử dụng theo block 5 giờ của model AI đang dùng. Tự động đổi màu (Cyan: dồi dào, Vàng: mức cao, Đỏ: gần chạm ngưỡng).
+  - **Bảng theo dõi hạn mức Block 5 giờ & Tuần:** Nhấp vào nút vòng tròn để mở popover theo dõi chi tiết:
+    - **Phiên 5 giờ (Block 5h):** Tỷ lệ %, số lượt hỏi đã dùng, mốc giờ làm mới (`reset_time`) và thời gian còn lại (`reset_in`).
+    - **Hạn mức tuần:** Tỷ lệ % và số lượt hỏi tích lũy trong 7 ngày, mốc reset vào sáng Thứ Hai.
+    - **Thông tin model:** Hiển thị chính xác tên model đang chạy (`gemini-3.8-flash-medium`, `claude-sonnet-5-5`...) kèm nút "Cập nhật" số liệu tức thì.
+  - **Tự động đồng bộ:** Tự động tính toán và làm mới số liệu sau mỗi câu hỏi hoàn thành hoặc khi mở popover.
+
 ## [1.7.6] - 2026-11-17
 - Tự động tải danh sách Model chọn nhanh khi cấu hình Google Antigravity (agy) và các AI:
   - **Tải danh sách model trực quan:** Khi mở Cài đặt hệ thống và chọn `Google Antigravity (agy)` (hoặc Claude), Kuro tự động nạp toàn bộ danh sách các model khả dụng tương ứng (`Gemini 3.8 Flash`, `Gemini 4 Argon`, `Gemini 4 Hydrogen`, `Claude Sonnet 5.5`...) vào hộp chọn dropdown.

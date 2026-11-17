@@ -205,6 +205,9 @@ function updateSendButtonState() {
   }
 
   updateSidebarSessionBadges();
+  if (!isBusy && typeof fetchAndRenderQuota === "function") {
+    fetchAndRenderQuota().catch(() => {});
+  }
 }
 
 function updateSidebarSessionBadges() {
@@ -3030,12 +3033,14 @@ function hideBottomPopovers() {
   const thinkMenu = $("thinking-menu-popover");
   const flyConnectors = $("flyout-connectors");
   const flyPlugins = $("flyout-plugins");
+  const quotaMenu = $("quota-menu-popover");
   if (attachMenu) attachMenu.style.display = "none";
   if (modelMenu) modelMenu.style.display = "none";
   if (modeMenu) modeMenu.style.display = "none";
   if (thinkMenu) thinkMenu.style.display = "none";
   if (flyConnectors) flyConnectors.style.display = "none";
   if (flyPlugins) flyPlugins.style.display = "none";
+  if (quotaMenu) quotaMenu.style.display = "none";
 }
 
 // Bắt sự kiện click ra ngoài để đóng các popover dưới đáy
@@ -3043,7 +3048,8 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest("#btn-chat-plus") && !e.target.closest("#attach-menu-popover") &&
       !e.target.closest("#btn-model-pill") && !e.target.closest("#model-menu-popover") &&
       !e.target.closest("#btn-thinking-pill") && !e.target.closest("#thinking-menu-popover") &&
-      !e.target.closest("#btn-mode-pill") && !e.target.closest("#mode-menu-popover")) {
+      !e.target.closest("#btn-mode-pill") && !e.target.closest("#mode-menu-popover") &&
+      !e.target.closest("#btn-quota-ring") && !e.target.closest("#quota-menu-popover")) {
     hideBottomPopovers();
   }
 });
@@ -3274,6 +3280,97 @@ modeItems.forEach(item => {
     hideBottomPopovers();
   };
 });
+
+// ========================================================
+// HẠN MỨC SỬ DỤNG AI (BLOCK 5 GIỜ & TUẦN)
+// ========================================================
+let lastQuotaData = null;
+
+async function fetchAndRenderQuota() {
+  try {
+    const sid = (typeof session !== "undefined") ? session : "";
+    const res = await fetch(`/api/quota?session_id=${encodeURIComponent(sid || "")}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    lastQuotaData = data;
+
+    const pct5h = data.block_5h.percent;
+    const pctWeek = data.weekly.percent;
+
+    // 1. Cập nhật vòng tròn SVG Quota
+    const circle = $("quota-circle-bar");
+    if (circle) {
+      const maxLen = 47.12;
+      const offset = maxLen * (1 - Math.min(100, pct5h) / 100);
+      circle.style.strokeDashoffset = offset;
+      if (pct5h >= 90) {
+        circle.style.stroke = "#ef4444";
+      } else if (pct5h >= 70) {
+        circle.style.stroke = "#f59e0b";
+      } else {
+        circle.style.stroke = "var(--cyan)";
+      }
+    }
+
+    const dot = $("quota-center-dot");
+    if (dot) {
+      dot.style.background = (pct5h >= 90) ? "#ef4444" : (pct5h >= 70) ? "#f59e0b" : "var(--cyan)";
+      dot.style.boxShadow = `0 0 4px ${dot.style.background}`;
+    }
+
+    const btn = $("btn-quota-ring");
+    if (btn) {
+      btn.title = `Hạn mức AI: Block 5h ${pct5h}% (${data.block_5h.reset_in}) · Tuần ${pctWeek}% (Bấm để xem chi tiết)`;
+    }
+
+    // 2. Cập nhật dữ liệu Popover
+    if ($("quota-model-name")) $("quota-model-name").textContent = data.model_name || data.model_id || "Model mặc định";
+    if ($("quota-5h-val")) $("quota-5h-val").textContent = `${pct5h}%`;
+    if ($("quota-5h-bar")) {
+      $("quota-5h-bar").style.width = `${Math.min(100, pct5h)}%`;
+      $("quota-5h-bar").className = "quota-progress-fill" + (pct5h >= 90 ? " danger" : pct5h >= 70 ? " warn" : "");
+    }
+    if ($("quota-5h-reset")) $("quota-5h-reset").textContent = `Làm mới lúc ${data.block_5h.reset_time} (${data.block_5h.reset_in})`;
+    if ($("quota-5h-count")) $("quota-5h-count").textContent = `${data.block_5h.used_count}/${data.block_5h.max_count} lượt hỏi`;
+
+    if ($("quota-week-val")) $("quota-week-val").textContent = `${pctWeek}%`;
+    if ($("quota-week-bar")) {
+      $("quota-week-bar").style.width = `${Math.min(100, pctWeek)}%`;
+      $("quota-week-bar").className = "quota-progress-fill week" + (pctWeek >= 90 ? " danger" : pctWeek >= 70 ? " warn" : "");
+    }
+    if ($("quota-week-reset")) $("quota-week-reset").textContent = `Làm mới: ${data.weekly.reset_day}`;
+    if ($("quota-week-count")) $("quota-week-count").textContent = `${data.weekly.used_count}/${data.weekly.max_count} lượt tuần này`;
+
+    if ($("quota-status-badge")) {
+      $("quota-status-badge").textContent = data.status_text;
+    }
+  } catch (err) {
+    console.warn("Lỗi tải hạn mức quota:", err);
+  }
+}
+
+// Bắt sự kiện click nút Quota Ring
+const btnQuotaRing = $("btn-quota-ring");
+if (btnQuotaRing) {
+  btnQuotaRing.onclick = (e) => {
+    e.stopPropagation();
+    const menu = $("quota-menu-popover");
+    const isVisible = menu && menu.style.display === "block";
+    hideBottomPopovers();
+    if (menu && !isVisible) {
+      menu.style.display = "block";
+      fetchAndRenderQuota();
+    }
+  };
+}
+
+const btnRefreshQuota = $("btn-refresh-quota");
+if (btnRefreshQuota) {
+  btnRefreshQuota.onclick = (e) => {
+    e.stopPropagation();
+    fetchAndRenderQuota();
+  };
+}
 
 // Xử lý input file chọn tài liệu / ảnh từ nút máy tính
 const genFileInput = $("general-file-input");
@@ -5168,6 +5265,7 @@ loadWorkspaces().then(async () => {
   await refreshFsTree();
 });
 loadModels().catch(() => {});
+fetchAndRenderQuota().catch(() => {});
 checkUpdate().catch(() => {});
 setInterval(() => checkUpdate().catch(() => {}), 3600e3);
 

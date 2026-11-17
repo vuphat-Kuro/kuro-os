@@ -250,6 +250,81 @@ async def get_models(provider: str | None = None):
     return {"models": found, "current": curr}
 
 
+@app.get("/api/quota")
+def get_quota(session_id: str | None = None):
+    from datetime import datetime
+    now = time.time()
+    t_5h_ago = now - 5 * 3600
+    msgs_5h = store._q("SELECT ts FROM messages WHERE role='user' AND ts >= ? ORDER BY ts ASC", (t_5h_ago,))
+    count_5h = len(msgs_5h)
+
+    if count_5h > 0:
+        first_ts = msgs_5h[0]["ts"]
+        reset_ts = first_ts + 5 * 3600
+        rem_sec = max(0, int(reset_ts - now))
+        reset_time_str = datetime.fromtimestamp(reset_ts).strftime("%H:%M")
+        hours = rem_sec // 3600
+        mins = (rem_sec % 3600) // 60
+        reset_in_str = f"còn {hours}h {mins:02d}m" if hours > 0 else f"còn {mins}m"
+    else:
+        reset_time_str = "Chưa dùng block 5h"
+        reset_in_str = "sẵn sàng 5h mới"
+
+    max_5h = 45
+    pct_5h = min(100.0, round((count_5h / max_5h) * 100, 1))
+
+    t_week_ago = now - 7 * 86400
+    msgs_week = store._q("SELECT ts FROM messages WHERE role='user' AND ts >= ?", (t_week_ago,))
+    count_week = len(msgs_week)
+    max_week = 350
+    pct_week = min(100.0, round((count_week / max_week) * 100, 1))
+
+    sess = store.get(session_id) if session_id else None
+    model_id = (sess.get("model") if sess else None) or config.MODEL or ""
+    provider = config.PROVIDER or "antigravity"
+    provider_info = config.PROVIDERS.get(provider, {})
+    provider_name = provider_info.get("ten", provider)
+
+    model_name = model_id or "Model mặc định"
+    for m in DEFAULT_AGY_MODELS:
+        if m["id"] == model_id:
+            model_name = m["ten"]
+            break
+
+    if pct_5h >= 90 or pct_week >= 90:
+        status_code = "danger"
+        status_text = "🔴 Sắp chạm hạn mức"
+    elif pct_5h >= 70 or pct_week >= 70:
+        status_code = "warning"
+        status_text = "🟡 Mức sử dụng cao"
+    else:
+        status_code = "normal"
+        status_text = "🟢 Hạn mức dồi dào"
+
+    return {
+        "ok": True,
+        "provider": provider,
+        "provider_name": provider_name,
+        "model_id": model_id,
+        "model_name": model_name,
+        "block_5h": {
+            "percent": pct_5h,
+            "used_count": count_5h,
+            "max_count": max_5h,
+            "reset_time": reset_time_str,
+            "reset_in": reset_in_str
+        },
+        "weekly": {
+            "percent": pct_week,
+            "used_count": count_week,
+            "max_count": max_week,
+            "reset_day": "Thứ Hai 07:00"
+        },
+        "status": status_code,
+        "status_text": status_text
+    }
+
+
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])
 async def test_ai():
     return await engine.ping()
