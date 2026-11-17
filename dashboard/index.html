@@ -3359,6 +3359,12 @@
       <button type="button" class="btn-icon" id="btn-close-remote-dialog" title="Đóng">✕</button>
     </div>
 
+    <!-- Bật/tắt cho điện thoại: mặc định chỉ máy này dùng; điện thoại phải quét QR (có mã ghép) mới vào được -->
+    <div id="remote-lan" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px; border:1px solid var(--line-hi); border-radius:6px; font-size:13px;">
+      <span id="remote-lan-text" style="flex:1; min-width:200px;"></span>
+      <button type="button" class="btn" id="btn-remote-lan"></button>
+    </div>
+
     <!-- CHỌN CHẾ ĐỘ KẾT NỐI -->
     <div class="remote-mode-tabs">
       <button type="button" class="remote-tab-btn active" id="tab-remote-tailscale">
@@ -3578,6 +3584,6 @@
   </div>
 </div>
 
-<script src="app.js?v=51"></script>
+<script src="app.js?v=52"></script>
 </body>
 </html>

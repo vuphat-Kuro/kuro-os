@@ -3,6 +3,7 @@ import difflib
 import hashlib
 import json
 import os
+import secrets
 import shutil
 from pathlib import Path
 
@@ -19,7 +20,8 @@ def _path(key: str, default: str) -> Path:
 
 STATE = _path("KURO_STATE_DIR", "state")
 BRAIN = _path("KURO_BRAINS_DIR", "brains") / os.getenv("KURO_BRAIN", "Brain Default")
-HOST = os.getenv("KURO_HOST", "0.0.0.0")
+# Mặc định chỉ máy này dùng. Bật cho điện thoại (0.0.0.0) ở hộp /remote; thiết bị khác vẫn phải có mã ghép trong QR.
+HOST = os.getenv("KURO_HOST", "127.0.0.1")
 PORT = int(os.getenv("KURO_PORT", "7788"))
 MCP_FILE = STATE / "mcp.json"
 REMINDERS_FILE = STATE / "reminders.json"
@@ -144,10 +146,19 @@ SETTINGS = {
     "KURO_ALLOWED_TOOLS": (False, r"[\w-]+(,[\w-]+)*"),
     "TELEGRAM_BOT_TOKEN": (True, r"(\d+:[\w-]+)?"),
     "TELEGRAM_OWNER_IDS": (False, r"(\d+(,\d+)*)?"),
+    "KURO_HOST": (False, r"(127\.0\.0\.1|0\.0\.0\.0)?"),
     "KURO_DATA_KTTC": (False, r".*"),
     "KURO_DATA_HD_DU_AN": (False, r".*"),
     "KURO_DATA_HD_THAU_PHU": (False, r".*"),
 }
+
+
+def remote_token() -> str:
+    """Mã ghép điện thoại: tạo một lần, lưu ở state/, chỉ đưa ra qua mã QR trên máy này."""
+    f = STATE / "remote_token.txt"
+    if not f.exists():
+        f.write_text(secrets.token_urlsafe(24), encoding="utf-8")
+    return f.read_text(encoding="utf-8").strip()
 
 
 def save_env(updates: dict[str, str]) -> None:

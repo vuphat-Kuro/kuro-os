@@ -1,5 +1,10 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.7.5] - 2026-11-17
+- Bảo mật kết nối: mặc định Kuro chỉ cho máy này dùng (127.0.0.1). Trước đây bản Desktop luôn mở cho cả mạng LAN, ai cùng mạng cũng mở được Kuro, đọc tệp và chat với AI trên máy bạn.
+- Muốn dùng điện thoại: gõ /remote, bấm "Bật cho điện thoại kết nối", mở lại Kuro rồi quét mã QR. Mã QR có mã ghép bí mật; thiết bị chưa quét bị chặn. **Điện thoại đã kết nối trước đây phải quét lại mã QR một lần.**
+- Key, cài đặt, duyệt mã kho, cập nhật, mã QR: chỉ làm được trên chính máy tính, điện thoại đã ghép cũng không đổi được.
+
 ## [1.7.4] - 2026-11-17
 - Giao diện dễ đọc hơn: mọi chữ chức năng (huy hiệu, giờ phiên, số đếm nhóm, phím tắt) tối thiểu 11px; bỏ viền màu dày một bên ở bong bóng tin nhắn và thẻ phiên bản, thay bằng viền mảnh đều.
 - Tối ưu hóa thanh mục lục nhật ký câu hỏi (Chat Nav Hub) gom gọn tập trung:

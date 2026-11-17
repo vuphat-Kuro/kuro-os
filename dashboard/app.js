@@ -4684,6 +4684,31 @@ $("btn-fp-chat").onclick = () => {
 let currentRemoteData = null;
 let currentRemoteMode = "tailscale"; // "tailscale" hoặc "wifi"
 
+// Mặc định Kuro chỉ cho máy này dùng; bật thì điện thoại quét QR (có mã ghép) mới vào được. Đổi cần mở lại Kuro.
+function veNutDienThoai(dangMo, daLuu) {
+  const txt = $("remote-lan-text"), btn = $("btn-remote-lan");
+  if (!txt || !btn) return;
+  txt.textContent = daLuu
+    ? "Đã lưu. Tắt Kuro rồi mở lại để áp dụng."
+    : dangMo
+      ? "Đang cho điện thoại kết nối. Chỉ thiết bị đã quét mã QR dưới đây mới vào được."
+      : "Kuro đang chỉ cho máy này dùng. Mã QR dưới đây chưa dùng được cho tới khi bật.";
+  btn.textContent = dangMo ? "Tắt kết nối điện thoại" : "Bật cho điện thoại kết nối";
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ KURO_HOST: dangMo ? "127.0.0.1" : "0.0.0.0" }) });
+      if (!r.ok) throw new Error((await r.json()).detail || r.status);
+      veNutDienThoai(!dangMo, true);
+    } catch (e) {
+      txt.textContent = "Không lưu được: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+}
+
 async function showRemoteDialog() {
   const dlg = $("remote-dialog");
   if (!dlg) return;
@@ -4707,6 +4732,7 @@ async function showRemoteDialog() {
     if (!res.ok) throw new Error("Không lấy được thông tin mạng");
     const data = await res.json();
     currentRemoteData = data;
+    veNutDienThoai(data.listening_all);
 
     const hasTs = data.tailscale && data.tailscale.running && data.tailscale_ip;
 

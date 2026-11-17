@@ -209,6 +209,22 @@ class Origin(unittest.TestCase):
         self.assertFalse(main.is_local({"host": "127.0.0.1:7788", "origin": "https://evil.example"}))
         self.assertFalse(main.is_local({"host": "evil.example:7788"}))                 # DNS rebinding
 
+    def test_ghep_dien_thoai(self):
+        """Máy khác trong mạng bị chặn; quét QR (mã ghép) thì vào được; điện thoại đã ghép vẫn không mở được cài đặt."""
+        from starlette.testclient import TestClient
+        import main
+        url = "http://192.168.1.5:7788"
+        la = TestClient(main.app, base_url=url, client=("192.168.1.20", 5000), follow_redirects=False)
+        self.assertEqual(la.get("/").status_code, 401)
+        self.assertEqual(la.get("/api/sessions").status_code, 401)
+        self.assertEqual(la.get("/?t=doan-bua").status_code, 401)
+        r = la.get(f"/?t={config.remote_token()}")
+        self.assertEqual((r.status_code, r.headers["location"]), (303, url + "/"))      # mã không nằm lại trên địa chỉ
+        self.assertNotEqual(la.get("/").status_code, 401)                               # cookie từ QR
+        self.assertEqual(la.get("/api/settings").status_code, 403)
+        nha = TestClient(main.app, base_url="http://127.0.0.1:7788", client=("127.0.0.1", 5000))
+        self.assertEqual(nha.get("/api/settings").status_code, 200)
+
 
 class Providers(unittest.TestCase):
     def setUp(self):

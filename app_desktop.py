@@ -146,8 +146,9 @@ def run_fastapi_server():
     try:
         import uvicorn
         from server.main import app
-        # Lắng nghe 0.0.0.0 để điện thoại qua Tailscale/Wi-Fi vẫn kết nối bình thường
-        uvicorn.run(app, host="0.0.0.0", port=7788, log_level="warning")
+        import config   # cùng module server.main đã nạp
+        # Mặc định chỉ máy này; bật cho điện thoại ở hộp /remote (KURO_HOST=0.0.0.0), điện thoại cần mã ghép trong QR
+        uvicorn.run(app, host=config.HOST, port=config.PORT, log_level="warning")
     except BaseException as e:
         import traceback
         try:

@@ -1,5 +1,6 @@
 """Kuro OS - server. Chạy: .venv\\Scripts\\python server\\main.py"""
 import asyncio
+import hmac
 import ipaddress
 import json
 import os
@@ -27,7 +28,7 @@ from pathlib import Path
 import yaml
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 import cli_engines
@@ -55,6 +56,40 @@ async def lifespan(app):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+def may_nay(conn) -> bool:
+    """Kết nối đến từ chính máy chạy Kuro (theo địa chỉ thật của gói tin, không theo header)."""
+    try:
+        return ipaddress.ip_address(conn.client.host).is_loopback
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def dung_ma(t: str | None) -> bool:
+    return bool(t) and hmac.compare_digest(t.encode(), config.remote_token().encode())
+
+
+def da_ghep(conn) -> bool:
+    """Máy này luôn được; điện thoại và máy khác phải có mã ghép (cookie nhận từ mã QR)."""
+    return may_nay(conn) or dung_ma(conn.cookies.get("kuro_t"))
+
+
+CHUA_GHEP = """<meta name="viewport" content="width=device-width"><body style="font:16px sans-serif;padding:24px">
+<h3>Kuro: thiết bị này chưa được ghép</h3><p>Trên máy tính chạy Kuro, gõ <b>/remote</b> trong khung chat rồi quét mã QR.</p>"""
+
+
+@app.middleware("http")
+async def chan_thiet_bi_la(req: Request, call_next):
+    if may_nay(req):
+        return await call_next(req)
+    if dung_ma(req.query_params.get("t")):     # vừa quét QR: đổi mã trên địa chỉ thành cookie rồi bỏ khỏi địa chỉ
+        r = RedirectResponse(str(req.url.remove_query_params("t")), 303)
+        r.set_cookie("kuro_t", req.query_params["t"], max_age=365 * 86400, httponly=True, samesite="strict")
+        return r
+    if not da_ghep(req):
+        return HTMLResponse(CHUA_GHEP, 401)
+    return await call_next(req)
 
 
 @app.get("/health")
@@ -138,8 +173,9 @@ def save_active_state(st: dict):
 
 
 def local_only(req: Request) -> None:
-    if not is_local(req.headers):
-        raise HTTPException(403, "Chỉ mở được từ máy này")
+    """Key, cài đặt, duyệt mã, cập nhật: chỉ trên chính máy tính, điện thoại đã ghép cũng không đổi được."""
+    if not (may_nay(req) and is_local(req.headers)):
+        raise HTTPException(403, "Chỉ mở được trên máy tính chạy Kuro")
 
 
 @app.get("/api/settings", dependencies=[Depends(local_only)])
@@ -777,7 +813,7 @@ def get_network_info(target_url: str | None = None):
     def make_qr(url_str: str) -> str:
         try:
             qr = qrcode.QRCode(box_size=7, border=2)
-            qr.add_data(url_str)
+            qr.add_data(f"{url_str.rstrip('/')}/?t={config.remote_token()}")   # mã ghép: chỉ ai quét QR mới vào được
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
             buf = io.BytesIO()
@@ -860,7 +896,7 @@ def get_network_info(target_url: str | None = None):
     }
 
 
-@app.get("/api/network/remote")
+@app.get("/api/network/remote", dependencies=[Depends(local_only)])
 def api_network_remote(url: str | None = None):
     """Lấy thông tin mạng LAN & sinh mã QR kết nối tức thì qua điện thoại di động."""
     return get_network_info(url)
@@ -1738,7 +1774,7 @@ def copy_fs_item(body: dict):
 
 @app.websocket("/ws")
 async def ws(sock: WebSocket):
-    if not is_local(sock.headers):
+    if not (is_local(sock.headers) and da_ghep(sock)):
         await sock.close(code=1008)
         return
     await manager.connect(sock)
