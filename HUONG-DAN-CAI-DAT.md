@@ -4,9 +4,13 @@ Tài liệu này hướng dẫn chi tiết từng bước dành riêng cho các 
 
 ---
 
-## BƯỚC 1: TẢI VÀ CÀI ĐẶT 3 PHẦN MỀM CƠ BẢN
+## BƯỚC 1: PHẦN MỀM NỀN TẢNG (TỰ ĐỘNG TỪ BẢN NÀY)
 
-Trước khi chạy Kuro OS, máy tính cần có 3 công cụ nền tảng sau. Bạn chỉ cần tải và bấm **Next** theo hướng dẫn:
+**Không cần cài tay nữa.** `setup.bat` (Bước 3) tự kiểm tra và cài Python 3.13, Git, Node.js, Edge WebView2, Claude Code CLI và Antigravity CLI (`agy`) nếu máy còn thiếu. Điều kiện: Windows 10 1809 trở lên có `winget` (mục "App Installer" trên Microsoft Store). Git và Node.js sẽ hiện hộp hỏi quyền quản trị, bấm **Yes**.
+
+Muốn biết máy thiếu gì mà chưa cài gì cả: nhấp đúp **`kiem-tra-may.bat`**. Muốn cài thêm Codex CLI (ChatGPT): chạy `setup.bat -Codex` trong PowerShell.
+
+Nếu tự động báo lỗi, cài tay theo mục dưới rồi chạy lại `setup.bat`:
 
 ### 1. Cài đặt Python (Môi trường tính toán)
 - **Link tải chính thức:** [https://www.python.org/downloads/](https://www.python.org/downloads/)
@@ -59,6 +63,7 @@ Khuyến nghị tạo thư mục cài đặt tại đường dẫn: `C:\Kuro-os\
 2. Tìm tệp có tên là **`setup.bat`** (hoặc `setup` có biểu tượng hai bánh răng).
 3. **Nhấp đúp chuột (Double click)** vào tệp `setup.bat`.
 4. Một cửa sổ màu đen sẽ tự động xuất hiện và làm toàn bộ các công việc:
+   - Kiểm tra và cài các phần mềm nền tảng còn thiếu (Bước 1), có bảng tóm tắt "Đã có / Vừa cài xong / THIẾU".
    - Tự tạo môi trường ảo Python biệt lập (`.venv`).
    - Tự động tải và cài đặt toàn bộ thư viện kỹ thuật hạ tầng (tính toán, xử lý Excel, Word, PDF...).
    - Tự động sinh file cấu hình `.env`.
@@ -73,7 +78,8 @@ Khuyến nghị tạo thư mục cài đặt tại đường dẫn: `C:\Kuro-os\
 2. **Nhấp đúp chuột vào biểu tượng Kuro OS**: Ứng dụng sẽ khởi động dưới dạng cửa sổ phần mềm máy tính chuyên dụng (Native App).
 3. **Cấu hình mô hình AI**:
    - Ở góc dưới hoặc trong bảng cài đặt, bạn chọn nhà cung cấp AI muốn dùng (Google Antigravity, Claude Code, OpenAI, OpenRouter, DeepSeek...).
-   - Nếu bạn dùng tài khoản Claude Code cá nhân: Mở PowerShell chạy `claude auth login` để đăng nhập tài khoản.
+   - Nếu bạn dùng tài khoản Claude Code cá nhân: chọn "Tài khoản Claude" rồi bấm nút **Đăng nhập Claude CLI** (hoặc mở PowerShell chạy `claude auth login`).
+   - Nếu dùng Google Antigravity: mở PowerShell gõ `agy` một lần để đăng nhập Google.
    - Nếu dùng API Key (Gemini / DeepSeek / OpenAI): Điền mã khoá API Key vào file `.env` hoặc trên hộp thoại cài đặt.
 4. Bắt đầu làm việc: Nhập câu hỏi, kéo thả bản vẽ, file bảng tính dự toán, hồ sơ KCS vào khung chat để Kuro hỗ trợ.
 
