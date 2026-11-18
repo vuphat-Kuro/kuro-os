@@ -1,12 +1,14 @@
 """
 Công cụ tự động hóa xử lý văn bản hành chính Công ty Phương Thành (PT)
-Tự động sao chép mẫu, làm sạch thể thức, xuất PDF qua Microsoft Word COM và ghi sổ theo dõi Excel.
+Tự động sao chép mẫu, làm sạch thể thức, xuất BM03A chuẩn 10 quy tắc đã duyệt, xuất PDF qua Microsoft Word COM và ghi sổ theo dõi Excel.
+Được thiết kế độc lập, tự định vị mẫu, chạy trơn tru trên mọi máy tính.
 """
 
 import os
 import sys
 import shutil
 import argparse
+import json
 
 if sys.platform == "win32":
     try:
@@ -19,13 +21,36 @@ import docx
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
 
-WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-MAU_ROOT = os.path.join(WORKSPACE_ROOT, "03-MauBieu", "03-Word", "01-MauCongVan")
-TEMP_ROOT = os.path.join(WORKSPACE_ROOT, "99-Temp")
-SO_THEO_DOI_ROOT = os.path.join(WORKSPACE_ROOT, "03-MauBieu", "03-Word", "02-SoTheoDoi")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SKILL_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+LOCAL_TEMPLATES_DIR = os.path.join(SKILL_DIR, "templates")
 
-BM01_FILE = os.path.join(MAU_ROOT, "BM01_VB-2025_CV_Gui_Ra_Ngoai.docx")
-BM03A_FILE = os.path.join(MAU_ROOT, "BM3A_VB-2025_VB_Noi_Bo.docx")
+# Mẫu luôn lấy từ templates/ của skill. Đầu ra mặc định là thư mục làm việc hiện hành (Kuro chạy với cwd = thư mục dự án).
+MAU_ROOT = LOCAL_TEMPLATES_DIR
+TEMP_ROOT = os.getcwd()
+SO_THEO_DOI_ROOT = os.getcwd()
+
+def resolve_template_path(code: str) -> str:
+    """Tự động tìm kiếm file mẫu (templates/ của skill)"""
+    code_upper = code.upper().replace("-", "").replace("_", "")
+    target_filename = ""
+    if "BM01" in code_upper or code_upper == "BM1":
+        target_filename = "BM01_VB-2025_CV_Gui_Ra_Ngoai.docx"
+    elif "BM03" in code_upper or "BM3" in code_upper:
+        target_filename = "BM3A_VB-2025_VB_Noi_Bo.docx"
+    else:
+        raise ValueError(f"Không nhận diện được mã biểu mẫu: {code}. Chỉ chấp nhận BM01 hoặc BM03A.")
+
+    candidates = [
+        os.path.join(LOCAL_TEMPLATES_DIR, target_filename),
+        os.path.join(MAU_ROOT, target_filename),
+        os.path.join(os.getcwd(), "templates", target_filename),
+        os.path.join(os.getcwd(), "skills", "soan-thao-cong-van", "templates", target_filename)
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return os.path.abspath(c)
+    raise FileNotFoundError(f"Không tìm thấy file mẫu: {target_filename}. Đã tìm ở: {candidates}")
 
 SUPERSCRIPT_MAP = {
     "¹⁰": "", "¹¹": "", "¹²": "", "¹³": "",
@@ -39,25 +64,16 @@ TYPO_REPLACEMENTS = {
 }
 
 
-def clone_template(template_code: str, draft_filename: str) -> str:
-    """Sao chép mẫu gốc sang thư mục 99-Temp với tên file nháp được chỉ định."""
-    os.makedirs(TEMP_ROOT, exist_ok=True)
-    code_upper = template_code.upper().replace("-", "").replace("_", "")
+def clone_template(template_code: str, draft_filename: str, output_dir: str = None) -> str:
+    """Sao chép mẫu gốc sang thư mục làm việc tạm thời."""
+    target_dir = output_dir if output_dir else TEMP_ROOT
+    os.makedirs(target_dir, exist_ok=True)
     
-    if "BM01" in code_upper or code_upper == "BM1":
-        src = BM01_FILE
-    elif "BM03" in code_upper or "BM3" in code_upper:
-        src = BM03A_FILE
-    else:
-        raise ValueError(f"Không nhận diện được mã biểu mẫu: {template_code}. Chỉ chấp nhận BM01 hoặc BM03A.")
-    
-    if not os.path.exists(src):
-        raise FileNotFoundError(f"Không tìm thấy file mẫu gốc: {src}")
-    
+    src = resolve_template_path(template_code)
     if not draft_filename.endswith(".docx"):
         draft_filename += ".docx"
         
-    dest = os.path.join(TEMP_ROOT, draft_filename)
+    dest = os.path.join(target_dir, draft_filename)
     shutil.copy2(src, dest)
     print(f"[OK] Đã sao chép mẫu sang: {dest}")
     return dest
@@ -82,7 +98,6 @@ def clean_document(docx_path: str, is_release: bool = False, remove_sample_notes
     found_note_block = False
     
     for p in doc.paragraphs:
-        # Nhận diện khối Ghi chú mẫu ở cuối BM01 để xóa khi phát hành
         if remove_sample_notes and p.text.strip().startswith("Ghi chú:"):
             found_note_block = True
         if found_note_block and remove_sample_notes:
@@ -117,7 +132,6 @@ def clean_document(docx_path: str, is_release: bool = False, remove_sample_notes
     # 3. Xử lý Header & Footer
     for section in doc.sections:
         header = section.header
-        # Xóa số chỉ số trên trong Header
         for p in header.paragraphs:
             for run in p.runs:
                 for bad, good in SUPERSCRIPT_MAP.items():
@@ -145,11 +159,11 @@ def clean_document(docx_path: str, is_release: bool = False, remove_sample_notes
                 first_t._element.getparent().remove(first_t._element)
                 print("[OK] Đã xóa bảng 'Mẫu số: BM03A' trong Header, giữ nguyên Logo và thông tin Công ty.")
 
-    # 4. Khi phát hành: Xóa Text Box Mẫu số BM01 (nằm trong Table 2 của BM01)
+    # 4. Khi phát hành: Xóa Text Box Mẫu số BM01
     if is_release and len(doc.tables) >= 3:
         t2 = doc.tables[2]
         xml_t2 = t2._element.xml
-        if "BM01" in xml_t2 or "Mẫu số" in xml_t2 or len(t2.rows) == 1 and len(t2.columns) == 1:
+        if "BM01" in xml_t2 or "Mẫu số" in xml_t2 or (len(t2.rows) == 1 and len(t2.columns) == 1):
             t2._element.getparent().remove(t2._element)
             print("[OK] Đã xóa khung 'Mẫu số: BM01' ở góc trên phải trang.")
 
@@ -159,8 +173,13 @@ def clean_document(docx_path: str, is_release: bool = False, remove_sample_notes
 
 
 def export_pdf(docx_path: str, pdf_path: str = None) -> str:
-    """Xuất PDF từ file Word qua Microsoft Word COM, đảm bảo trung thực 100% bố cục."""
-    import win32com.client
+    """Xuất PDF từ file Word qua Microsoft Word COM (khi người dùng yêu cầu)."""
+    try:
+        import win32com.client
+    except ImportError:
+        print("[LƯU Ý] Chưa cài đặt pywin32, không thể dùng Word COM để xuất PDF tự động.")
+        return ""
+
     docx_abs = os.path.abspath(docx_path)
     if not os.path.exists(docx_abs):
         raise FileNotFoundError(f"File DOCX không tồn tại: {docx_abs}")
@@ -177,7 +196,6 @@ def export_pdf(docx_path: str, pdf_path: str = None) -> str:
     doc = None
     try:
         doc = word.Documents.Open(docx_abs)
-        # 17 = wdFormatPDF
         try:
             doc.SaveAs2(pdf_path, FileFormat=17)
         except Exception:
@@ -201,20 +219,20 @@ def log_document_entry(so_vb: str, ngay_vb: str, mau_vb: str, phong_ban: str,
     """Ghi một dòng vào sổ theo dõi So_van_ban_[NĂM].xlsx."""
     excel_path = os.path.join(SO_THEO_DOI_ROOT, f"So_van_ban_{nam}.xlsx")
     if not os.path.exists(excel_path):
-        raise FileNotFoundError(f"Không tìm thấy file sổ theo dõi: {excel_path}")
+        os.makedirs(os.path.dirname(excel_path), exist_ok=True)
+        # Tạo mới file sổ nếu chưa có
+        wb_new = openpyxl.Workbook()
+        ws_new = wb_new.active
+        ws_new.title = f"Sổ VB {nam}"
+        headers = ["STT", "Số văn bản", "Ngày ban hành", "Mẫu VB", "Phòng ban", "Nơi nhận", "Trích yếu nội dung", "Người ký", "Đường dẫn file", "Trạng thái"]
+        ws_new.append(headers)
+        wb_new.save(excel_path)
     
     wb = openpyxl.load_workbook(excel_path)
     ws = wb.active
     
-    # Tìm dòng trống đầu tiên từ dòng 8 trở đi
-    target_row = 8
-    while target_row <= 500:
-        val_so = ws.cell(row=target_row, column=2).value
-        val_trich = ws.cell(row=target_row, column=7).value
-        if (val_so is None or str(val_so).strip() == "") and (val_trich is None or str(val_trich).strip() == ""):
-            break
-        target_row += 1
-        
+    target_row = 8 if ws.max_row < 8 else ws.max_row + 1
+    
     thin_border = Border(
         left=Side(style='thin', color='BFBFBF'),
         right=Side(style='thin', color='BFBFBF'),
@@ -223,8 +241,6 @@ def log_document_entry(so_vb: str, ngay_vb: str, mau_vb: str, phong_ban: str,
     )
     
     ws.row_dimensions[target_row].height = 24
-    
-    # Ghi dữ liệu 10 cột
     ws.cell(row=target_row, column=1, value=f'=IF(B{target_row}<>"", ROW()-7, "")')
     ws.cell(row=target_row, column=2, value=so_vb)
     ws.cell(row=target_row, column=3, value=ngay_vb)
@@ -255,17 +271,23 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest="command")
     
     # Subcommand: clone
-    p_clone = subparsers.add_parser("clone", help="Sao chép mẫu sang 99-Temp")
+    p_clone = subparsers.add_parser("clone", help="Sao chép mẫu sang thư mục làm việc")
     p_clone.add_argument("template", choices=["BM01", "BM03A", "BM3A"], help="Mã biểu mẫu")
     p_clone.add_argument("filename", help="Tên file nháp đích")
+    p_clone.add_argument("--outdir", default=None, help="Thư mục xuất đích")
     
     # Subcommand: clean
     p_clean = subparsers.add_parser("clean", help="Làm sạch văn bản")
     p_clean.add_argument("path", help="Đường dẫn file docx")
     p_clean.add_argument("--release", action="store_true", help="Chế độ phát hành chính thức (xóa khung mẫu số)")
     
+    # Subcommand: build-bm03a
+    p_bm03a = subparsers.add_parser("build-bm03a", help="Sinh văn bản BM03A chuẩn duyệt từ file JSON cấu hình")
+    p_bm03a.add_argument("json_config", help="Đường dẫn file JSON chứa tham số văn bản")
+    p_bm03a.add_argument("--out", required=True, help="Đường dẫn file DOCX xuất ra")
+    
     # Subcommand: pdf
-    p_pdf = subparsers.add_parser("pdf", help="Xuất PDF qua Word COM")
+    p_pdf = subparsers.add_parser("pdf", help="Xuất PDF qua Word COM (khi có yêu cầu)")
     p_pdf.add_argument("docx", help="Đường dẫn file docx")
     p_pdf.add_argument("--out", help="Đường dẫn file pdf đích (tùy chọn)")
     
@@ -285,9 +307,31 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.command == "clone":
-        clone_template(args.template, args.filename)
+        clone_template(args.template, args.filename, args.outdir)
     elif args.command == "clean":
         clean_document(args.path, is_release=args.release)
+    elif args.command == "build-bm03a":
+        from bm03a_builder import build_bm03a_document
+        with open(args.json_config, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        build_bm03a_document(
+            output_path=args.out,
+            trich_yeu=cfg.get("trich_yeu", ""),
+            noi_dung_paragraphs=cfg.get("noi_dung_paragraphs", []),
+            so_vb=cfg.get("so_vb", "Số:       /PT-KTTC"),
+            ngay_vb=cfg.get("ngay_vb", "Hà Nội, ngày ... tháng ... năm 2026"),
+            kinh_gui=cfg.get("kinh_gui", "Ban Lãnh đạo Công ty"),
+            can_cu_list=cfg.get("can_cu_list"),
+            noi_nhan_list=cfg.get("noi_nhan_list"),
+            nguoi_ky_chuc_danh=cfg.get("nguoi_ky_chuc_danh", "PHÒNG KỸ THUẬT THI CÔNG"),
+            nguoi_ky_ho_ten=cfg.get("nguoi_ky_ho_ten", "TP. Đỗ Đắc Luận"),
+            khoi_lanh_dao_title=cfg.get("khoi_lanh_dao_title", "Ý KIẾN BAN LÃNH ĐẠO CÔNG TY"),
+            phu_luc_title=cfg.get("phu_luc_title"),
+            phu_luc_table_headers=cfg.get("phu_luc_table_headers"),
+            phu_luc_table_rows=cfg.get("phu_luc_table_rows"),
+            phu_luc_notes=cfg.get("phu_luc_notes"),
+            template_path=cfg.get("template_path")
+        )
     elif args.command == "pdf":
         export_pdf(args.docx, args.out)
     elif args.command == "log":
