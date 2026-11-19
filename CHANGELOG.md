@@ -1,5 +1,17 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.1] - 2026-11-19
+- **Bảo vệ kho mạng công ty `\\phuongthanhtranconsin.data.com` (kể cả ổ map X:, Y:...):**
+  - Luật mới: Kuro **cấm xóa** mọi tệp/thư mục trên kho mạng, **kể cả khi người dùng yêu cầu** (người dùng tự xóa bằng tay); không tự tạo tệp trên kho, chỉ thêm/tạo khi người dùng yêu cầu đích danh. Ghi trong `CLAUDE.md`, `AGENTS.md` và lời dặn AI.
+  - Chặn cứng: hook `PreToolUse` của Claude Code từ chối lệnh shell, mã tính toán, script có xóa/di chuyển tệp trên kho mạng; nút xóa tệp trên giao diện (`/api/fs/delete`) từ chối đường dẫn trên kho mạng.
+  - Antigravity (`agy`): hook chặn xóa đã thử cài ở bản trước bị gỡ vì chặn nhầm mọi công cụ của agy (cả đọc tệp); Kuro tự gỡ mục `kuro-chan-xoa-kho-mang` khỏi `~/.gemini/config/hooks.json`. Với agy/codex hiện chỉ có luật trong lời dặn.
+- **Quy tắc thư mục dự án (Kuro Standard) & Quy tắc riêng:**
+  - Chuẩn 3 thư mục `01_TAI_LIEU` (đầu vào) / `02_KURO_XU_LY` (trung gian) / `03_KET_QUA` (kết quả) với 7 quy tắc làm việc, kèm tệp `QUY_TAC_RIENG.md` cho quy định riêng từng dự án. Nút **Quy tắc** trên cây thư mục để bật/tắt chuẩn và sửa quy tắc riêng; mở dự án mới thì Kuro hỏi có áp dụng chuẩn không.
+  - Quy tắc thư mục và luật kho mạng giờ được gửi lại **mỗi lượt** cho agy/codex (trước chỉ gửi lượt đầu, hội thoại cũ không nhận được quy tắc mới). Kuro Standard ghi rõ cấu trúc 9 thư mục Phòng KT-TC chỉ dành cho kho mạng, không dùng để sắp xếp thư mục dự án.
+  - Diễn họa lưu ảnh vào `03_KET_QUA/dien-hoa` khi dự án dùng Kuro Standard.
+- **Cây thư mục & mở tệp:** cây thư mục tự làm mới khi tệp trong dự án thay đổi (chỉ theo dõi khi đang mở tab Thư mục); đường dẫn tệp trong câu trả lời thành liên kết bấm mở được (cả UNC, `file://`), có menu mở bằng ứng dụng khác / mở thư mục chứa; chặn chạy trực tiếp tệp thực thi (.exe, .bat, .ps1...).
+- **Kho Báo cáo sản lượng hàng tháng (BCSL):** thêm đường dẫn `\\phuongthanhtranconsin.data.com\Public\KY THUAT THI CONG\BCSL HANG THANG` và quy tắc tra cứu (hỏi lại khi chưa rõ gói thầu/tháng/chỉ tiêu, không quét đệ quy, ưu tiên tệp `TỔNG HỢP BCSL ĐẾN T<tháng>.<năm>.xlsx`) vào `CLAUDE.md`.
+
 ## [1.8.0] - 2026-11-19
 - **Kết nối đa nhà cung cấp AI & chạy song song độc lập theo từng phiên:**
   - Mục **Cài đặt > Lõi AI** nâng cấp thành quản lý đa kết nối: bật đồng thời Google Antigravity (`agy`), Claude Code (`claude`), ChatGPT (`codex`) và các hãng API/Ollama, lưu key/URL/model mặc định và kiểm tra kết nối riêng từng hãng.

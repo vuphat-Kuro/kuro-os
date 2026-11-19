@@ -42,13 +42,77 @@ import telegram
 import kho
 import update
 import winproc
+import workspace_rules
+
+
+_FS_WATCH_SKIP = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache"}
+
+
+def _workspace_fs_signature(ws_dir: Path, max_depth: int = 3, max_entries: int = 2000) -> tuple:
+    """Tính chữ ký nhanh (số mục + băm tên/mtime/size) của thư mục dự án để tự động báo cây thư mục làm mới."""
+    if not ws_dir.is_dir():
+        return (str(ws_dir), 0, 0)
+    import hashlib
+    h = hashlib.blake2b(digest_size=8)
+    count = 0
+    stack: list[tuple[Path, int]] = [(ws_dir, 0)]
+    while stack and count < max_entries:
+        cur_dir, depth = stack.pop()
+        try:
+            with os.scandir(cur_dir) as it:
+                entries = sorted(it, key=lambda e: e.name.lower())
+        except OSError:
+            continue
+        for entry in entries:
+            name = entry.name
+            if name in _FS_WATCH_SKIP:
+                continue
+            try:
+                st = entry.stat(follow_symlinks=False)
+                is_dir = entry.is_dir(follow_symlinks=False)
+                h.update(f"{depth}:{name}:{'d' if is_dir else 'f'}:{st.st_mtime_ns}:{st.st_size}\n".encode("utf-8", "replace"))
+                count += 1
+                if is_dir and depth < max_depth and count < max_entries:
+                    stack.append((Path(entry.path), depth + 1))
+            except OSError:
+                continue
+            if count >= max_entries:
+                break
+    return (str(ws_dir), count, h.hexdigest())
+
+
+async def fs_watcher_loop() -> None:
+    """Chỉ theo dõi thư mục dự án khi có ít nhất 1 cửa sổ đang BẬT tab Thư mục (Explorer)."""
+    last_sig = None
+    while True:
+        try:
+            await asyncio.sleep(1.5)
+            if not manager.explorer_watchers:
+                last_sig = None
+                continue
+            ws_dir = engine.active_workspace_dir()
+            sig = await asyncio.to_thread(_workspace_fs_signature, ws_dir)
+            if last_sig is not None and sig != last_sig and sig[0] == last_sig[0]:
+                await manager.broadcast_explorer({
+                    "type": "fs_changed",
+                    "workspace": str(ws_dir),
+                    "ts": time.time(),
+                })
+            last_sig = sig
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            await asyncio.sleep(3)
 
 
 @asynccontextmanager
 async def lifespan(app):
     config.ensure_dirs()
     store.init()
-    tasks = [asyncio.create_task(scheduler.loop(telegram.notify if config.TG_TOKEN else None))]
+    tasks = [
+        asyncio.create_task(scheduler.loop(telegram.notify if config.TG_TOKEN else None)),
+        asyncio.create_task(fs_watcher_loop()),
+    ]
     if config.TG_TOKEN:
         tasks.append(asyncio.create_task(telegram.loop()))
     tasks.append(asyncio.create_task(update.loop(telegram.notify if config.TG_TOKEN else None)))
@@ -139,14 +203,22 @@ class ConnectionManager:
     """Quản lý kết nối WebSocket và đồng bộ thời gian thực giữa máy tính & điện thoại."""
     def __init__(self):
         self.active_connections: list[WebSocket] = []
+        self.explorer_watchers: set[WebSocket] = set()
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
+        self.explorer_watchers.discard(websocket)
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+
+    def set_explorer_watching(self, websocket: WebSocket, active: bool):
+        if active:
+            self.explorer_watchers.add(websocket)
+        else:
+            self.explorer_watchers.discard(websocket)
 
     async def broadcast(self, data: dict):
         for connection in list(self.active_connections):
@@ -154,6 +226,13 @@ class ConnectionManager:
                 await connection.send_json(data)
             except Exception:
                 pass
+
+    async def broadcast_explorer(self, data: dict):
+        for connection in list(self.explorer_watchers):
+            try:
+                await connection.send_json(data)
+            except Exception:
+                self.explorer_watchers.discard(connection)
 
 
 manager = ConnectionManager()
@@ -1584,7 +1663,54 @@ def get_workspaces():
     return {
         "active": str(active.resolve()),
         "name": active.name,
-        "recent": recent
+        "recent": recent,
+        "rules": workspace_rules.inspect_workspace_rules(active, cfg),
+    }
+
+
+@app.get("/api/workspaces/rules")
+def get_workspace_rules(path: str | None = None):
+    cfg = engine.get_workspaces_config()
+    ws = Path(path).resolve() if (path and Path(path).is_dir()) else engine.active_workspace_dir()
+    info = workspace_rules.inspect_workspace_rules(ws, cfg)
+    return {
+        **info,
+        "custom_content": workspace_rules.read_custom_rules(ws),
+        "template": workspace_rules.CUSTOM_RULES_TEMPLATE,
+    }
+
+
+@app.post("/api/workspaces/rules", dependencies=[Depends(local_only)])
+async def save_workspace_rules(body: dict):
+    cfg = engine.get_workspaces_config()
+    p_str = (body.get("path") or "").strip()
+    ws = Path(p_str).resolve() if p_str else engine.active_workspace_dir()
+    mode = (body.get("mode") or "keep").strip().lower()
+    create_custom = bool(body.get("create_custom"))
+    custom_content = body.get("custom_content") if "custom_content" in body else None
+    try:
+        info = workspace_rules.apply_workspace_rules(
+            ws,
+            mode=mode,
+            ws_cfg=cfg,
+            save_cfg_fn=engine.save_workspaces_config,
+            create_custom=create_custom,
+            custom_content=custom_content,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Không lưu được quy tắc dự án: {e}")
+
+    await manager.broadcast_explorer({
+        "type": "fs_changed",
+        "workspace": str(ws),
+        "ts": time.time(),
+    })
+    return {
+        "ok": True,
+        **info,
+        "custom_content": workspace_rules.read_custom_rules(ws),
     }
 
 
@@ -1635,7 +1761,8 @@ async def open_workspace(body: dict):
         "ok": True,
         "active": str(p),
         "name": p.name,
-        "recent": recent
+        "recent": recent,
+        "rules": workspace_rules.inspect_workspace_rules(p, cfg),
     }
 
 
@@ -1801,7 +1928,13 @@ async def browse_native_workspace():
                 "name": name,
                 "recent": recent
             })
-            return {"ok": True, "path": str(p), "name": name, "recent": recent}
+            return {
+                "ok": True,
+                "path": str(p),
+                "name": name,
+                "recent": recent,
+                "rules": workspace_rules.inspect_workspace_rules(p, cfg),
+            }
         return {"ok": False, "cancelled": True}
     except Exception as e:
         print(f"[browse-native] Lỗi mở hộp thoại Windows: {e}")
@@ -1977,27 +2110,81 @@ def search_fs(q: str = ""):
     return {"query": q, "items": results}
 
 
-@app.post("/api/fs/open")
+_BLOCKED_OPEN_EXTS = {
+    ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".vbs", ".vbe",
+    ".ps1", ".wsf", ".reg", ".hta", ".pif", ".cpl"
+}
+
+
+def resolve_open_target(path: str) -> Path:
+    """Chuẩn hóa đường dẫn tệp/thư mục trên máy cục bộ (tuyệt đối, UNC, file:///, hoặc tương đối trong dự án)."""
+    from urllib.parse import unquote
+    raw = (path or "").strip().strip("`'\"")
+    if not raw:
+        return engine.active_workspace_dir().resolve()
+    if raw.lower().startswith("file://"):
+        u = urlparse(raw)
+        if u.netloc and u.netloc.lower() != "localhost":
+            # Đường dẫn UNC dạng file://server/share/path
+            raw = "\\\\" + u.netloc + unquote(u.path).replace("/", "\\")
+        else:
+            p_str = unquote(u.path)
+            if sys.platform == "win32" and re.match(r"^/[A-Za-z]:", p_str):
+                p_str = p_str[1:]
+            raw = p_str.replace("/", "\\") if sys.platform == "win32" else p_str
+    # Loại bỏ hậu tố dòng như #L10-L20 nếu đến từ link markdown
+    raw = re.sub(r"#L\d+(?:-L?\d+)?$", "", raw)
+
+    p = Path(raw)
+    if p.is_absolute() or raw.startswith("\\\\"):
+        if not p.exists():
+            raise HTTPException(404, f"Không tìm thấy tệp hoặc thư mục trên máy: {raw}")
+        return p
+
+    for base in (engine.active_workspace_dir().resolve(), config.ROOT.resolve(), config.BRAIN.resolve()):
+        cand = (base / raw).resolve()
+        if cand.exists():
+            return cand
+    raise HTTPException(404, f"Không tìm thấy tệp hoặc thư mục: {raw}")
+
+
+@app.post("/api/fs/open", dependencies=[Depends(local_only)])
 def open_fs_item(body: dict):
     path = (body.get("path") or "").strip()
-    target = resolve_fs_target(path) if path else engine.active_workspace_dir().resolve()
+    open_with = bool(body.get("open_with"))
+    target = resolve_open_target(path)
     try:
+        if open_with and sys.platform == "win32":
+            if target.is_dir():
+                subprocess.Popen(["explorer.exe", str(target)])
+            else:
+                subprocess.Popen(["rundll32.exe", "shell32.dll,OpenAs_RunDLL", str(target)])
+            return {"ok": True, "path": str(target), "mode": "open_with"}
+
+        if target.is_file() and target.suffix.lower() in _BLOCKED_OPEN_EXTS:
+            raise HTTPException(
+                400,
+                f"Tệp thực thi ({target.suffix}) không được chạy trực tiếp từ khung chat để đảm bảo an toàn. "
+                "Hãy chọn 'Mở thư mục chứa tệp (Explorer)' để kiểm tra trước."
+            )
         os.startfile(str(target))
-        return {"ok": True, "path": str(target)}
+        return {"ok": True, "path": str(target), "mode": "default"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, f"Lỗi mở bằng Windows: {e}")
 
 
-@app.post("/api/fs/reveal")
+@app.post("/api/fs/reveal", dependencies=[Depends(local_only)])
 def reveal_fs_item(body: dict):
     path = (body.get("path") or "").strip()
-    target = resolve_fs_target(path) if path else engine.active_workspace_dir().resolve()
+    target = resolve_open_target(path)
     try:
         if target.is_dir():
-            subprocess.run(["explorer.exe", str(target)], check=False)
+            subprocess.Popen(["explorer.exe", str(target)])
         else:
-            subprocess.run(["explorer.exe", f"/select,{str(target)}"], check=False)
-        return {"ok": True}
+            subprocess.Popen(["explorer.exe", f"/select,{str(target)}"])
+        return {"ok": True, "path": str(target)}
     except Exception as e:
         raise HTTPException(500, f"Lỗi mở thư mục trong Explorer: {e}")
 
@@ -2150,6 +2337,10 @@ async def ws(sock: WebSocket):
                         "session": target_sid,
                         "message": "_(Đã dừng phản hồi theo yêu cầu)_"
                     })
+                continue
+
+            if req_type == "fs_watch":
+                manager.set_explorer_watching(sock, bool(req.get("active")))
                 continue
 
             if req_type == "sync_active":

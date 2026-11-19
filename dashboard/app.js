@@ -1,4 +1,185 @@
 const $ = (id) => document.getElementById(id);
+
+// ========================================================
+// NHẬN DIỆN TỆP XUẤT RA TRONG CÂU TRẢ LỜI KURO & MENU MỞ BẰNG WINDOWS
+// ========================================================
+const KURO_FILE_META = {
+  xlsx: { icon: "📊", app: "Excel (Windows)", text: false },
+  xls:  { icon: "📊", app: "Excel (Windows)", text: false },
+  xlsm: { icon: "📊", app: "Excel (Windows)", text: false },
+  xlsb: { icon: "📊", app: "Excel (Windows)", text: false },
+  csv:  { icon: "📊", app: "Excel / ứng dụng mặc định", text: true },
+  docx: { icon: "📝", app: "Word (Windows)", text: false },
+  doc:  { icon: "📝", app: "Word (Windows)", text: false },
+  rtf:  { icon: "📝", app: "Word (Windows)", text: false },
+  pptx: { icon: "📽️", app: "PowerPoint (Windows)", text: false },
+  ppt:  { icon: "📽️", app: "PowerPoint (Windows)", text: false },
+  pdf:  { icon: "📕", app: "trình đọc PDF (Windows)", text: false },
+  dwg:  { icon: "📐", app: "AutoCAD / CAD mặc định", text: false },
+  dxf:  { icon: "📐", app: "AutoCAD / CAD mặc định", text: false },
+  ifc:  { icon: "🏗️", app: "phần mềm BIM mặc định", text: false },
+  rvt:  { icon: "🏗️", app: "Revit / BIM mặc định", text: false },
+  png:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
+  jpg:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
+  jpeg: { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
+  webp: { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
+  bmp:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
+  gif:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
+  svg:  { icon: "🖼️", app: "trình duyệt / xem ảnh", text: true },
+  html: { icon: "🌐", app: "trình duyệt (Windows)", text: true },
+  htm:  { icon: "🌐", app: "trình duyệt (Windows)", text: true },
+  py:   { icon: "🐍", app: "phần mềm mặc định Windows", text: true },
+  js:   { icon: "📜", app: "phần mềm mặc định Windows", text: true },
+  ts:   { icon: "📜", app: "phần mềm mặc định Windows", text: true },
+  json: { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  md:   { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  txt:  { icon: "📄", app: "Notepad / mặc định Windows", text: true },
+  log:  { icon: "📄", app: "Notepad / mặc định Windows", text: true },
+  yaml: { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  yml:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  xml:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  sql:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  css:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
+  zip:  { icon: "📦", app: "trình giải nén (Windows)", text: false },
+  rar:  { icon: "📦", app: "trình giải nén (Windows)", text: false },
+  "7z": { icon: "📦", app: "trình giải nén (Windows)", text: false },
+};
+const _KNOWN_EXT_PATTERN = Object.keys(KURO_FILE_META).join("|");
+const _WIN_ABS_PATH_RE = /^[A-Za-z]:[\\/][^\r\n<>|"*?]+$/;
+const _UNC_PATH_RE = /^\\\\[^\\\s<>|"*?]+\\[^\\\r\n<>|"*?]+$/;
+const _REL_FILE_RE = new RegExp(`^(?:[\\w.\\-\\/\\\\]+[\\/\\\\])?[\\w.\\-\\u00C0-\\u1EF9][\\w.\\-\\u00C0-\\u1EF9 ]*\\.(${_KNOWN_EXT_PATTERN})$`, "i");
+const _INLINE_WIN_FILE_RE = new RegExp(`((?:[A-Za-z]:[\\\\/]|\\\\\\\\[^\\\\\\s<>|"*?]+\\\\)[^\\s<>|"*?(),;'"\`]+\\.(?:${_KNOWN_EXT_PATTERN}))`, "gi");
+
+function getFileExt(pathStr) {
+  const clean = String(pathStr || "").replace(/#L\d+(?:-L?\d+)?$/i, "").trim();
+  const m = clean.match(/\.([A-Za-z0-9]{1,6})$/);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function getFileMeta(pathStr) {
+  const ext = getFileExt(pathStr);
+  return KURO_FILE_META[ext] || { icon: "📄", app: "phần mềm mặc định Windows", text: false };
+}
+
+function getFileBaseName(pathStr) {
+  const clean = String(pathStr || "").replace(/#L\d+(?:-L?\d+)?$/i, "").replace(/[\\/]+$/, "");
+  const parts = clean.split(/[\\/]/);
+  return parts[parts.length - 1] || clean;
+}
+
+function decodeFileHref(href) {
+  try {
+    let raw = String(href || "").trim();
+    if (!raw.toLowerCase().startsWith("file://")) return raw;
+    raw = raw.replace(/#L\d+(?:-L?\d+)?$/i, "");
+    const u = new URL(raw);
+    if (u.hostname && u.hostname.toLowerCase() !== "localhost") {
+      return "\\\\" + u.hostname + decodeURIComponent(u.pathname).replace(/\//g, "\\");
+    }
+    let p = decodeURIComponent(u.pathname);
+    if (/^\/[A-Za-z]:/.test(p)) p = p.slice(1);
+    return p.replace(/\//g, "\\");
+  } catch {
+    return String(href || "");
+  }
+}
+
+function looksLikeFilePath(text) {
+  const s = (text || "").trim();
+  if (!s || s.length > 260 || s.includes("\n") || /^https?:\/\//i.test(s) || /^mailto:/i.test(s)) {
+    return false;
+  }
+  if (_WIN_ABS_PATH_RE.test(s) || _UNC_PATH_RE.test(s)) {
+    // Có đuôi file hoặc là đường dẫn sâu rõ ràng
+    return Boolean(getFileExt(s)) || /[\\/][^\\/]+$/.test(s);
+  }
+  if (s.length <= 120 && !s.startsWith("-") && _REL_FILE_RE.test(s)) {
+    return true;
+  }
+  return false;
+}
+
+function makeFileLinkEl(doc, filePath, displayText) {
+  const meta = getFileMeta(filePath);
+  const btn = doc.createElement("button");
+  btn.type = "button";
+  btn.className = "kuro-file-link";
+  btn.setAttribute("data-file-path", filePath);
+  btn.title = `${filePath}\nBấm để mở bằng ${meta.app} hoặc xem tùy chọn`;
+
+  const ico = doc.createElement("span");
+  ico.className = "kfl-ico";
+  ico.textContent = meta.icon;
+  const txt = doc.createElement("span");
+  txt.textContent = displayText || filePath;
+  const arr = doc.createElement("span");
+  arr.className = "kfl-arrow";
+  arr.textContent = "▾";
+  btn.append(ico, txt, arr);
+  return btn;
+}
+
+function enhanceFilePathsInHtml(cleanHtml) {
+  if (!cleanHtml || (cleanHtml.indexOf("\\") === -1 && cleanHtml.indexOf("/") === -1 && cleanHtml.indexOf(".") === -1)) {
+    return cleanHtml;
+  }
+  const tpl = document.createElement("template");
+  tpl.innerHTML = cleanHtml;
+  const root = tpl.content;
+
+  // 1. Nâng cấp thẻ <a href="file://..."> thành nút mở file native Windows
+  root.querySelectorAll("a[href]").forEach((a) => {
+    const href = a.getAttribute("href") || "";
+    if (href.toLowerCase().startsWith("file://")) {
+      const pathStr = decodeFileHref(href);
+      const label = (a.textContent || "").trim() || getFileBaseName(pathStr);
+      a.replaceWith(makeFileLinkEl(document, pathStr, label));
+    }
+  });
+
+  // 2. Nâng cấp thẻ inline <code> chứa đường dẫn file (không đụng khối <pre><code>)
+  root.querySelectorAll("code").forEach((code) => {
+    if (code.closest("pre") || code.closest("a") || code.closest("button")) return;
+    const text = (code.textContent || "").trim();
+    if (looksLikeFilePath(text)) {
+      code.replaceWith(makeFileLinkEl(document, text, text));
+    }
+  });
+
+  // 3. Nâng cấp đường dẫn tuyệt đối Windows / UNC viết trực tiếp trong văn bản thường
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const p = node.parentElement;
+    if (!p || p.closest("pre, code, a, button, script, style, .katex")) continue;
+    if (node.nodeValue && (node.nodeValue.includes(":\\") || node.nodeValue.includes(":/") || node.nodeValue.includes("\\\\"))) {
+      textNodes.push(node);
+    }
+  }
+  textNodes.forEach((tn) => {
+    const val = tn.nodeValue;
+    _INLINE_WIN_FILE_RE.lastIndex = 0;
+    if (!_INLINE_WIN_FILE_RE.test(val)) return;
+    _INLINE_WIN_FILE_RE.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    let m;
+    while ((m = _INLINE_WIN_FILE_RE.exec(val)) !== null) {
+      if (m.index > last) frag.append(document.createTextNode(val.slice(last, m.index)));
+      const p = m[1];
+      frag.append(makeFileLinkEl(document, p, p));
+      last = m.index + p.length;
+    }
+    if (last < val.length) frag.append(document.createTextNode(val.slice(last)));
+    tn.replaceWith(frag);
+  });
+
+  const box = document.createElement("div");
+  box.appendChild(root);
+  return box.innerHTML;
+}
+
 // Công thức LaTeX ($...$, $$...$$, \(...\), \[...\]) dựng bằng KaTeX trước khi qua marked, để marked không ăn mất
 // dấu "\" và "_". Khối code giữ nguyên. "$" phải sát chữ hai đầu và không theo sau là số, để "$5 và $10" không bị nhận nhầm.
 const MATH_RE = /(```[\s\S]*?```|`[^`\n]*`)|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g;
@@ -11,7 +192,8 @@ const md = (t) => {
     } catch { return m; }
     return `@@KM${math.length - 1}@@`;
   });
-  return DOMPurify.sanitize(marked.parse(src).replace(/@@KM(\d+)@@/g, (_, i) => math[i]));
+  const safeHtml = DOMPurify.sanitize(marked.parse(src).replace(/@@KM(\d+)@@/g, (_, i) => math[i]));
+  return enhanceFilePathsInHtml(safeHtml);
 };
 
 let session = null;
@@ -1953,6 +2135,9 @@ function connect() {
         if (autoSyncTimer) clearInterval(autoSyncTimer);
         loadSessions(selectedAgent);
         if (targetSid === session) loadSessionContext(session);
+        scheduleFsAutoRefresh();
+      } else if (m.type === "fs_changed") {
+        scheduleFsAutoRefresh();
       } else if (m.type === "session_saved") {
         loadSessions(selectedAgent);
       } else if (m.type === "workspace_changed") {
@@ -1976,6 +2161,7 @@ function connect() {
     document.body.classList.add("online");
     $("net").textContent = "Ổn định";
     startWsPing();
+    syncExplorerWatchState();
     if (busy && session) {
       startSessionAutoSync(session);
     }
@@ -4261,6 +4447,20 @@ let fsShowHidden = false;
 let currentPreviewPath = "";
 let fsRootData = null;
 
+function isExplorerTabActive() {
+  const viewExp = $("view-explorer");
+  return Boolean(viewExp && viewExp.style.display === "flex");
+}
+
+function syncExplorerWatchState() {
+  const active = isExplorerTabActive() && !document.hidden;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try {
+      ws.send(JSON.stringify({ type: "fs_watch", active }));
+    } catch (_) {}
+  }
+}
+
 // Chuyển đổi tab giữa Danh sách Cộng sự và Cây thư mục dự án
 function switchSidebarTab(tabName) {
   const isExplorer = tabName === "explorer";
@@ -4269,8 +4469,9 @@ function switchSidebarTab(tabName) {
   $("view-agents").style.display = isExplorer ? "none" : "flex";
   $("view-explorer").style.display = isExplorer ? "flex" : "none";
 
-  if (isExplorer && !fsRootData) {
-    refreshFsTree();
+  syncExplorerWatchState();
+  if (isExplorer) {
+    refreshFsTree({ silent: Boolean(fsRootData) });
   }
 }
 
@@ -4309,7 +4510,145 @@ function formatBytes(bytes) {
 // WORKSPACE MANAGER (QUẢN LÝ THƯ MỤC DỰ ÁN)
 // ==========================================
 let currentWorkspace = { path: "", name: "" };
+let currentWorkspaceRules = null;
 let recentWorkspaces = [];
+
+function updateWorkspaceRulesBadge(rules) {
+  currentWorkspaceRules = rules || null;
+  const pill = $("ws-rules-status-pill");
+  const txt = $("ws-rules-status-text");
+  if (!pill || !txt) return;
+  if (!rules) {
+    pill.className = "ws-rules-pill";
+    txt.textContent = "⚙ Quy tắc dự án";
+    return;
+  }
+  const mode = rules.mode || "unset";
+  if (mode === "standard+custom") {
+    pill.className = "ws-rules-pill ok";
+    txt.textContent = "✓ Kuro Standard + Quy tắc riêng";
+  } else if (mode === "standard") {
+    pill.className = "ws-rules-pill ok";
+    txt.textContent = "✓ Kuro Standard (3 thư mục · 7 quy tắc)";
+  } else if (mode === "custom") {
+    pill.className = "ws-rules-pill ok";
+    txt.textContent = "✓ Đang dùng QUY_TAC_RIENG.md";
+  } else if (mode === "none") {
+    pill.className = "ws-rules-pill";
+    txt.textContent = "• Không áp dụng quy tắc mặc định";
+  } else {
+    pill.className = "ws-rules-pill warn";
+    txt.textContent = "⚠ Chưa thiết lập quy tắc dự án";
+  }
+}
+
+async function openWorkspaceRulesDialog(isNewProjectPrompt = false) {
+  const dlg = $("workspace-rules-dialog");
+  if (!dlg) return;
+  try {
+    const res = await fetch("/api/workspaces/rules");
+    if (!res.ok) return;
+    const data = await res.json();
+    updateWorkspaceRulesBadge(data);
+
+    if ($("wsr-ws-name")) $("wsr-ws-name").textContent = data.workspace_name || currentWorkspace.name || "Dự án";
+    if ($("wsr-ws-path")) $("wsr-ws-path").textContent = data.workspace || currentWorkspace.path || "";
+
+    const noteEl = $("wsr-prompt-note");
+    if (noteEl) {
+      if (isNewProjectPrompt || data.needs_prompt) {
+        noteEl.textContent = "Dự án này chưa có quy tắc làm việc. Bạn có muốn áp dụng Kuro Standard (tạo sẵn 3 thư mục và 7 quy tắc) cho thư mục này không?";
+        noteEl.style.display = "block";
+      } else if (data.standard_enabled) {
+        noteEl.textContent = "Dự án đang áp dụng Kuro Standard. Bạn có thể bổ sung thêm QUY_TAC_RIENG.md bên dưới nếu cần.";
+        noteEl.style.color = "#6ee7b7";
+        noteEl.style.display = "block";
+      } else if (data.has_custom_rules) {
+        noteEl.textContent = "Dự án đang dùng tệp QUY_TAC_RIENG.md riêng.";
+        noteEl.style.color = "#6ee7b7";
+        noteEl.style.display = "block";
+      } else {
+        noteEl.style.display = "none";
+      }
+    }
+
+    const customEl = $("wsr-custom-text");
+    if (customEl) {
+      customEl.value = data.custom_content || "";
+      customEl.dataset.template = data.template || "";
+    }
+    const detailsEl = $("wsr-custom-details");
+    if (detailsEl) detailsEl.open = Boolean(data.has_custom_rules);
+
+    if ($("wsr-msg")) $("wsr-msg").textContent = "";
+    const applyBtn = $("btn-wsr-apply");
+    if (applyBtn) {
+      applyBtn.textContent = data.standard_enabled && data.has_standard_dirs
+        ? "✓ Đang dùng Kuro Standard (Đảm bảo đủ 3 thư mục)"
+        : "✅ Áp dụng Kuro Standard";
+    }
+    if (!dlg.open) dlg.showModal();
+  } catch (err) {
+    console.error("Lỗi mở hộp thoại quy tắc dự án:", err);
+  }
+}
+
+async function applyWorkspaceRulesChoice(mode, opts = {}) {
+  const msgEl = $("wsr-msg");
+  if (msgEl) msgEl.textContent = "Đang lưu...";
+  try {
+    const payload = { mode };
+    if (opts.customContent !== undefined) payload.custom_content = opts.customContent;
+    if (opts.createCustom) payload.create_custom = true;
+    const res = await fetch("/api/workspaces/rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Không lưu được quy tắc");
+    updateWorkspaceRulesBadge(data);
+    await refreshFsTree({ silent: false });
+
+    if (mode === "standard") {
+      if ($("state") && !busy) {
+        $("state").textContent = "Đã áp dụng Kuro Standard (3 thư mục & 7 quy tắc)";
+        setTimeout(() => { if (!busy && $("state")) $("state").textContent = "Sẵn sàng"; }, 2800);
+      }
+      if ($("workspace-rules-dialog")?.open && !opts.keepOpen) $("workspace-rules-dialog").close();
+    } else if (mode === "none") {
+      if ($("workspace-rules-dialog")?.open && !opts.keepOpen) $("workspace-rules-dialog").close();
+    } else if (msgEl) {
+      msgEl.textContent = data.has_custom_rules
+        ? "Đã lưu QUY_TAC_RIENG.md vào gốc dự án."
+        : "Đã xóa QUY_TAC_RIENG.md.";
+    }
+  } catch (err) {
+    if (msgEl) msgEl.textContent = "Lỗi: " + err.message;
+  }
+}
+
+function handleWorkspaceRulesAfterSwitch(rules) {
+  updateWorkspaceRulesBadge(rules);
+  if (rules && rules.needs_prompt) {
+    openWorkspaceRulesDialog(true);
+  }
+}
+
+$("ws-rules-status-pill") && ($("ws-rules-status-pill").onclick = () => openWorkspaceRulesDialog(false));
+$("btn-ws-rules-open") && ($("btn-ws-rules-open").onclick = () => openWorkspaceRulesDialog(false));
+$("btn-wsr-close") && ($("btn-wsr-close").onclick = () => $("workspace-rules-dialog")?.close());
+$("btn-wsr-apply") && ($("btn-wsr-apply").onclick = () => applyWorkspaceRulesChoice("standard"));
+$("btn-wsr-decline") && ($("btn-wsr-decline").onclick = () => applyWorkspaceRulesChoice("none"));
+$("btn-wsr-fill-template") && ($("btn-wsr-fill-template").onclick = () => {
+  const ta = $("wsr-custom-text");
+  if (ta && !ta.value.trim()) ta.value = ta.dataset.template || "";
+  if (ta) ta.focus();
+});
+$("btn-wsr-save-custom") && ($("btn-wsr-save-custom").onclick = () => {
+  const ta = $("wsr-custom-text");
+  applyWorkspaceRulesChoice("keep", { customContent: ta ? ta.value : "", keepOpen: true });
+});
 
 async function loadWorkspaces() {
   try {
@@ -4322,6 +4661,7 @@ async function loadWorkspaces() {
     };
     recentWorkspaces = data.recent || [];
     updateWorkspaceUI();
+    if (data.rules) updateWorkspaceRulesBadge(data.rules);
   } catch (err) {
     console.error("Lỗi nạp workspace:", err);
   }
@@ -4595,6 +4935,7 @@ async function browseNativeWorkspace(triggerBtn = null) {
       if (statusEl) statusEl.textContent = `Đã chọn: ${data.name}`;
       setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 3000);
       try { $("workspace-dialog").close(); } catch (e) {}
+      if (data.rules) handleWorkspaceRulesAfterSwitch(data.rules);
     } else if (data.cancelled) {
       if (statusEl) statusEl.textContent = "Đã hủy chọn thư mục";
       setTimeout(() => { if (!busy && statusEl) statusEl.textContent = origStatus; }, 2000);
@@ -4671,6 +5012,11 @@ async function switchWorkspace(path, name) {
       const dlg = $("workspace-dialog");
       if (dlg && dlg.open) dlg.close();
     } catch (e) {}
+
+    // 3. Kiểm tra quy tắc làm việc của dự án vừa mở: có rồi thì dùng luôn, chưa có thì đề xuất Kuro Standard
+    if (data.rules) {
+      handleWorkspaceRulesAfterSwitch(data.rules);
+    }
   } catch (err) {
     console.error("Lỗi chuyển workspace:", err);
     if (statusEl) statusEl.textContent = "Lỗi đổi thư mục";
@@ -4698,22 +5044,74 @@ async function removeRecentWorkspace(path) {
   }
 }
 
+let fsDirty = false;
+let fsAutoRefreshTimer = null;
+let fsRefreshing = false;
+
+// Tự động làm mới cây thư mục (chỉ chạy khi tab Thư mục đang bật và cửa sổ đang hiển thị)
+function scheduleFsAutoRefresh(delayMs = 350) {
+  if (!isExplorerTabActive() || document.hidden) {
+    fsDirty = true;
+    return;
+  }
+  const searchInput = $("fs-search");
+  if (searchInput && searchInput.value.trim()) {
+    // Không xóa kết quả người dùng đang tìm kiếm
+    fsDirty = true;
+    return;
+  }
+  if (fsAutoRefreshTimer) clearTimeout(fsAutoRefreshTimer);
+  fsAutoRefreshTimer = setTimeout(() => {
+    fsAutoRefreshTimer = null;
+    if (isExplorerTabActive() && !document.hidden) {
+      refreshFsTree({ silent: true });
+    }
+  }, delayMs);
+}
+
+document.addEventListener("visibilitychange", () => {
+  syncExplorerWatchState();
+  if (!document.hidden && isExplorerTabActive()) {
+    scheduleFsAutoRefresh(200);
+  }
+});
+
+window.addEventListener("focus", () => {
+  syncExplorerWatchState();
+  if (isExplorerTabActive()) {
+    scheduleFsAutoRefresh(200);
+  }
+});
+
 // Tải và hiển thị cây thư mục
-async function refreshFsTree() {
-  $("fs-status").textContent = "Đang tải...";
+async function refreshFsTree(opts = {}) {
+  const silent = Boolean(opts && opts.silent);
+  if (fsRefreshing) {
+    fsDirty = true;
+    return;
+  }
+  fsRefreshing = true;
+  fsDirty = false;
+  if (!silent && $("fs-status")) $("fs-status").textContent = "Đang tải...";
+  const treeEl = $("fs-tree");
+  const prevScrollTop = treeEl ? treeEl.scrollTop : 0;
   try {
     const res = await fetch(`/api/fs/tree?sub=&show_hidden=${fsShowHidden}`);
-    fsRootData = await res.json();
+    const nextData = await res.json();
+    fsRootData = nextData;
     if (fsRootData.workspace_name) {
       currentWorkspace.name = fsRootData.workspace_name;
       currentWorkspace.path = fsRootData.workspace_path;
       updateWorkspaceUI();
     }
     renderFsRoot();
-    $("fs-status").textContent = "Đã đồng bộ";
+    if (treeEl) treeEl.scrollTop = prevScrollTop;
+    if ($("fs-status")) $("fs-status").textContent = "Đã đồng bộ";
   } catch (err) {
-    $("fs-status").textContent = "Lỗi đọc thư mục";
+    if (!silent && $("fs-status")) $("fs-status").textContent = "Lỗi đọc thư mục";
     console.error("Lỗi fs tree:", err);
+  } finally {
+    fsRefreshing = false;
   }
 }
 
@@ -5169,16 +5567,23 @@ async function pasteFsItem(item) {
   }
 }
 
-async function openFileNative(path) {
+async function openFileNative(path, openWith = false) {
   try {
     const res = await fetch("/api/fs/open", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: path || "" })
+      body: JSON.stringify({ path: path || "", open_with: Boolean(openWith) })
     });
     if (res.ok) {
-      $("fs-status").textContent = "Đã mở bằng Windows";
-      setTimeout(() => { $("fs-status").textContent = "Sẵn sàng"; }, 2000);
+      const msg = openWith ? "Đã mở hộp thoại chọn phần mềm Windows" : "Đã mở tệp bằng phần mềm Windows";
+      if ($("fs-status")) {
+        $("fs-status").textContent = msg;
+        setTimeout(() => { if ($("fs-status")) $("fs-status").textContent = "Sẵn sàng"; }, 2200);
+      }
+      if ($("state") && !busy) {
+        $("state").textContent = msg;
+        setTimeout(() => { if (!busy && $("state")) $("state").textContent = "Sẵn sàng"; }, 2200);
+      }
     } else {
       const err = await res.json().catch(() => ({}));
       alert("Không thể mở: " + (err.detail || "Lỗi máy chủ"));
@@ -5196,8 +5601,15 @@ async function revealFileNative(path) {
       body: JSON.stringify({ path: path || "" })
     });
     if (res.ok) {
-      $("fs-status").textContent = "Đã mở thư mục trong Explorer";
-      setTimeout(() => { $("fs-status").textContent = "Sẵn sàng"; }, 2000);
+      const msg = "Đã mở thư mục trong Windows Explorer";
+      if ($("fs-status")) {
+        $("fs-status").textContent = msg;
+        setTimeout(() => { if ($("fs-status")) $("fs-status").textContent = "Sẵn sàng"; }, 2200);
+      }
+      if ($("state") && !busy) {
+        $("state").textContent = msg;
+        setTimeout(() => { if (!busy && $("state")) $("state").textContent = "Sẵn sàng"; }, 2200);
+      }
     } else {
       const err = await res.json().catch(() => ({}));
       alert("Không thể mở Explorer: " + (err.detail || "Lỗi máy chủ"));
@@ -5206,6 +5618,116 @@ async function revealFileNative(path) {
     alert("Lỗi mở Explorer: " + e.message);
   }
 }
+
+// ========================================================
+// MENU TÙY CHỌN MỞ FILE KHI CLICK VÀO ĐƯỜNG DẪN TRONG CÂU TRẢ LỜI KURO
+// ========================================================
+function hideFileActionPopover() {
+  const pop = $("file-action-popover");
+  if (pop) pop.style.display = "none";
+}
+
+function showFileActionPopover(filePath, anchorEl) {
+  const pop = $("file-action-popover");
+  if (!pop || !filePath) return;
+
+  const meta = getFileMeta(filePath);
+  const name = getFileBaseName(filePath);
+  const ext = getFileExt(filePath);
+
+  pop.innerHTML = "";
+
+  const hdr = document.createElement("div");
+  hdr.className = "fap-header";
+  const nameEl = document.createElement("div");
+  nameEl.className = "fap-name";
+  nameEl.textContent = `${meta.icon} ${name}`;
+  const pathEl = document.createElement("div");
+  pathEl.className = "fap-path";
+  pathEl.textContent = filePath;
+  pathEl.title = filePath;
+  hdr.append(nameEl, pathEl);
+  pop.appendChild(hdr);
+
+  const addItem = (label, onClick, isPrimary = false) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "fap-item" + (isPrimary ? " primary" : "");
+    btn.textContent = label;
+    btn.onclick = async (ev) => {
+      ev.stopPropagation();
+      hideFileActionPopover();
+      await onClick();
+    };
+    pop.appendChild(btn);
+  };
+
+  addItem(`${meta.icon} Mở bằng ${meta.app}`, () => openFileNative(filePath, false), true);
+  addItem("🔧 Chọn phần mềm mở khác (Open With...)", () => openFileNative(filePath, true));
+  addItem("📂 Mở thư mục chứa tệp (Explorer)", () => revealFileNative(filePath));
+
+  if (meta.text && typeof openFilePreview === "function") {
+    const sep1 = document.createElement("div");
+    sep1.className = "fap-sep";
+    pop.appendChild(sep1);
+    addItem("👁️ Xem nhanh nội dung trong Kuro", () => openFilePreview(filePath, name));
+  }
+
+  const sep2 = document.createElement("div");
+  sep2.className = "fap-sep";
+  pop.appendChild(sep2);
+  addItem("📋 Sao chép đường dẫn", async () => {
+    try {
+      await navigator.clipboard.writeText(filePath);
+      if ($("state") && !busy) {
+        $("state").textContent = "Đã sao chép đường dẫn tệp";
+        setTimeout(() => { if (!busy && $("state")) $("state").textContent = "Sẵn sàng"; }, 1800);
+      }
+    } catch (_) {}
+  });
+
+  // Hiển thị tạm để đo kích thước và căn chỉnh gọn trong khung cửa sổ
+  pop.style.display = "block";
+  pop.style.left = "0px";
+  pop.style.top = "0px";
+  const rect = anchorEl.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = rect.left;
+  if (left + popRect.width > vw - 12) {
+    left = Math.max(12, vw - popRect.width - 12);
+  }
+  let top = rect.bottom + 6;
+  if (top + popRect.height > vh - 12) {
+    top = Math.max(12, rect.top - popRect.height - 6);
+  }
+  pop.style.left = `${Math.round(left)}px`;
+  pop.style.top = `${Math.round(top)}px`;
+}
+
+// Event delegation trên khung chat #log: click vào bất kỳ đường dẫn file nào đều hiện menu mở bằng Windows
+if ($("log")) {
+  $("log").addEventListener("click", (e) => {
+    const btn = e.target.closest(".kuro-file-link");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const fp = btn.getAttribute("data-file-path");
+    if (fp) showFileActionPopover(fp, btn);
+  });
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#file-action-popover") && !e.target.closest(".kuro-file-link")) {
+    hideFileActionPopover();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideFileActionPopover();
+});
 
 // Bắt sự kiện Toolbar Explorer & Workspace Manager
 $("btn-fs-new-file") && ($("btn-fs-new-file").onclick = () => promptNewFile(selectedFsItem || { path: "", is_dir: true }));

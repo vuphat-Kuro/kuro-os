@@ -23,6 +23,7 @@ import cli_engines
 import dien_hoa
 import config
 import store
+import workspace_rules
 
 
 def mcp_from_file() -> dict:
@@ -306,14 +307,7 @@ SKILL_NGANH = ("\n\n## Skill ngành của Kuro\nViệc chuyên môn: dùng Read 
 def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None, provider: str | None = None) -> ClaudeAgentOptions:
     extra = agent_prompt_block(agent)
     ws_path = cwd or str(active_workspace_dir())
-    ws_note = (
-        f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\n"
-        f"Đường dẫn thư mục dự án trên máy người dùng: `{ws_path}`.\n"
-        f"- NƠI LƯU KẾT QUẢ BẮT BUỘC: Mọi tệp tin kết quả (.xlsx, .html, .docx, .py, script, báo cáo...) do AI tạo ra PHẢI lưu vào thư mục dự án này (`{ws_path}`).\n"
-        f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy định cấu trúc thư mục lưu cụ thể thì BẮT BUỘC hỏi lại người dùng xem muốn lưu vào thư mục/vị trí nào, tuyệt đối không tự ý lưu vào các vị trí chưa được phép.\n"
-        f"- KHO DỮ LIỆU CÔNG TY (UNC): Các kho mạng chung như `\\\\phuongthanhtranconsin.data.com\\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng CHỈ là nơi lưu trữ, tra cứu hồ sơ (READ-ONLY). TUYỆT ĐỐI KHÔNG tự ý lưu kết quả, không tạo tệp tạm hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng).\n"
-        f"{KHO_MANG_CAM_XOA}"
-    )
+    ws_note = workspace_rules.build_workspace_rules_prompt(Path(ws_path), get_workspaces_config()) + f"\n{KHO_MANG_CAM_XOA}"
     prov = provider or config.PROVIDER or "claude"
     chosen_model = model or config.get_provider_model(prov) or None
     return ClaudeAgentOptions(
@@ -361,26 +355,32 @@ def skill_index() -> str:
 
 def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None) -> str:
     ws_path = ws_dir or str(active_workspace_dir())
-    ws_note = (
-        f"\n\n## THƯ MỤC DỰ ÁN ĐANG LÀM VIỆC (WORKSPACE)\n"
-        f"Thư mục hiện hành trên máy người dùng: `{ws_path}`.\n"
-        f"- NƠI LƯU KẾT QUẢ BẮT BUỘC: Mọi file kết quả (.xlsx, .html, .docx, script tính toán...) PHẢI lưu vào thư mục dự án hiện hành `{ws_path}`.\n"
-        f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy tắc phân loại thư mục lưu, hãy hỏi lại người dùng vị trí muốn lưu, không tự ý tạo thư mục hay lưu vào vị trí chưa được phép.\n"
-        f"- KHO DỮ LIỆU CÔNG TY (UNC): Kho `\\\\phuongthanhtranconsin.data.com\\...` CHỈ ĐỂ TRA CỨU HỒ SƠ (READ-ONLY), không lưu kết quả vào đây trừ khi người dùng yêu cầu đích danh.\n"
-        f"{KHO_MANG_CAM_XOA}"
-    )
-    ws_note += DOC_TEP_LON
+    ws_cfg = get_workspaces_config()
+    ws_rules_st = workspace_rules.inspect_workspace_rules(Path(ws_path), ws_cfg)
+    ws_rules = workspace_rules.build_workspace_rules_prompt(Path(ws_path), ws_cfg) + f"\n{KHO_MANG_CAM_XOA}"
+    ws_note = ws_rules + DOC_TEP_LON
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
-        # luật kho mạng nhắc lại mỗi lượt: hội thoại cũ bắt đầu trước khi có luật thì CLI chưa từng nhận nó
-        return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n{KHO_MANG_CAM_XOA}\n\n{text}"
+        # quy tắc thư mục dự án + kho mạng gửi lại MỖI lượt: dự án có thể vừa đổi quy tắc, đổi thư mục, hoặc hội
+        # thoại bắt đầu trước khi có quy tắc (đường Claude đã gửi lại cả system prompt mỗi lượt)
+        return (f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}.)\n<huong_dan_kuro>{ws_rules}\n</huong_dan_kuro>\n\n"
+                f"Câu hỏi của người dùng:\n{text}")
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
     if can_shell:
-        calc_rule = ("Viết script Python vào thư mục tinh-toan/ hoặc thư mục dự án, chạy bằng shell hoặc python để tính toán chính xác, tạo tệp HTML/Excel và ghi đường "
-                     "dẫn script/tệp vào câu trả lời.")
+        if ws_rules_st["standard_enabled"]:
+            calc_rule = ("Viết script Python và file trung gian vào `02_KURO_XU_LY/` (tạo thư mục con `TASK_xxx_.../` nếu nhiệm vụ có nhiều file), "
+                         "chạy bằng shell hoặc python để tính toán chính xác, xuất sản phẩm hoàn thiện (Excel, PDF, DXF, HTML công cụ...) vào `03_KET_QUA/` "
+                         "và thông báo rõ tên file cùng đường dẫn kết quả trong câu trả lời.")
+        else:
+            calc_rule = ("Viết script Python vào thư mục dự án, chạy bằng shell hoặc python để tính toán chính xác, tạo tệp HTML/Excel và ghi đường "
+                         "dẫn script/tệp vào câu trả lời.")
     elif can_write:
-        calc_rule = ("Phiên này được phép tạo và ghi đè tệp tin (.html, .xlsx, .md...) trực tiếp vào thư mục dự án. "
-                     "Khi người dùng yêu cầu xuất file báo cáo, hãy dùng công cụ ghi tệp tạo ra file thật trên ổ cứng.")
+        if ws_rules_st["standard_enabled"]:
+            calc_rule = ("Phiên này được phép tạo và ghi tệp tin trực tiếp vào thư mục dự án. Lưu tệp trung gian vào `02_KURO_XU_LY/` "
+                         "và sản phẩm hoàn thiện vào `03_KET_QUA/`. Không sửa đổi tệp gốc trong `01_TAI_LIEU/`.")
+        else:
+            calc_rule = ("Phiên này được phép tạo và ghi đè tệp tin (.html, .xlsx, .md...) trực tiếp vào thư mục dự án. "
+                         "Khi người dùng yêu cầu xuất file báo cáo, hãy dùng công cụ ghi tệp tạo ra file thật trên ổ cứng.")
     else:   # Cả shell lẫn write đều tắt
         calc_rule = ("Phiên này chỉ đọc, không ghi tệp và không chạy lệnh shell. "
                      "Đọc file thì được nếu công cụ cho phép; không đọc được thì dựa vào mô tả skill ở trên. Phép tính "
@@ -599,8 +599,10 @@ async def dien_hoa_anh(anh: Path, mo_ta: str, che_do: str, ws_path: str) -> list
     """Dịch mô tả sang prompt SDXL bằng AI đang chọn (lỗi thì dùng nguyên văn), vẽ, chép ảnh vào dự án."""
     prompt_en, err = await mot_lan(DICH_PROMPT.format(mo_ta=mo_ta), 120)
     prompt_en = (prompt_en.strip().splitlines() or [""])[0].strip(' "') if not err else ""
-    ra = await asyncio.to_thread(dien_hoa.ve, anh, prompt_en or mo_ta or "finished building exterior", che_do,
-                                 Path(ws_path) / "dien-hoa")
+    ws_p = Path(ws_path)
+    st_rules = workspace_rules.inspect_workspace_rules(ws_p, get_workspaces_config())
+    out_dir = (ws_p / "03_KET_QUA" / "dien-hoa") if st_rules["standard_enabled"] else (ws_p / "dien-hoa")
+    ra = await asyncio.to_thread(dien_hoa.ve, anh, prompt_en or mo_ta or "finished building exterior", che_do, out_dir)
     for p in ra:   # bản sao trong .attachments để khung chat hiện ảnh qua /api/attachments
         att = Path(ws_path) / ".attachments"
         att.mkdir(parents=True, exist_ok=True)
