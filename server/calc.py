@@ -105,5 +105,18 @@ async def dien_hoa_tool(args):
         return _text(f"[LỖI] {e}")
 
 
-KHO_TOOLS = ["mcp__kuro__tim_skill", "mcp__kuro__doc_skill", "mcp__kuro__chay_ma_kho", "mcp__kuro__dien_hoa"]
-SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho, dien_hoa_tool])
+@tool("goi_tien_ich", "Gói tiện ích tùy chọn của Kuro (vd 'autocad': quy tắc vẽ và xuất DXF chuẩn PKTTC). CHỈ gọi khi người "
+      "dùng YÊU CẦU RÕ cài, gỡ hoặc xem gói; không tự cài. hanh_dong: list | cai | go; id: mã gói (bỏ trống với list).",
+      {"hanh_dong": str, "id": str})
+async def goi_tien_ich(args):
+    import goi
+    try:
+        text = await asyncio.to_thread(goi.chay, args["hanh_dong"], args.get("id") or "")
+    except ValueError as e:
+        text = f"[LỖI] {e}"
+    return _text(text)
+
+
+KHO_TOOLS = ["mcp__kuro__tim_skill", "mcp__kuro__doc_skill", "mcp__kuro__chay_ma_kho", "mcp__kuro__dien_hoa",
+             "mcp__kuro__goi_tien_ich"]
+SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho, dien_hoa_tool, goi_tien_ich])

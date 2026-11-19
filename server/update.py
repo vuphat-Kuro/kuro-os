@@ -12,6 +12,7 @@ import urllib.request
 from pathlib import Path
 
 import config
+import winproc
 
 GITHUB_REPO = "vuphat-Kuro/kuro-os"
 STATE_DIR = config.ROOT / "state"
@@ -274,7 +275,7 @@ def start_update() -> dict:
 
         if os.name == "nt":
             # DETACHED_PROCESS (0x00000008) | CREATE_NEW_PROCESS_GROUP (0x00000200)
-            subprocess.Popen(args, cwd=str(config.ROOT), creationflags=0x00000008 | 0x00000200)
+            winproc.popen_tach_roi(args, cwd=str(config.ROOT), creationflags=0x00000008 | 0x00000200)
         else:
             subprocess.Popen(args, cwd=str(config.ROOT), start_new_session=True)
 

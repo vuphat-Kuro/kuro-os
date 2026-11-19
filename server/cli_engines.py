@@ -55,9 +55,10 @@ async def models(kind: str) -> list[dict]:
     return _models[kind]
 
 
-def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True) -> tuple[list[str], bytes | None]:
+def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True, provider: str | None = None) -> tuple[list[str], bytes | None]:
     """Trả (lệnh, dữ liệu stdin). codex nhận prompt qua stdin nên không vướng giới hạn dòng lệnh Windows."""
-    chosen_model = model or config.MODEL
+    prov = provider or ("antigravity" if kind == "agy" else "chatgpt" if kind == "codex" else None)
+    chosen_model = model or config.get_provider_model(prov)
     if kind == "codex":
         cmd = [find("codex"), "exec"] + (["resume", resume] if resume else []) + [
             # --ignore-user-config: không nạp MCP và cấu hình cá nhân trong ~/.codex (đăng nhập vẫn giữ), cùng
@@ -120,7 +121,7 @@ def _agy_event(e: dict, st: dict):
             yield {"type": "text", "text": r["response"]}
 
 
-async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None, model: str | None = None):
+async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None, model: str | None = None, provider: str | None = None):
     """Sinh sự kiện cùng khuôn với engine.run_turn; final mang mã hội thoại trần, engine gắn tiền tố id AI."""
     if not find(kind):
         yield {"type": "error", "text": f"Chưa cài `{kind}` trên máy này. Xem hướng dẫn ở ⚙ Cài đặt."}
@@ -128,7 +129,7 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
         return
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
-    cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write)
+    cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write, provider=provider)
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
     work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(

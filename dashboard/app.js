@@ -801,6 +801,38 @@ function createAgentCard(agent) {
   return card;
 }
 
+// Nạp danh sách provider và gợi ý model cho dialog Tạo / Sửa Agent
+function populateAgentProviderSelect(selId, datalistId, selectedProvider = "") {
+  const sel = $(selId);
+  const dl = $(datalistId);
+  if (sel) {
+    const provs = window._providers || {};
+    sel.replaceChildren(
+      new Option("- Theo mặc định hệ thống -", ""),
+      ...Object.entries(provs).map(([k, v]) => new Option(v.ten || k, k))
+    );
+    sel.value = selectedProvider || "";
+  }
+  const updateDatalist = (prov) => {
+    if (!dl) return;
+    dl.innerHTML = "";
+    const grp = (typeof modelGroups !== "undefined" ? modelGroups : []).find(g => g.provider === prov);
+    const list = grp ? grp.models : (prov === "claude" ? [{ id: "sonnet", ten: "Sonnet" }, { id: "opus", ten: "Opus" }, { id: "haiku", ten: "Haiku" }] : []);
+    list.forEach(m => {
+      if (!m.id) return;
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.label = m.ten || m.id;
+      dl.appendChild(opt);
+    });
+  };
+  updateDatalist(selectedProvider);
+  if (sel && !sel._agentBound) {
+    sel._agentBound = true;
+    sel.onchange = () => updateDatalist(sel.value);
+  }
+}
+
 // Mở dialog chỉnh sửa Agent
 async function openEditAgent(slug) {
   try {
@@ -816,6 +848,8 @@ async function openEditAgent(slug) {
     $("ea-role").value = d.role || "";
     $("ea-prompt").value = d.prompt || "";
     $("ea-msg").textContent = "";
+    populateAgentProviderSelect("ea-provider", "ea-model-list", d.provider || "");
+    if ($("ea-model")) $("ea-model").value = d.model || "";
 
     // Render danh sách checkbox các agent thành viên
     renderMembersCheckboxes("ea-members-list", d.members || [], slug);
@@ -1039,15 +1073,47 @@ function formatSessionTime(ts) {
   return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
 }
 
-function getShortModelName(modelId) {
+function getProviderShort(providerId) {
+  const p = (providerId || "").trim();
+  if (!p) return "";
+  if (typeof modelGroups !== "undefined") {
+    const g = modelGroups.find(x => x.provider === p);
+    if (g && g.short) return g.short;
+  }
+  const info = window._providers && window._providers[p];
+  if (info && info.short) return info.short;
+  const fallback = { antigravity: "AGY", claude: "Claude", chatgpt: "Codex", anthropic: "Anthropic", openrouter: "OpenRouter", deepseek: "DeepSeek", zai: "GLM", kimi: "Kimi", ollama: "Ollama", custom: "Custom" };
+  return fallback[p] || p.toUpperCase();
+}
+
+function getProviderClass(providerId) {
+  const p = (providerId || "").trim();
+  if (p === "antigravity") return "prov-antigravity";
+  if (p === "claude" || p === "anthropic") return "prov-claude";
+  if (p === "chatgpt") return "prov-chatgpt";
+  return p ? "prov-api" : "";
+}
+
+function getShortModelName(modelId, providerId = "") {
   if (!modelId) return "";
+  if (typeof modelGroups !== "undefined" && modelGroups.length) {
+    const grp = providerId ? modelGroups.find(g => g.provider === providerId) : null;
+    if (grp) {
+      const m = (grp.models || []).find(x => x.id === modelId);
+      if (m && m.ten) return m.ten;
+    }
+    for (const g of modelGroups) {
+      const m = (g.models || []).find(x => x.id === modelId);
+      if (m && m.ten) return m.ten;
+    }
+  }
   const match = availableModelsList.find(m => m.id === modelId);
   if (match && match.ten) return match.ten;
   let s = String(modelId).trim();
   if (s.startsWith("claude-")) s = s.replace("claude-", "Claude ");
   else if (s.startsWith("gemini-")) s = s.replace("gemini-", "Gemini ");
   else if (s.startsWith("gpt-")) s = s.replace("gpt-", "GPT ");
-  return s.length > 20 ? s.slice(0, 18) + "…" : s;
+  return s.length > 22 ? s.slice(0, 20) + "…" : s;
 }
 
 function createSessionItem(s) {
@@ -1056,7 +1122,13 @@ function createSessionItem(s) {
   el.setAttribute("data-sid", s.id);
   el.onclick = () => openSession(s.id);
 
-  const modelBadge = s.model ? `<span class="session-model-badge" title="Mô hình AI: ${DOMPurify.sanitize(s.model)}">${DOMPurify.sanitize(getShortModelName(s.model))}</span>` : "";
+  const prov = s.provider || "";
+  const provShort = getProviderShort(prov);
+  const provCls = getProviderClass(prov);
+  const modelText = s.model ? getShortModelName(s.model, prov) : (provShort ? "Mặc định" : "");
+  const badgeLabel = provShort ? (s.model ? `${provShort} · ${modelText}` : provShort) : modelText;
+  const badgeTitle = `${prov ? (window._providers?.[prov]?.ten || prov) + " · " : ""}${s.model || "Model mặc định"}`;
+  const modelBadge = badgeLabel ? `<span class="session-model-badge ${provCls}" title="${DOMPurify.sanitize(badgeTitle)}">${DOMPurify.sanitize(badgeLabel)}</span>` : "";
   const runningBadge = isSessionBusy(s.id) ? `<span class="session-running-indicator" style="font-size:10px; color:#22d3ee; margin-left:6px; font-weight:600; padding:1px 4px; background:rgba(34,211,238,0.12); border-radius:3px; border:1px solid rgba(34,211,238,0.3);"><span class="spinner-dot" style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#22d3ee; margin-right:3px; animation:blink .8s infinite;"></span>Đang xử lý</span>` : "";
 
   el.innerHTML = `
@@ -1085,36 +1157,51 @@ $("session-search").oninput = renderSessionList;
   // Mở phiên hội thoại
 async function openSession(id) {
   session = id;
-  pendingSessionModel = ""; // Reset pending model khi mở phiên cụ thể
+  pendingSessionModel = "";
+  pendingSessionProvider = "";
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(id);
 
-  // Cập nhật model riêng của session
+  // Cập nhật provider + model riêng của session
   let sessObj = currentSessions.find(s => s.id === id);
+  const currentProv = (sessObj && sessObj.provider !== undefined) ? (sessObj.provider || "") : null;
   const currentModel = (sessObj && sessObj.model !== undefined) ? (sessObj.model || "") : null;
 
-  if (currentModel !== null) {
-    if ($("model-pick")) $("model-pick").value = currentModel;
-    updateModelPillUI(currentModel);
-    renderModelMenuPopover(currentModel);
-    updateContextEnvModel(currentModel);
+  if (currentModel !== null || currentProv !== null) {
+    const p = currentProv || "";
+    const m = currentModel || "";
+    activeSessionProvider = p;
+    activeSessionModel = m;
+    if ($("model-pick")) $("model-pick").value = m;
+    updateModelPillUI(m, p);
+    renderModelMenuPopover(m, p);
+    updateContextEnvModel(m, p);
+    if (typeof fetchAndRenderQuota === "function") fetchAndRenderQuota().catch(() => {});
   } else {
-    // Reset tạm về rỗng trước rồi fetch thông tin chi tiết
+    activeSessionProvider = "";
+    activeSessionModel = "";
     if ($("model-pick")) $("model-pick").value = "";
-    updateModelPillUI("");
-    renderModelMenuPopover("");
-    updateContextEnvModel("");
+    updateModelPillUI("", "");
+    renderModelMenuPopover("", "");
+    updateContextEnvModel("", "");
 
     fetch(`/api/sessions/${id}/info`).then(r => r.ok ? r.json() : null).then(info => {
       if (info && session === id) {
+        const p = info.provider || "";
         const val = info.model || "";
-        if (sessObj) sessObj.model = val;
+        if (sessObj) {
+          sessObj.provider = p;
+          sessObj.model = val;
+        }
+        activeSessionProvider = p;
+        activeSessionModel = val;
         if ($("model-pick")) $("model-pick").value = val;
-        updateModelPillUI(val);
-        renderModelMenuPopover(val);
-        updateContextEnvModel(val);
+        updateModelPillUI(val, p);
+        renderModelMenuPopover(val, p);
+        updateContextEnvModel(val, p);
         renderSessionList();
+        if (typeof fetchAndRenderQuota === "function") fetchAndRenderQuota().catch(() => {});
       }
     }).catch(() => {});
   }
@@ -1190,13 +1277,18 @@ function newSession() {
   $("log").replaceChildren();
   renderSessionList();
   loadSessionContext(null);
-  
-  // Đồng bộ model mặc định/pending cho phiên mới
-  const defaultModelVal = pendingSessionModel || "";
+
+  // Ưu tiên pending người dùng chọn tay, sau đó tới cấu hình mặc định của Agent đang chọn
+  const ag = typeof currentAgent === "function" ? currentAgent() : null;
+  const defaultProvVal = pendingSessionProvider || (ag && ag.provider) || "";
+  const defaultModelVal = pendingSessionProvider ? pendingSessionModel : (pendingSessionModel || (ag && ag.model) || "");
+  activeSessionProvider = defaultProvVal;
+  activeSessionModel = defaultModelVal;
   if ($("model-pick")) $("model-pick").value = defaultModelVal;
-  updateModelPillUI(defaultModelVal);
-  renderModelMenuPopover(defaultModelVal);
-  updateContextEnvModel(defaultModelVal);
+  updateModelPillUI(defaultModelVal, defaultProvVal);
+  renderModelMenuPopover(defaultModelVal, defaultProvVal);
+  updateContextEnvModel(defaultModelVal, defaultProvVal);
+  if (typeof fetchAndRenderQuota === "function") fetchAndRenderQuota().catch(() => {});
   updateSendButtonState();
 
   if (typeof updateChatNavTicks === "function") {
@@ -1332,8 +1424,9 @@ async function loadSessionContext(sid) {
     $("ctx-env-path").title = env.brain_path || "";
     $("ctx-env-branch").textContent = env.git_branch || "main";
     const curSess = sid ? currentSessions.find(s => s.id === sid) : null;
-    const activeModel = (curSess && curSess.model) || data.session_model || env.model || ($("model-pick") ? $("model-pick").value : "") || "";
-    updateContextEnvModel(activeModel);
+    const activeProv = (curSess && curSess.provider) || data.session_provider || env.provider || activeSessionProvider || "";
+    const activeModel = (curSess && curSess.model) || data.session_model || env.model || activeSessionModel || "";
+    updateContextEnvModel(activeModel, activeProv);
 
     // 2. Cập nhật tỷ lệ sử dụng & Header Pill
     const usage = data.usage || {};
@@ -1752,7 +1845,17 @@ function connect() {
         } else if (!runningSessions.has(m.id)) {
           runningSessions.set(m.id, { text: "", agent: m.agent || selectedAgent, botEl: null });
         }
-        pendingSessionModel = ""; // Reset pending model sau khi phiên mới đã được gán id
+        if (m.provider !== undefined) activeSessionProvider = m.provider || "";
+        if (m.model !== undefined) activeSessionModel = m.model || "";
+        const existingItem = currentSessions.find(s => s.id === m.id);
+        if (existingItem) {
+          if (m.provider !== undefined) existingItem.provider = m.provider || "";
+          if (m.model !== undefined) existingItem.model = m.model || "";
+        }
+        pendingSessionModel = "";
+        pendingSessionProvider = "";
+        updateModelPillUI(activeSessionModel, activeSessionProvider);
+        renderModelMenuPopover(activeSessionModel, activeSessionProvider);
         updateSendButtonState();
         return;
       }
@@ -1892,7 +1995,7 @@ const SYSTEM_SLASH_COMMANDS = [
   { cmd: "/skill", name: "/skill <tên_skill>", desc: "Chỉ định áp dụng một skill kỹ thuật chuyên môn", needArg: true },
   { cmd: "/plan", name: "/plan <nội dung>", desc: "Chế độ lập kế hoạch chi tiết từng bước trước khi thực thi", needArg: true },
   { cmd: "/goal", name: "/goal <mục tiêu>", desc: "Chế độ tập trung theo đuổi mục tiêu kỹ thuật đến cùng", needArg: true },
-  { cmd: "/version", name: "/version", desc: "Xem và đặt số phiên bản Kuro OS hiện tại", needArg: false },
+  { cmd: "/version", name: "/version", desc: "Xem phiên bản và cập nhật Kuro OS từ GitHub", needArg: false },
   { cmd: "/update", name: "/update", desc: "Kiểm tra phiên bản mới từ GitHub và cập nhật trực tiếp", needArg: false },
   { cmd: "/remote", name: "/remote (hoặc /mobile)", desc: "Mã QR và địa chỉ kết nối đồng bộ điện thoại di động", needArg: false },
   { cmd: "/mobile", name: "/mobile", desc: "Mã QR và địa chỉ kết nối đồng bộ điện thoại di động", needArg: false },
@@ -2341,8 +2444,10 @@ $("f").onsubmit = async (e) => {
     if (cmd === "model") {
       $("q").value = "";
       addMessage("user", "").textContent = text;
-      const cur = $("model-pick").value || "Mặc định";
-      addMessage("bot", md(`Model AI hiện đang cấu hình: **${cur}**. Bạn có thể đổi nhanh tại thanh chọn model góc trên bên phải.`));
+      const effProv = activeSessionProvider || defaultProvider || "claude";
+      const provName = (window._providers && window._providers[effProv]?.ten) || effProv;
+      const curModel = activeSessionModel || "Mặc định của hãng";
+      addMessage("bot", md(`Phiên hiện tại đang dùng: **${provName}** - Model: **${curModel}**. Bạn có thể đổi nhanh nhà cung cấp & model ngay tại nút chọn mô hình ở thanh công cụ dưới khung chat.`));
       return;
     }
 
@@ -2472,12 +2577,20 @@ function sendChatMessage(displayText, promptToSend) {
   $("q").value = "";
   $("q").style.height = "auto";
   const wsPath = currentWorkspace && currentWorkspace.path ? currentWorkspace.path : "";
-  const chosenModel = (session ? ($("model-pick") ? $("model-pick").value : "") : pendingSessionModel) || "";
+  const sessObj = session ? currentSessions.find(s => s.id === session) : null;
+  const ag = typeof currentAgent === "function" ? currentAgent() : null;
+  const chosenProvider = (session
+    ? (activeSessionProvider || (sessObj && sessObj.provider) || "")
+    : (pendingSessionProvider || (ag && ag.provider) || "")) || "";
+  const chosenModel = (session
+    ? (activeSessionModel !== undefined ? activeSessionModel : ((sessObj && sessObj.model) || ""))
+    : (pendingSessionProvider ? pendingSessionModel : (pendingSessionModel || (ag && ag.model) || ""))) || "";
   ws.send(JSON.stringify({
     session: session,
     text: (promptToSend || displayText) + attPrompt,
     agent: selectedAgent,
     workspace: wsPath,
+    provider: chosenProvider,
     model: chosenModel,
     attachments: sentAttachments
   }));
@@ -2504,6 +2617,8 @@ if ($("btn-send")) {
 $("btn-create-agent").onclick = () => {
   $("caf").reset();
   $("ca-msg").textContent = "";
+  populateAgentProviderSelect("ca-provider", "ca-model-list", "");
+  if ($("ca-model")) $("ca-model").value = "";
   renderMembersCheckboxes("ca-members-list", []);
   $("create-agent-dialog").showModal();
 };
@@ -2517,6 +2632,8 @@ $("caf").onsubmit = async (e) => {
     slug: $("ca-slug").value.trim().toLowerCase(),
     group: $("ca-group").value.trim() || "Chuyên môn",
     role: $("ca-role").value.trim(),
+    provider: $("ca-provider") ? $("ca-provider").value.trim() : "",
+    model: $("ca-model") ? $("ca-model").value.trim() : "",
     prompt: $("ca-prompt").value.trim(),
     members: members
   };
@@ -2554,6 +2671,8 @@ if ($("eaf")) {
       name: $("ea-name").value.trim(),
       group: $("ea-group").value.trim() || "Chuyên môn",
       role: $("ea-role").value.trim(),
+      provider: $("ea-provider") ? $("ea-provider").value.trim() : "",
+      model: $("ea-model") ? $("ea-model").value.trim() : "",
       prompt: $("ea-prompt").value.trim(),
       members: members
     };
@@ -2666,18 +2785,326 @@ if ($("cgf")) {
   };
 }
 
-// Cài đặt hệ thống
+// ========================================================
+// CÀI ĐẶT HỆ THỐNG (ĐA NHÀ CUNG CẤP AI CHẠY SONG SONG)
+// ========================================================
 let modelTheoAi = {};
+let lastSettingsData = null;
+let providerModelsCache = {};
+let modelMenuFilterProvider = "all";
+let modelMenuSearchQuery = "";
+
+async function fetchModelsForSettingsCard(provider) {
+  if (providerModelsCache[provider]) return providerModelsCache[provider];
+  try {
+    const res = await fetch(`/api/models?provider=${encodeURIComponent(provider)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const list = (data.models || []).filter(m => m && m.id);
+    providerModelsCache[provider] = list;
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+async function populateCardModelSelect(provider, cardEl) {
+  const modelSel = cardEl.querySelector(".prov-model-select");
+  const modelInput = cardEl.querySelector(".prov-model-input");
+  const datalist = cardEl.querySelector(".prov-model-datalist");
+  if (!modelSel || !modelInput) return;
+
+  const models = await fetchModelsForSettingsCard(provider);
+  if (!models.length) {
+    modelSel.style.display = "none";
+    return;
+  }
+  modelSel.innerHTML = "";
+  const defOpt = document.createElement("option");
+  defOpt.value = "";
+  defOpt.textContent = `-- Mặc định của hãng (${models.length} model có sẵn) --`;
+  modelSel.appendChild(defOpt);
+  models.forEach((m) => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = `${m.ten} (${m.id})`;
+    modelSel.appendChild(opt);
+  });
+  const customOpt = document.createElement("option");
+  customOpt.value = "__custom__";
+  customOpt.textContent = "✏️ Nhập model tùy biến khác...";
+  modelSel.appendChild(customOpt);
+
+  if (datalist) {
+    datalist.innerHTML = "";
+    models.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.label = m.ten;
+      datalist.appendChild(opt);
+    });
+  }
+  modelSel.style.display = "block";
+
+  const syncSelect = () => {
+    const v = modelInput.value.trim().toLowerCase();
+    const match = Array.from(modelSel.options).find(o => o.value.toLowerCase() === v);
+    modelSel.value = match ? match.value : (v ? "__custom__" : "");
+  };
+  syncSelect();
+
+  if (!modelSel._bound) {
+    modelSel._bound = true;
+    modelSel.onchange = () => {
+      const v = modelSel.value;
+      if (v === "__custom__") {
+        modelInput.focus();
+        modelInput.select();
+      } else {
+        modelInput.value = v;
+        const metaEl = cardEl.querySelector(".prov-card-meta-model");
+        if (metaEl) metaEl.textContent = v ? `Model: ${v}` : "Model: Mặc định";
+      }
+    };
+    modelInput.addEventListener("input", () => {
+      syncSelect();
+      const metaEl = cardEl.querySelector(".prov-card-meta-model");
+      const v = modelInput.value.trim();
+      if (metaEl) metaEl.textContent = v ? `Model: ${v}` : "Model: Mặc định";
+    });
+  }
+}
+
+function buildProviderCard(p, info, pcfg, isDefault) {
+  const card = document.createElement("div");
+  card.className = `prov-card${pcfg.enabled || isDefault ? " enabled" : ""}${isDefault ? " is-default" : ""}`;
+  card.dataset.provider = p;
+
+  const isCli = info.group === "cli";
+  const shortTag = info.short || p;
+  const provCls = getProviderClass(p);
+
+  let statusHtml = "";
+  if (isDefault) statusHtml += `<span class="prov-pill-def">Mặc định</span>`;
+  if (isCli) {
+    if (pcfg.cli_installed) {
+      statusHtml += `<span class="prov-pill-ok">CLI sẵn sàng</span>`;
+    } else {
+      statusHtml += `<span class="prov-pill-warn">Chưa cài CLI</span>`;
+    }
+  } else if (pcfg.needs_key) {
+    statusHtml += pcfg.has_key
+      ? `<span class="prov-pill-ok">Key ${escapeHtml(pcfg.key_hint)}</span>`
+      : `<span class="prov-pill-warn">Chưa có key</span>`;
+  } else if (p === "ollama") {
+    statusHtml += `<span class="prov-pill-ok">Offline</span>`;
+  }
+
+  const modelKey = `KURO_MODEL_${p.toUpperCase()}`;
+  const keyKey = `KURO_AI_KEY_${p.toUpperCase()}`;
+  const urlKey = `KURO_BASE_URL_${p.toUpperCase()}`;
+  const modelMeta = pcfg.model ? `Model: ${pcfg.model}` : "Model: Mặc định";
+
+  const showKeyField = !isCli && p !== "ollama";
+  const showUrlField = !isCli && p !== "anthropic";
+
+  card.innerHTML = `
+    <div class="prov-card-head">
+      <div class="prov-card-left">
+        <label class="prov-switch" title="${isDefault ? "AI mặc định luôn bật" : "Bật để xuất hiện trong thanh chọn nhanh của khung chat"}">
+          <input type="checkbox" class="prov-enable-cb" data-provider="${escapeHtml(p)}" ${(pcfg.enabled || isDefault) ? "checked" : ""} ${isDefault ? "disabled" : ""}>
+          <span class="prov-switch-track"></span>
+        </label>
+        <div class="prov-card-info">
+          <div class="prov-card-title">
+            <span class="prov-tag ${provCls}">${escapeHtml(shortTag)}</span>
+            <span>${escapeHtml(info.ten || p)}</span>
+            ${statusHtml}
+          </div>
+          <div class="prov-card-meta">
+            <span class="prov-card-meta-model">${escapeHtml(modelMeta)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="prov-card-actions">
+        <button type="button" class="btn prov-toggle-cfg">Cấu hình ▾</button>
+      </div>
+    </div>
+    <div class="prov-card-body">
+      <small style="margin-top:0; margin-bottom:6px;">${escapeHtml(info.goi_y || "")}</small>
+      ${p === "claude" ? `
+        <div style="margin:6px 0 8px;">
+          <button class="btn prov-claude-login" type="button">Đăng nhập Claude CLI</button>
+          <span class="prov-claude-msg" role="status" style="margin-left:8px; font-size:12px;"></span>
+        </div>
+      ` : ""}
+      ${showKeyField ? `
+        <label>API key (${escapeHtml(shortTag)})</label>
+        <div class="row">
+          <input type="password" name="${keyKey}" autocomplete="off" data-secret="1" spellcheck="false"
+            placeholder="${pcfg.has_key ? `Đã lưu (${escapeHtml(pcfg.key_hint)}) - để trống = giữ nguyên` : "Nhập API key..."}">
+          <button class="btn" type="button" data-clear="${keyKey}">Xóa</button>
+        </div>
+      ` : ""}
+      ${showUrlField ? `
+        <label>Địa chỉ máy chủ (${escapeHtml(shortTag)})</label>
+        <input type="text" name="${urlKey}" spellcheck="false" value="${escapeHtml(pcfg.base_url || "")}" data-orig="${escapeHtml(pcfg.base_url || "")}"
+          placeholder="${escapeHtml(pcfg.default_url || "Để trống = địa chỉ mặc định của hãng")}">
+      ` : ""}
+      <label>Model mặc định (${escapeHtml(shortTag)})</label>
+      <select class="prov-model-select dialog-select" style="display:none; margin-bottom:6px; width:100%;" aria-label="Chọn model ${escapeHtml(shortTag)}"></select>
+      <input type="text" class="prov-model-input" name="${modelKey}" spellcheck="false"
+        value="${escapeHtml(pcfg.model || "")}" data-orig="${escapeHtml(pcfg.model || "")}"
+        placeholder="Để trống = model mặc định của hãng" list="dl-model-${escapeHtml(p)}">
+      <datalist class="prov-model-datalist" id="dl-model-${escapeHtml(p)}"></datalist>
+      <div class="test" style="margin-top:10px;">
+        <button type="button" class="btn prov-test-btn">Lưu &amp; kiểm tra ${escapeHtml(shortTag)}</button>
+        <span class="prov-test-msg" role="status" style="font-size:12px;"></span>
+      </div>
+    </div>
+  `;
+
+  // Mở rộng/thu gọn cấu hình chi tiết của từng hãng
+  const toggleBtn = card.querySelector(".prov-toggle-cfg");
+  toggleBtn.onclick = async () => {
+    const isOpen = card.classList.toggle("open");
+    toggleBtn.textContent = isOpen ? "Thu gọn ▴" : "Cấu hình ▾";
+    if (isOpen) {
+      await populateCardModelSelect(p, card);
+    }
+  };
+
+  // Gạt bật/tắt provider song song
+  const cb = card.querySelector(".prov-enable-cb");
+  cb.onchange = () => {
+    card.classList.toggle("enabled", cb.checked);
+  };
+
+  // Nút đăng nhập Claude CLI
+  const claudeBtn = card.querySelector(".prov-claude-login");
+  if (claudeBtn) {
+    const claudeMsg = card.querySelector(".prov-claude-msg");
+    claudeBtn.onclick = async () => {
+      claudeBtn.disabled = true;
+      claudeMsg.className = "prov-claude-msg";
+      try {
+        if (await claudeLoggedIn()) {
+          claudeMsg.className = "prov-claude-msg ok";
+          claudeMsg.textContent = "Đã đăng nhập Claude CLI.";
+          return;
+        }
+        const r = await fetch("/api/claude-login", { method: "POST" });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Không mở được cửa sổ đăng nhập");
+        claudeMsg.textContent = "Đã mở cửa sổ đăng nhập. Hoàn tất trên trình duyệt (chờ tối đa 3 phút)...";
+        for (let i = 0; i < 60; i++) {
+          await new Promise((ok) => setTimeout(ok, 3000));
+          if (await claudeLoggedIn()) {
+            claudeMsg.className = "prov-claude-msg ok";
+            claudeMsg.textContent = "Đã đăng nhập Claude CLI. Bấm Kiểm tra kết nối.";
+            return;
+          }
+        }
+        claudeMsg.className = "prov-claude-msg err";
+        claudeMsg.textContent = "Chưa thấy đăng nhập xong. Bấm lại để thử.";
+      } catch (e) {
+        claudeMsg.className = "prov-claude-msg err";
+        claudeMsg.textContent = e.message;
+      } finally {
+        claudeBtn.disabled = false;
+      }
+    };
+  }
+
+  // Nút Lưu & kiểm tra kết nối độc lập cho từng hãng
+  const testBtn = card.querySelector(".prov-test-btn");
+  const testMsg = card.querySelector(".prov-test-msg");
+  testBtn.onclick = async () => {
+    if (!cb.checked) {
+      cb.checked = true;
+      card.classList.add("enabled");
+    }
+    if (!(await saveSettings({ keepOpen: true, silentNoChange: true }))) return;
+    testMsg.className = "prov-test-msg";
+    testMsg.textContent = `Đang kiểm tra ${shortTag} (tối đa 90 giây)...`;
+    testBtn.disabled = true;
+    try {
+      const mVal = (card.querySelector(".prov-model-input")?.value || "").trim();
+      const resp = await fetch("/api/test-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: p, model: mVal })
+      });
+      const j = await resp.json().catch(() => ({}));
+      testMsg.className = j.ok ? "prov-test-msg ok" : "prov-test-msg err";
+      testMsg.textContent = j.ok
+        ? `Kết nối ${shortTag} thành công ("${j.text}")`
+        : `Chưa kết nối được: ${j.error || j.detail || "không có trả lời"}`;
+    } catch (err) {
+      testMsg.className = "prov-test-msg err";
+      testMsg.textContent = `Lỗi kiểm tra: ${err.message}`;
+    } finally {
+      testBtn.disabled = false;
+    }
+  };
+
+  return card;
+}
+
+function renderProvidersSettings(r, defaultProviderOverride = null) {
+  const container = $("s-providers-list");
+  if (!container) return;
+  const defProv = defaultProviderOverride !== null ? defaultProviderOverride : (r.settings.KURO_PROVIDER.value || "");
+  const pcfgs = r.providers_config || {};
+
+  // Ghi nhớ những card đang mở rộng nếu re-render
+  const openSet = new Set(Array.from(container.querySelectorAll(".prov-card.open")).map(el => el.dataset.provider));
+  container.innerHTML = "";
+
+  const cliKeys = Object.keys(r.providers).filter(k => (r.providers[k].group || "api") === "cli");
+  const apiKeys = Object.keys(r.providers).filter(k => (r.providers[k].group || "api") !== "cli");
+
+  const appendGroup = (title, keys) => {
+    if (!keys.length) return;
+    const hdr = document.createElement("div");
+    hdr.className = "prov-group-title";
+    hdr.textContent = title;
+    container.appendChild(hdr);
+    for (const k of keys) {
+      const info = r.providers[k];
+      const pcfg = pcfgs[k] || { enabled: k === defProv, model: r.model_theo_ai?.[k] || "" };
+      const card = buildProviderCard(k, info, pcfg, k === defProv);
+      if (openSet.has(k) || (openSet.size === 0 && k === defProv)) {
+        card.classList.add("open");
+        const tbtn = card.querySelector(".prov-toggle-cfg");
+        if (tbtn) tbtn.textContent = "Thu gọn ▴";
+        populateCardModelSelect(k, card).catch(() => {});
+      }
+      container.appendChild(card);
+    }
+  };
+
+  appendGroup("Tài khoản CLI trên máy (chạy song song không cần API key)", cliKeys);
+  appendGroup("Nhà cung cấp API Key & Local (Ollama)", apiKeys);
+}
+
 async function openSettings() {
   const r = await (await fetch("/api/settings")).json();
-  modelTheoAi = r.model_theo_ai;
+  lastSettingsData = r;
+  window._providers = r.providers;
+  modelTheoAi = r.model_theo_ai || {};
+
   const sel = $("s-KURO_PROVIDER");
   sel.replaceChildren(
     new Option("- Chưa chọn -", ""),
     ...Object.entries(r.providers).map(([k, v]) => new Option(v.ten, k))
   );
-  sel.value = r.settings.KURO_PROVIDER.value || "";
+  sel.value = sel.dataset.orig = r.settings.KURO_PROVIDER.value || "";
+
+  // Đổ các trường ngoài khối Lõi AI (Telegram, Allowed Tools...)
   for (const [k, meta] of Object.entries(r.settings)) {
+    if (k === "KURO_PROVIDER" || k === "KURO_ENABLED_PROVIDERS" || k.startsWith("KURO_MODEL") || k.startsWith("KURO_AI_KEY") || k.startsWith("KURO_BASE_URL")) {
+      continue;
+    }
     const el = $("sf").elements[k];
     if (!el) continue;
     if (meta.set) {
@@ -2689,119 +3116,13 @@ async function openSettings() {
     }
     delete el.dataset.clear;
   }
-  showProvider();
-  await updateSettingModels(sel.value || "claude");
-  $("settings").showModal();
+
+  renderProvidersSettings(r);
+  showCore(r);
+  if (!$("settings").open) {
+    $("settings").showModal();
+  }
   loadKhoLich().catch(() => {});
-}
-
-// Cập nhật danh sách model gợi ý theo từng AI trong Cài đặt hệ thống
-async function updateSettingModels(provider) {
-  const modelSel = $("s-KURO_MODEL_SELECT");
-  const modelInput = $("s-KURO_MODEL");
-  const datalist = $("s-model-datalist");
-  const hint = $("s-model-hint");
-  if (!modelSel || !modelInput) return;
-
-  const p = provider || "claude";
-  try {
-    const res = await fetch(`/api/models?provider=${encodeURIComponent(p)}`);
-    const data = await res.json();
-    const models = data.models || [];
-
-    if (models.length > 0) {
-      modelSel.innerHTML = "";
-      const defaultOpt = document.createElement("option");
-      defaultOpt.value = "";
-      defaultOpt.textContent = `-- Chọn nhanh model có sẵn (${models.length} model) --`;
-      modelSel.appendChild(defaultOpt);
-
-      models.forEach((m) => {
-        const opt = document.createElement("option");
-        opt.value = m.id;
-        opt.textContent = `${m.ten} ${m.id ? `(${m.id})` : "[Mặc định]"}`;
-        modelSel.appendChild(opt);
-      });
-
-      const customOpt = document.createElement("option");
-      customOpt.value = "__custom__";
-      customOpt.textContent = "✏️ Nhập model tùy biến khác...";
-      modelSel.appendChild(customOpt);
-
-      if (datalist) {
-        datalist.innerHTML = "";
-        models.forEach((m) => {
-          if (m.id) {
-            const opt = document.createElement("option");
-            opt.value = m.id;
-            opt.label = m.ten;
-            datalist.appendChild(opt);
-          }
-        });
-      }
-
-      modelSel.style.display = "block";
-
-      // Đồng bộ giá trị hiện tại
-      let currentVal = (modelInput.value || "").trim();
-      if (!currentVal && p === "antigravity") {
-        currentVal = data.current || "gemini-3.8-flash-medium";
-        modelInput.value = currentVal;
-      }
-
-      const matchOption = Array.from(modelSel.options).find(o => o.value.toLowerCase() === currentVal.toLowerCase());
-      if (matchOption) {
-        modelSel.value = matchOption.value;
-      } else if (currentVal) {
-        modelSel.value = "__custom__";
-      } else {
-        modelSel.value = "";
-      }
-
-      if (hint) {
-        if (p === "antigravity") {
-          hint.textContent = "Google Antigravity: Chọn model từ danh sách trên (khuyên dùng Gemini 3.8 Flash hoặc Gemini 4 Argon) hoặc tự nhập.";
-        } else if (p === "claude") {
-          hint.textContent = "Claude: Chọn sonnet, opus, haiku hoặc để trống = mặc định.";
-        }
-      }
-    } else {
-      modelSel.style.display = "none";
-      if (datalist) datalist.innerHTML = "";
-      if (hint) {
-        hint.textContent = "Để trống = model mặc định của hãng. Xem hướng dẫn điền model ở tài liệu nhà cung cấp.";
-      }
-    }
-  } catch (err) {
-    console.error("Lỗi tải models cho provider:", err);
-    modelSel.style.display = "none";
-  }
-
-  // Gán sự kiện đồng bộ giữa select và input (chỉ gán 1 lần)
-  if (!modelSel._bound) {
-    modelSel._bound = true;
-    modelSel.onchange = () => {
-      const v = modelSel.value;
-      if (v === "__custom__") {
-        modelInput.focus();
-        modelInput.select();
-      } else if (v !== "") {
-        modelInput.value = v;
-      }
-    };
-
-    modelInput.addEventListener("input", () => {
-      const v = modelInput.value.trim().toLowerCase();
-      const match = Array.from(modelSel.options).find(o => o.value.toLowerCase() === v);
-      if (match) {
-        modelSel.value = match.value;
-      } else if (v) {
-        modelSel.value = "__custom__";
-      } else {
-        modelSel.value = "";
-      }
-    });
-  }
 }
 
 // Việc theo lịch và kho skill (specs/002). Chữ từ repo gán bằng textContent, không qua innerHTML.
@@ -2850,13 +3171,6 @@ async function loadKhoLich() {
   $("s-kho").replaceChildren(...rows);
 }
 
-function showProvider() {
-  const p = $("s-KURO_PROVIDER").value;
-  const info = window._providers ? window._providers[p] : null;
-  $("s-keyrow").style.display = p === "antigravity" || p === "codex" || !p ? "none" : "block";
-  $("s-clirow").style.display = p === "claude" ? "block" : "none";
-}
-
 async function claudeLoggedIn() {
   const r = await fetch("/api/claude-login");
   const j = await r.json().catch(() => ({}));
@@ -2864,54 +3178,67 @@ async function claudeLoggedIn() {
   return j.loggedIn;
 }
 
-$("s-cli-login").onclick = async () => {
-  const out = $("s-cli-msg"), btn = $("s-cli-login");
-  btn.disabled = true;
-  out.className = "";
-  try {
-    if (await claudeLoggedIn()) {
-      out.className = "ok";
-      out.textContent = "Đã đăng nhập Claude CLI.";
-      return;
-    }
-    const r = await fetch("/api/claude-login", { method: "POST" });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Không mở được cửa sổ đăng nhập");
-    out.textContent = "Đã mở cửa sổ đăng nhập. Hoàn tất trên trình duyệt (chờ tối đa 3 phút)...";
-    for (let i = 0; i < 60; i++) {
-      await new Promise((ok) => setTimeout(ok, 3000));
-      if (await claudeLoggedIn()) {
-        out.className = "ok";
-        out.textContent = "Đã đăng nhập Claude CLI. Bấm Lưu và kiểm tra kết nối.";
-        return;
+$("s-KURO_PROVIDER").onchange = () => {
+  const newDef = $("s-KURO_PROVIDER").value;
+  if (!lastSettingsData) return;
+  // Cập nhật trạng thái mặc định trên các thẻ hiện có mà không mất giá trị người dùng đang nhập dở
+  const cards = document.querySelectorAll("#s-providers-list .prov-card");
+  cards.forEach((card) => {
+    const p = card.dataset.provider;
+    const isDef = p === newDef;
+    card.classList.toggle("is-default", isDef);
+    const cb = card.querySelector(".prov-enable-cb");
+    if (cb) {
+      if (isDef) {
+        cb.checked = true;
+        cb.disabled = true;
+        card.classList.add("enabled");
+      } else {
+        cb.disabled = false;
       }
     }
-    out.className = "err";
-    out.textContent = "Chưa thấy đăng nhập xong. Bấm lại để thử.";
-  } catch (e) {
-    out.className = "err";
-    out.textContent = e.message;
-  } finally {
-    btn.disabled = false;
-  }
+    const titleEl = card.querySelector(".prov-card-title");
+    if (titleEl) {
+      const oldDefPill = titleEl.querySelector(".prov-pill-def");
+      if (isDef && !oldDefPill) {
+        const sp = document.createElement("span");
+        sp.className = "prov-pill-def";
+        sp.textContent = "Mặc định";
+        titleEl.appendChild(sp);
+      } else if (!isDef && oldDefPill) {
+        oldDefPill.remove();
+      }
+    }
+  });
 };
 
-$("s-KURO_PROVIDER").onchange = async () => {
-  const p = $("s-KURO_PROVIDER").value || "claude";
-  const m = $("s-KURO_MODEL");
-  m.value = m.dataset.orig = modelTheoAi[p] || "";
-  showProvider();
-  await updateSettingModels(p);
-};
-
-async function saveSettings() {
+async function saveSettings(opts = {}) {
   const body = {};
   for (const el of $("sf").querySelectorAll("[name]")) {
-    if (el.dataset.secret ? el.value || el.dataset.clear : el.value !== el.dataset.orig) body[el.name] = el.value;
+    if (el.dataset.secret ? (el.value || el.dataset.clear) : (el.value !== el.dataset.orig)) {
+      body[el.name] = el.value;
+    }
   }
+
+  // Gom danh sách nhà cung cấp đang bật đồng thời
+  const enabledCbs = Array.from(document.querySelectorAll("#s-providers-list .prov-enable-cb"));
+  if (enabledCbs.length) {
+    const defProv = $("s-KURO_PROVIDER").value;
+    const enabledList = enabledCbs.filter(cb => cb.checked || cb.dataset.provider === defProv).map(cb => cb.dataset.provider);
+    const nextEnabled = enabledList.join(",");
+    const prevEnabled = (lastSettingsData && lastSettingsData.enabled_providers) ? lastSettingsData.enabled_providers.join(",") : "";
+    const origEnv = (lastSettingsData && lastSettingsData.settings?.KURO_ENABLED_PROVIDERS?.value) || "";
+    if (nextEnabled !== prevEnabled || (!origEnv && enabledList.length > 0)) {
+      body["KURO_ENABLED_PROVIDERS"] = nextEnabled;
+    }
+  }
+
   const msg = $("s-msg");
   if (!Object.keys(body).length) {
-    msg.className = "";
-    msg.textContent = "Chưa có gì thay đổi.";
+    if (!opts.silentNoChange) {
+      msg.className = "";
+      msg.textContent = "Chưa có gì thay đổi.";
+    }
     return true;
   }
   const r = await fetch("/api/settings", {
@@ -2921,10 +3248,27 @@ async function saveSettings() {
   });
   const j = await r.json().catch(() => ({}));
   msg.className = r.ok ? "" : "err";
-  msg.textContent = !r.ok ? (j.detail || "Lưu thất bại") : j.restart ? "Đã lưu. Khởi động lại Kuro để áp dụng Telegram." : "Đã lưu. Có hiệu lực từ câu hỏi kế tiếp.";
+  msg.textContent = !r.ok ? (j.detail || "Lưu thất bại") : j.restart ? "Đã lưu. Khởi động lại Kuro để áp dụng Telegram." : "Đã lưu. Có hiệu lực ngay cho các lượt chat kế tiếp.";
   if (r.ok) {
-    await openSettings();
+    providerModelsCache = {};
+    if (!opts.keepOpen) {
+      await openSettings();
+    } else {
+      // Cập nhật lại orig của các input để bấm test lần nữa không gửi lại
+      const fresh = await (await fetch("/api/settings")).json();
+      lastSettingsData = fresh;
+      showCore(fresh);
+      for (const el of $("sf").querySelectorAll("[name]")) {
+        if (el.dataset.secret) {
+          el.value = "";
+          delete el.dataset.clear;
+        } else {
+          el.dataset.orig = el.value;
+        }
+      }
+    }
     loadModels().catch(() => {});
+    fetchAndRenderQuota().catch(() => {});
   }
   return r.ok;
 }
@@ -2933,30 +3277,11 @@ $("sf").onsubmit = (e) => {
   saveSettings();
 };
 
-$("s-test").onclick = async () => {
-  const out = $("s-test-msg");
-  if (!$("s-KURO_PROVIDER").value) {
-    out.className = "err";
-    out.textContent = "Chọn AI trước đã.";
-    return;
-  }
-  if (!(await saveSettings())) return;
-  out.className = "";
-  out.textContent = "Đang hỏi thử AI (tối đa 90 giây)...";
-  $("s-test").disabled = true;
-  try {
-    const j = await (await fetch("/api/test-ai", { method: "POST" })).json();
-    out.className = j.ok ? "ok" : "err";
-    out.textContent = j.ok ? `Kết nối được. AI trả lời: "${j.text}"` : `Chưa kết nối được: ${j.error || "không có trả lời"}`;
-  } finally {
-    $("s-test").disabled = false;
-  }
-};
-
 $("sf").addEventListener("click", (e) => {
   const k = e.target.dataset.clear;
   if (!k) return;
   const el = $("sf").elements[k];
+  if (!el) return;
   el.value = "";
   el.dataset.clear = "1";
   el.placeholder = "Sẽ xóa khi bấm Lưu";
@@ -2965,103 +3290,264 @@ $("sf").addEventListener("click", (e) => {
 $("gear").onclick = $("gear2").onclick = openSettings;
 $("s-close").onclick = () => $("settings").close();
 
+// ========================================================
+// BỘ CHỌN NHANH MODEL ĐA NHÀ CUNG CẤP (CHẠY SONG SONG THEO PHIÊN)
+// ========================================================
+let pendingSessionProvider = "";
 let pendingSessionModel = "";
+let activeSessionProvider = "";
+let activeSessionModel = "";
+let defaultProvider = "";
+let defaultModel = "";
+let modelGroups = [];
 
 let currentChatMode = "auto"; // auto | plan | goal
 let availableModelsList = [];
 
-// Đổi model riêng cho từng cuộc hội thoại (hoặc phiên mới)
+// Tải toàn bộ danh sách model của các nhà cung cấp AI đang bật song song
 async function loadModels() {
-  const r = await (await fetch("/api/models")).json();
-  const sel = $("model-pick");
-  availableModelsList = r.models || [];
-  if (sel) {
-    sel.hidden = true;
-    if (availableModelsList.length) {
-      const opts = availableModelsList.map((m) => new Option(m.ten, m.id));
-      if (!availableModelsList.some((m) => m.id === "")) opts.unshift(new Option("Model mặc định", ""));
-      sel.replaceChildren(...opts);
-      if (r.current && ![...sel.options].some((o) => o.value === r.current)) sel.add(new Option(r.current, r.current));
+  const r = await (await fetch("/api/models?scope=enabled")).json();
+  modelGroups = r.groups || [];
+  defaultProvider = r.default_provider || "";
+  defaultModel = r.default_model || "";
+  availableModelsList = [];
+  for (const g of modelGroups) {
+    for (const m of (g.models || [])) {
+      availableModelsList.push({ ...m, provider: g.provider, provider_short: g.short });
     }
   }
 
-  // Ưu tiên model của session đang mở nếu có
-  const sessObj = currentSessions.find(s => s.id === session);
-  const activeVal = (sessObj && sessObj.model !== undefined) ? (sessObj.model || "") : (pendingSessionModel || "");
-  if (sel) sel.value = activeVal;
-  updateModelPillUI(activeVal);
-  renderModelMenuPopover(activeVal);
-  updateContextEnvModel(activeVal);
+  const sel = $("model-pick");
+  if (sel) {
+    sel.hidden = true;
+    if (availableModelsList.length) {
+      const opts = availableModelsList.map((m) => new Option(`[${m.provider_short}] ${m.ten}`, m.id));
+      opts.unshift(new Option("Model mặc định", ""));
+      sel.replaceChildren(...opts);
+    }
+  }
+
+  // Ưu tiên provider + model của session đang mở
+  const sessObj = session ? currentSessions.find(s => s.id === session) : null;
+  const ag = typeof currentAgent === "function" ? currentAgent() : null;
+  const effProv = sessObj
+    ? (sessObj.provider || activeSessionProvider || "")
+    : (pendingSessionProvider || (ag && ag.provider) || "");
+  const effModel = sessObj
+    ? (sessObj.model || "")
+    : (pendingSessionProvider ? pendingSessionModel : (pendingSessionModel || (ag && ag.model) || ""));
+
+  activeSessionProvider = effProv;
+  activeSessionModel = effModel;
+  if (sel) sel.value = effModel;
+  updateModelPillUI(effModel, effProv);
+  renderModelMenuPopover(effModel, effProv);
+  updateContextEnvModel(effModel, effProv);
 }
 
-function updateContextEnvModel(modelId) {
+function findModelLabel(modelId, providerId = "") {
+  if (!modelId) return "";
+  if (providerId) {
+    const grp = modelGroups.find(g => g.provider === providerId);
+    if (grp) {
+      const m = (grp.models || []).find(x => x.id === modelId);
+      if (m && m.ten) return m.ten;
+    }
+  }
+  const match = availableModelsList.find(m => m.id === modelId);
+  return match ? match.ten : modelId;
+}
+
+function updateContextEnvModel(modelId, providerId = "") {
   const envModel = $("ctx-env-model");
   if (!envModel) return;
-  if (!modelId) {
-    envModel.textContent = "Mặc định";
-    return;
-  }
-  const match = availableModelsList.find(m => m.id === modelId);
-  envModel.textContent = match ? match.ten : modelId;
+  const p = providerId || activeSessionProvider || defaultProvider;
+  const pShort = getProviderShort(p);
+  const label = findModelLabel(modelId, p) || "Mặc định";
+  envModel.textContent = pShort ? `[${pShort}] ${label}` : label;
 }
 
-function updateModelPillUI(modelId) {
+function updateModelPillUI(modelId, providerId = "") {
   const pillLabel = $("model-pill-label");
   if (!pillLabel) return;
-  if (!modelId) {
-    pillLabel.textContent = "Model mặc định";
-    return;
+  const p = providerId || activeSessionProvider || defaultProvider;
+  const pShort = getProviderShort(p);
+  const pCls = getProviderClass(p);
+  const grp = modelGroups.find(g => g.provider === p);
+  const effectiveModelId = modelId || (grp && grp.default_model) || "";
+  const label = modelId
+    ? findModelLabel(modelId, p)
+    : (effectiveModelId ? `Mặc định · ${findModelLabel(effectiveModelId, p)}` : "Model mặc định");
+
+  if (pShort) {
+    pillLabel.innerHTML = `<span class="prov-tag ${pCls}" style="margin-right:5px;">${escapeHtml(pShort)}</span><span>${escapeHtml(label)}</span>`;
+  } else {
+    pillLabel.textContent = label;
   }
-  const match = availableModelsList.find(m => m.id === modelId);
-  pillLabel.textContent = match ? match.ten : modelId;
 }
 
-function renderModelMenuPopover(activeVal) {
+function renderModelMenuPopover(activeVal, activeProv = "") {
   const container = $("model-menu-items");
+  const controls = $("model-menu-controls");
+  const tabsEl = $("model-menu-tabs");
+  const searchEl = $("model-menu-search");
   if (!container) return;
-  const list = [{ id: "", ten: "Model mặc định" }, ...availableModelsList];
-  container.innerHTML = list.map(m => `
-    <button type="button" class="model-menu-item ${m.id === activeVal ? 'active' : ''}" data-model-id="${m.id}">
-      <span>${escapeHtml(m.ten)}</span>
-      ${m.id === activeVal ? '<span class="model-check">✓</span>' : ''}
-    </button>
-  `).join("");
+
+  const effProv = activeProv || activeSessionProvider || defaultProvider;
+  const totalModels = modelGroups.reduce((acc, g) => acc + (g.models ? g.models.length : 0) + 1, 0);
+
+  // Nút cài đặt nhanh kết nối AI
+  const cfgBtn = $("btn-model-menu-settings");
+  if (cfgBtn && !cfgBtn._bound) {
+    cfgBtn._bound = true;
+    cfgBtn.onclick = (e) => {
+      e.stopPropagation();
+      hideBottomPopovers();
+      openSettings();
+    };
+  }
+
+  // Hiển thị tab lọc hãng + ô tìm kiếm khi có từ 2 nhà cung cấp trở lên hoặc nhiều model
+  if (controls && tabsEl) {
+    const showControls = modelGroups.length > 1 || totalModels > 8;
+    controls.style.display = showControls ? "flex" : "none";
+    if (showControls) {
+      if (modelMenuFilterProvider !== "all" && !modelGroups.some(g => g.provider === modelMenuFilterProvider)) {
+        modelMenuFilterProvider = "all";
+      }
+      tabsEl.innerHTML = "";
+      if (modelGroups.length > 1) {
+        const allTab = document.createElement("button");
+        allTab.type = "button";
+        allTab.className = `model-menu-tab${modelMenuFilterProvider === "all" ? " active" : ""}`;
+        allTab.textContent = `Tất cả (${modelGroups.length})`;
+        allTab.onclick = (e) => {
+          e.stopPropagation();
+          modelMenuFilterProvider = "all";
+          renderModelMenuPopover(activeVal, activeProv);
+        };
+        tabsEl.appendChild(allTab);
+
+        for (const g of modelGroups) {
+          const t = document.createElement("button");
+          t.type = "button";
+          t.className = `model-menu-tab${modelMenuFilterProvider === g.provider ? " active" : ""}`;
+          t.textContent = g.short || g.provider;
+          t.onclick = (e) => {
+            e.stopPropagation();
+            modelMenuFilterProvider = g.provider;
+            renderModelMenuPopover(activeVal, activeProv);
+          };
+          tabsEl.appendChild(t);
+        }
+      }
+      if (searchEl && !searchEl._bound) {
+        searchEl._bound = true;
+        searchEl.onclick = (e) => e.stopPropagation();
+        searchEl.oninput = () => {
+          modelMenuSearchQuery = searchEl.value.trim().toLowerCase();
+          renderModelMenuPopover(activeSessionModel, activeSessionProvider);
+        };
+      }
+    }
+  }
+
+  const q = modelMenuSearchQuery;
+  const groupsToShow = modelGroups.filter(g => modelMenuFilterProvider === "all" || g.provider === modelMenuFilterProvider);
+
+  if (!groupsToShow.length) {
+    container.innerHTML = `<div style="padding:12px 14px; font-size:12px; color:var(--muted);">Chưa bật nhà cung cấp AI nào. Bấm <b>⚙ Kết nối</b> để cấu hình.</div>`;
+    return;
+  }
+
+  let html = "";
+  for (const g of groupsToShow) {
+    const p = g.provider;
+    const pCls = getProviderClass(p);
+    const defLabel = g.default_model ? `Mặc định (${findModelLabel(g.default_model, p)})` : "Model mặc định";
+    const items = [{ id: "", ten: defLabel, isDefaultOpt: true }, ...(g.models || [])];
+    const filtered = q
+      ? items.filter(m =>
+          (m.ten || "").toLowerCase().includes(q) ||
+          (m.id || "").toLowerCase().includes(q) ||
+          (g.name || "").toLowerCase().includes(q) ||
+          (g.short || "").toLowerCase().includes(q)
+        )
+      : items;
+    if (!filtered.length) continue;
+
+    const cliWarn = (g.cli_installed === false) ? `<span style="color:#fcd34d; font-size:9.5px;">chưa cài CLI</span>` : "";
+    html += `
+      <div class="model-menu-group-hdr">
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <span class="prov-tag ${pCls}">${escapeHtml(g.short || p)}</span>
+          <span>${escapeHtml(g.name || p)}</span>
+        </span>
+        ${cliWarn}
+      </div>
+    `;
+    for (const m of filtered) {
+      const isAct = (p === effProv) && ((m.id || "") === (activeVal || ""));
+      html += `
+        <button type="button" class="model-menu-item ${isAct ? "active" : ""}" data-provider="${escapeHtml(p)}" data-model-id="${escapeHtml(m.id || "")}">
+          <span class="model-item-main">
+            <span class="model-item-name">${escapeHtml(m.ten || m.id)}</span>
+          </span>
+          ${isAct ? '<span class="model-check">✓</span>' : ""}
+        </button>
+      `;
+    }
+  }
+
+  container.innerHTML = html || `<div style="padding:12px 14px; font-size:12px; color:var(--muted);">Không tìm thấy model khớp "${escapeHtml(q)}".</div>`;
 
   container.querySelectorAll(".model-menu-item").forEach(btn => {
     btn.onclick = async () => {
-      const chosen = btn.dataset.modelId || "";
-      await selectModelForSession(chosen);
+      const chosenProv = btn.dataset.provider || defaultProvider || "";
+      const chosenModel = btn.dataset.modelId || "";
+      await selectModelForSession(chosenModel, chosenProv);
       hideBottomPopovers();
     };
   });
 }
 
-async function selectModelForSession(chosen) {
+async function selectModelForSession(chosenModel, chosenProvider = "") {
+  const prov = chosenProvider || activeSessionProvider || defaultProvider || "";
+  activeSessionProvider = prov;
+  activeSessionModel = chosenModel;
   const sel = $("model-pick");
-  if (sel) sel.value = chosen;
-  updateModelPillUI(chosen);
-  renderModelMenuPopover(chosen);
-  updateContextEnvModel(chosen);
+  if (sel) sel.value = chosenModel;
+  updateModelPillUI(chosenModel, prov);
+  renderModelMenuPopover(chosenModel, prov);
+  updateContextEnvModel(chosenModel, prov);
 
+  const pShort = getProviderShort(prov);
   if (session) {
     try {
       const r = await fetch(`/api/sessions/${session}/model`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: chosen })
+        body: JSON.stringify({ provider: prov, model: chosenModel })
       });
       const sessObj = currentSessions.find(s => s.id === session);
-      if (sessObj) sessObj.model = chosen;
+      if (sessObj) {
+        sessObj.provider = prov;
+        sessObj.model = chosenModel;
+      }
       renderSessionList();
-      $("state").textContent = r.ok ? "Đã lưu model cho phiên" : "Lỗi lưu model";
-      setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
+      loadSessionContext(session).catch(() => {});
+      if (typeof fetchAndRenderQuota === "function") fetchAndRenderQuota().catch(() => {});
+      $("state").textContent = r.ok ? `Phiên này đang dùng ${pShort || "AI"}` : "Lỗi lưu model";
+      setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2200);
     } catch (err) {
       console.error("Lỗi cập nhật model session:", err);
     }
   } else {
-    pendingSessionModel = chosen;
-    $("state").textContent = "Đã chọn model phiên mới";
-    setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2000);
+    pendingSessionProvider = prov;
+    pendingSessionModel = chosenModel;
+    if (typeof fetchAndRenderQuota === "function") fetchAndRenderQuota().catch(() => {});
+    $("state").textContent = `Phiên mới sẽ dùng ${pShort || "AI"}`;
+    setTimeout(() => { if (!busy) $("state").textContent = "Sẵn sàng"; }, 2200);
   }
 }
 
@@ -3247,6 +3733,10 @@ if (btnModelPill) {
     const isVisible = menu && menu.style.display === "flex";
     hideBottomPopovers();
     if (menu && !isVisible) {
+      modelMenuSearchQuery = "";
+      const s = $("model-menu-search");
+      if (s) s.value = "";
+      renderModelMenuPopover(activeSessionModel, activeSessionProvider);
       menu.style.display = "flex";
     }
   };
@@ -3328,7 +3818,11 @@ let lastQuotaData = null;
 async function fetchAndRenderQuota() {
   try {
     const sid = (typeof session !== "undefined") ? session : "";
-    const res = await fetch(`/api/quota?session_id=${encodeURIComponent(sid || "")}`);
+    const prov = activeSessionProvider || pendingSessionProvider || "";
+    const qs = new URLSearchParams();
+    if (sid) qs.set("session_id", sid);
+    if (prov) qs.set("provider", prov);
+    const res = await fetch(`/api/quota?${qs.toString()}`);
     if (!res.ok) return;
     const data = await res.json();
     lastQuotaData = data;
@@ -3357,13 +3851,17 @@ async function fetchAndRenderQuota() {
       dot.style.boxShadow = `0 0 4px ${dot.style.background}`;
     }
 
+    const pShort = data.provider_short || getProviderShort(data.provider);
     const btn = $("btn-quota-ring");
     if (btn) {
-      btn.title = `Hạn mức AI: Block 5h ${pct5h}% (${data.block_5h.reset_in}) · Tuần ${pctWeek}% (Bấm để xem chi tiết)`;
+      btn.title = `Hạn mức ${pShort || "AI"}: Block 5h ${pct5h}% (${data.block_5h.reset_in}) · Tuần ${pctWeek}% (Bấm để xem chi tiết)`;
     }
 
     // 2. Cập nhật dữ liệu Popover
-    if ($("quota-model-name")) $("quota-model-name").textContent = data.model_name || data.model_id || "Model mặc định";
+    if ($("quota-model-name")) {
+      const mLabel = data.model_name || data.model_id || "Model mặc định";
+      $("quota-model-name").textContent = pShort ? `[${pShort}] ${mLabel}` : mLabel;
+    }
     if ($("quota-5h-val")) $("quota-5h-val").textContent = `${pct5h}%`;
     if ($("quota-5h-bar")) {
       $("quota-5h-bar").style.width = `${Math.min(100, pct5h)}%`;
@@ -3382,6 +3880,23 @@ async function fetchAndRenderQuota() {
 
     if ($("quota-status-badge")) {
       $("quota-status-badge").textContent = data.status_text;
+    }
+
+    // 3. Thống kê nhanh theo từng nhà cung cấp AI đang bật song song
+    const byProvEl = $("quota-by-provider");
+    if (byProvEl) {
+      const list = data.by_provider || [];
+      if (list.length > 1) {
+        byProvEl.style.display = "flex";
+        byProvEl.innerHTML = list.map(item => `
+          <div class="quota-prov-row ${item.provider === data.provider ? "active" : ""}">
+            <span>${escapeHtml(item.short)}</span>
+            <span>5h: ${item.used_5h} (${item.pct_5h}%) · Tuần: ${item.used_week}</span>
+          </div>
+        `).join("");
+      } else {
+        byProvEl.style.display = "none";
+      }
     }
   } catch (err) {
     console.warn("Lỗi tải hạn mức quota:", err);
@@ -3423,20 +3938,76 @@ if (genFileInput) {
   };
 }
 
-// Phím tắt Ctrl+U để mở nhanh chọn file
-document.addEventListener("keydown", (e) => {
-  if (e.ctrlKey && e.key.toLowerCase() === "u") {
+// Xóa tham số tạm ?_r= sau khi tải lại trang bằng Ctrl+F5
+try {
+  const curUrl = new URL(window.location.href);
+  if (curUrl.searchParams.has("_r")) {
+    curUrl.searchParams.delete("_r");
+    window.history.replaceState({}, "", curUrl.pathname + curUrl.search + curUrl.hash);
+  }
+} catch (_) {}
+
+// Tải lại giao diện Kuro (hỗ trợ cả Kuro App Desktop pywebview lẫn trình duyệt)
+async function reloadKuroApp(hard = true) {
+  try {
+    if (hard && "caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (_) {}
+
+  try {
+    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.reload_app === "function") {
+      await window.pywebview.api.reload_app(hard);
+      return;
+    }
+  } catch (_) {}
+
+  if (hard) {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("_r", String(Date.now()));
+    window.location.replace(nextUrl.toString());
+  } else {
+    window.location.reload();
+  }
+}
+
+// Phím tắt toàn cục: Ctrl+F5 / Ctrl+Shift+R (tải lại sạch bỏ cache), F5 / Ctrl+R trên Kuro Desktop, Ctrl+U chọn file
+window.addEventListener("keydown", (e) => {
+  const key = (e.key || "").toLowerCase();
+  const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+  const isDesktop = !!(window.pywebview && window.pywebview.api);
+
+  // Ctrl + F5 hoặc Ctrl + Shift + R: tải lại sạch (bỏ cache) ngay cả trên Kuro App Desktop
+  if ((isCtrlOrMeta && e.key === "F5") || (isCtrlOrMeta && e.shiftKey && key === "r")) {
+    e.preventDefault();
+    e.stopPropagation();
+    reloadKuroApp(true);
+    return;
+  }
+
+  // F5 hoặc Ctrl + R trên Kuro Desktop (WebView2 debug=False mặc định tắt phím tắt trình duyệt)
+  if (isDesktop && (e.key === "F5" || (isCtrlOrMeta && !e.shiftKey && key === "r"))) {
+    e.preventDefault();
+    e.stopPropagation();
+    reloadKuroApp(false);
+    return;
+  }
+
+  if (e.ctrlKey && key === "u") {
     e.preventDefault();
     if ($("menu-attach-file")) {
       $("menu-attach-file").click();
     }
   }
-});
+}, true);
 
-// Hiển thị tên Core AI ở góc chân
+// Hiển thị tên Core AI & số lượng kết nối song song ở góc chân
 function showCore(r) {
   const id = r.settings.KURO_PROVIDER.value;
-  $("core").textContent = id ? r.providers[id].ten.split(" (")[0] : "Chưa chọn";
+  const baseName = id && r.providers[id] ? r.providers[id].ten.split(" (")[0] : "Chưa chọn";
+  const enabledCount = (r.enabled_providers || []).length;
+  $("core").textContent = (id && enabledCount > 1) ? `${baseName} (+${enabledCount - 1} AI)` : baseName;
 }
 
 fetch("/api/settings").then((r) => r.json()).then((r) => {
@@ -3508,9 +4079,6 @@ function openVersionDialog() {
 
   $("vd-current-ver").textContent = "v" + (u.current || "1.5.11");
   $("vd-latest-ver").textContent = "v" + (u.latest || u.current || "1.5.11");
-  $("vd-input-ver").value = u.current || "1.5.11";
-  $("vd-save-status").textContent = "";
-  $("vd-save-status").className = "save-status-msg";
 
   const alertBox = $("vd-update-alert-box");
   const progBox = $("vd-progress-box");
@@ -3533,59 +4101,8 @@ function openVersionDialog() {
   $("version-dialog").showModal();
 }
 
-function bumpVersion(type) {
-  const input = $("vd-input-ver");
-  const val = (input.value || "1.5.11").trim().replace(/^v/i, "");
-  const parts = val.split(".").map((x) => parseInt(x, 10) || 0);
-  while (parts.length < 3) parts.push(0);
-
-  if (type === "patch") {
-    parts[2] += 1;
-  } else if (type === "minor") {
-    parts[1] += 1;
-    parts[2] = 0;
-  }
-  input.value = parts.join(".");
-}
-
-async function saveVersionNumber() {
-  const input = $("vd-input-ver");
-  const statusMsg = $("vd-save-status");
-  const val = (input.value || "").trim().replace(/^v/i, "");
-
-  if (!/^\d+(\.\d+)*$/.test(val)) {
-    statusMsg.textContent = "Số phiên bản không hợp lệ (ví dụ đúng: 1.4.1)";
-    statusMsg.className = "save-status-msg err";
-    return;
-  }
-
-  statusMsg.textContent = "Đang lưu số phiên bản...";
-  statusMsg.className = "save-status-msg";
-
-  try {
-    const res = await fetch("/api/version", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: val }),
-    });
-    const d = await res.json();
-    if (res.ok) {
-      statusMsg.textContent = `Đã lưu thành công số phiên bản v${d.version}!`;
-      statusMsg.className = "save-status-msg ok";
-      await checkUpdate(false);
-      $("vd-current-ver").textContent = "v" + d.version;
-    } else {
-      statusMsg.textContent = d.detail || "Lỗi khi lưu phiên bản";
-      statusMsg.className = "save-status-msg err";
-    }
-  } catch (e) {
-    statusMsg.textContent = "Lỗi kết nối máy chủ: " + e.message;
-    statusMsg.className = "save-status-msg err";
-  }
-}
-
-async function runSelfUpdate() {
-  if (!confirm("Bắt đầu cập nhật Kuro lên phiên bản mới? Hệ thống sẽ kéo mã nguồn và tự động khởi động lại dịch vụ.")) return;
+async function runSelfUpdate(skipConfirm = false) {
+  if (!skipConfirm && !confirm("Bắt đầu cập nhật Kuro lên phiên bản mới? Hệ thống sẽ kéo mã nguồn và tự động khởi động lại dịch vụ.")) return;
 
   const alertBox = $("vd-update-alert-box");
   const progBox = $("vd-progress-box");
@@ -3733,13 +4250,10 @@ $("btn-check-update-manual") && ($("btn-check-update-manual").onclick = async ()
 });
 $("btn-force-update") && ($("btn-force-update").onclick = () => {
   if (confirm("Chạy cập nhật lại toàn bộ mã nguồn và thư viện từ nhánh main trên GitHub?")) {
-    runSelfUpdate();
+    runSelfUpdate(true);
   }
 });
-$("btn-save-version") && ($("btn-save-version").onclick = saveVersionNumber);
-$("btn-bump-patch") && ($("btn-bump-patch").onclick = () => bumpVersion("patch"));
-$("btn-bump-minor") && ($("btn-bump-minor").onclick = () => bumpVersion("minor"));
-$("btn-start-update") && ($("btn-start-update").onclick = runSelfUpdate);
+$("btn-start-update") && ($("btn-start-update").onclick = () => runSelfUpdate(false));
 
 // ===================== CÂY THƯ MỤC DỰ ÁN (PROJECT EXPLORER) =====================
 let fsExpanded = new Set();

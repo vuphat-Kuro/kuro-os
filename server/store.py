@@ -1,4 +1,5 @@
 """Lưu phiên chat vào SQLite (state/kuro.db)."""
+import json
 import sqlite3
 import time
 import uuid
@@ -29,21 +30,19 @@ def _q(sql: str, args=(), script=False):
 
 def init() -> None:
     _q(SCHEMA, script=True)
+    for ddl in (
+        "ALTER TABLE sessions ADD COLUMN agent TEXT DEFAULT 'kuro-core'",
+        "ALTER TABLE sessions ADD COLUMN workspace TEXT DEFAULT ''",
+        "ALTER TABLE sessions ADD COLUMN model TEXT DEFAULT ''",
+        "ALTER TABLE sessions ADD COLUMN provider TEXT DEFAULT ''",
+        "ALTER TABLE sessions ADD COLUMN conv_ids TEXT DEFAULT '{}'",
+        "ALTER TABLE messages ADD COLUMN provider TEXT DEFAULT ''",
+    ):
+        try:
+            _q(ddl)
+        except Exception:
+            pass
     try:
-        _q("ALTER TABLE sessions ADD COLUMN agent TEXT DEFAULT 'kuro-core'")
-    except Exception:
-        pass
-    try:
-        _q("ALTER TABLE sessions ADD COLUMN workspace TEXT DEFAULT ''")
-    except Exception:
-        pass
-    try:
-        _q("ALTER TABLE sessions ADD COLUMN model TEXT DEFAULT ''")
-    except Exception:
-        pass
-    try:
-        from pathlib import Path
-        import config
         def_ws = normalize_workspace(str(config.ROOT / "projects" / "DuAn_KhoiTao"))
         _q("UPDATE sessions SET workspace=? WHERE workspace='' OR workspace IS NULL", (def_ws,))
     except Exception:
@@ -60,15 +59,62 @@ def normalize_workspace(ws: str | None) -> str:
         return ws.strip().replace("\\", "/").lower()
 
 
-def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core", workspace: str = "", model: str = "") -> str:
+def parse_conv_id(stored: str | None) -> tuple[str | None, str | None]:
+    """Tách '<provider>:<id>'; mã trần bản cũ là 'claude', tiền tố cũ codex/agy đổi về id chuẩn."""
+    if not stored:
+        return None, None
+    if ":" not in stored:
+        return "claude", stored
+    owner, conv = stored.split(":", 1)
+    return {"codex": "chatgpt", "agy": "antigravity"}.get(owner, owner), conv
+
+
+def get_conv_ids(sess_or_sid) -> dict[str, str]:
+    """Lấy bản đồ mã hội thoại theo từng nhà cung cấp AI của phiên (hợp nhất cả claude_id cũ)."""
+    sess = get(sess_or_sid) if isinstance(sess_or_sid, str) else (sess_or_sid or {})
+    out: dict[str, str] = {}
+    if not sess:
+        return out
+    raw = sess.get("conv_ids")
+    if raw:
+        try:
+            parsed = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(parsed, dict):
+                for k, v in parsed.items():
+                    if k and v:
+                        norm_k = {"codex": "chatgpt", "agy": "antigravity"}.get(str(k), str(k))
+                        out[norm_k] = str(v)
+        except Exception:
+            pass
+    owner, conv = parse_conv_id(sess.get("claude_id"))
+    if owner and conv and owner not in out:
+        out[owner] = conv
+    return out
+
+
+def session_provider(sess: dict | None) -> str:
+    """Suy ra provider của phiên: cột provider -> tiền tố claude_id -> rỗng (chưa gán)."""
+    if not sess:
+        return ""
+    prov = (sess.get("provider") or "").strip()
+    if prov:
+        return prov
+    owner, _ = parse_conv_id(sess.get("claude_id"))
+    return owner or ""
+
+
+def ensure(sid: str | None, title: str = "Phiên mới", agent: str = "kuro-core", workspace: str = "", model: str = "", provider: str = "") -> str:
     sid = sid or uuid.uuid4().hex[:12]
     now = time.time()
     agent = agent or "kuro-core"
     workspace = normalize_workspace(workspace)
-    _q("INSERT OR IGNORE INTO sessions(id,title,agent,workspace,model,created,updated) VALUES(?,?,?,?,?,?,?)",
-       (sid, title[:80], agent, workspace, model or "", now, now))
+    provider = (provider or "").strip()
+    _q("INSERT OR IGNORE INTO sessions(id,title,agent,workspace,model,provider,conv_ids,created,updated) VALUES(?,?,?,?,?,?,?,?,?)",
+       (sid, title[:80], agent, workspace, model or "", provider, "{}", now, now))
     if model:
         _q("UPDATE sessions SET model=? WHERE id=? AND (model IS NULL OR model='')", (model, sid))
+    if provider:
+        _q("UPDATE sessions SET provider=? WHERE id=? AND (provider IS NULL OR provider='')", (provider, sid))
     return sid
 
 
@@ -78,15 +124,42 @@ def get(sid: str) -> dict | None:
 
 
 def set_claude_id(sid: str, claude_id: str | None) -> None:
-    _q("UPDATE sessions SET claude_id=?, updated=? WHERE id=?", (claude_id, time.time(), sid))
+    if claude_id is None:
+        _q("UPDATE sessions SET claude_id=NULL, conv_ids='{}', updated=? WHERE id=?", (time.time(), sid))
+        return
+    owner, conv = parse_conv_id(claude_id)
+    conv_map = get_conv_ids(sid)
+    if owner and conv:
+        conv_map[owner] = conv
+    _q("UPDATE sessions SET claude_id=?, conv_ids=?, updated=? WHERE id=?",
+       (claude_id, json.dumps(conv_map, ensure_ascii=False), time.time(), sid))
+
+
+def set_conv_id(sid: str, provider: str, conv_id: str) -> None:
+    """Lưu mã hội thoại riêng cho từng provider trong cùng phiên (không xóa mạch của provider khác)."""
+    prov = (provider or "claude").strip()
+    conv_map = get_conv_ids(sid)
+    if conv_id:
+        conv_map[prov] = conv_id
+    combined = f"{prov}:{conv_id}" if conv_id else None
+    _q("UPDATE sessions SET claude_id=?, conv_ids=?, updated=? WHERE id=?",
+       (combined, json.dumps(conv_map, ensure_ascii=False), time.time(), sid))
 
 
 def set_agent(sid: str, agent: str) -> None:
     _q("UPDATE sessions SET agent=?, updated=? WHERE id=?", (agent, time.time(), sid))
 
 
-def set_model(sid: str, model: str) -> None:
-    _q("UPDATE sessions SET model=?, updated=? WHERE id=?", (model or "", time.time(), sid))
+def set_provider(sid: str, provider: str) -> None:
+    _q("UPDATE sessions SET provider=?, updated=? WHERE id=?", ((provider or "").strip(), time.time(), sid))
+
+
+def set_model(sid: str, model: str, provider: str | None = None) -> None:
+    if provider is not None:
+        _q("UPDATE sessions SET provider=?, model=?, updated=? WHERE id=?",
+           ((provider or "").strip(), model or "", time.time(), sid))
+    else:
+        _q("UPDATE sessions SET model=?, updated=? WHERE id=?", (model or "", time.time(), sid))
 
 
 def delete_session(sid: str) -> None:
@@ -98,12 +171,14 @@ def replace_messages(sid: str, new_messages: list[dict]) -> None:
     _q("DELETE FROM messages WHERE session_id=?", (sid,))
     now = time.time()
     for m in new_messages:
-        _q("INSERT INTO messages(session_id,role,text,ts) VALUES(?,?,?,?)", (sid, m.get("role", "assistant"), m.get("text", ""), now))
-    _q("UPDATE sessions SET updated=?, claude_id=NULL WHERE id=?", (now, sid))
+        _q("INSERT INTO messages(session_id,role,text,ts,provider) VALUES(?,?,?,?,?)",
+           (sid, m.get("role", "assistant"), m.get("text", ""), now, m.get("provider", "")))
+    _q("UPDATE sessions SET updated=?, claude_id=NULL, conv_ids='{}' WHERE id=?", (now, sid))
 
 
-def add(sid: str, role: str, text: str) -> None:
-    _q("INSERT INTO messages(session_id,role,text,ts) VALUES(?,?,?,?)", (sid, role, text, time.time()))
+def add(sid: str, role: str, text: str, provider: str = "") -> None:
+    _q("INSERT INTO messages(session_id,role,text,ts,provider) VALUES(?,?,?,?,?)",
+       (sid, role, text, time.time(), (provider or "").strip()))
     _q("UPDATE sessions SET updated=? WHERE id=?", (time.time(), sid))
 
 
@@ -119,10 +194,15 @@ def sessions(limit: int = 100, agent: str | None = None, workspace: str | None =
         args.append(norm_ws)
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = f"SELECT id,title,updated,agent,workspace,model FROM sessions {where} ORDER BY updated DESC LIMIT ?"
+    sql = f"SELECT id,title,updated,agent,workspace,model,provider,claude_id FROM sessions {where} ORDER BY updated DESC LIMIT ?"
     args.append(limit)
-    return _q(sql, tuple(args))
+    rows = _q(sql, tuple(args))
+    for r in rows:
+        if not r.get("provider"):
+            r["provider"] = session_provider(r)
+        r.pop("claude_id", None)
+    return rows
 
 
 def messages(sid: str) -> list[dict]:
-    return _q("SELECT role,text,ts FROM messages WHERE session_id=? ORDER BY id", (sid,))
+    return _q("SELECT role,text,ts,provider FROM messages WHERE session_id=? ORDER BY id", (sid,))

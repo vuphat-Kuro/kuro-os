@@ -1,0 +1,7 @@
+{
+  "ten": "Làm việc với AutoCAD (chuẩn PKTTC)",
+  "mo_ta": "Quy tắc vẽ và xuất DXF theo chuẩn Phòng KT-TC: chữ Unicode, cỡ chữ, layer và nét in, dim, viewport. Kèm script khởi tạo bản vẽ chuẩn và script kiểm DXF. Quy tắc chỉ được nạp khi việc liên quan đến vẽ hoặc xuất bản vẽ AutoCAD.",
+  "skill": "autocad-pkttc",
+  "pip": ["ezdxf==1.4.5"],
+  "import": ["ezdxf"]
+}

@@ -61,6 +61,7 @@ def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        errors="replace",
         creationflags=NO_WINDOW,
         env=env,
     )
@@ -94,20 +95,53 @@ def kill_process(pid: int, timeout_s: float = 10.0) -> None:
             pass
 
 
+def _is_port_free(port: int) -> bool:
+    import socket
+    for host in ("127.0.0.1", "0.0.0.0"):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind((host, port))
+        except OSError:
+            return False
+        finally:
+            s.close()
+    return True
+
+
 def free_port(port: int | str) -> None:
-    """Tắt các tiến trình đang chiếm cổng (ví dụ cổng 7788)."""
+    """Tắt các tiến trình đang chiếm cổng (ví dụ cổng 7788) và chờ cổng thực sự rảnh."""
+    try:
+        p = int(port)
+    except ValueError:
+        p = 7788
     if os.name == "nt":
-        bat = ROOT / "tat-kuro.bat"
-        if bat.exists():
-            run_cmd(["cmd.exe", "/c", str(bat)])
-            time.sleep(1)
+        try:
+            cmd = f'netstat -ano | findstr /r /c:":{p} .*LISTENING"'
+            out = subprocess.check_output(cmd, shell=True, text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW)
+            for line in out.strip().splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 5 and parts[-1].isdigit():
+                    pid = int(parts[-1])
+                    if pid > 0 and pid != os.getpid():
+                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, creationflags=NO_WINDOW)
+        except Exception:
+            bat = ROOT / "tat-kuro.bat"
+            if bat.exists():
+                run_cmd(["cmd.exe", "/c", str(bat)])
+    deadline = time.time() + 8.0
+    while time.time() < deadline:
+        if _is_port_free(p):
+            return
+        time.sleep(0.25)
+
+
+_LOCAL_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def is_server_healthy(port: int | str) -> bool:
     url = f"http://127.0.0.1:{port}/health"
     try:
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=2) as resp:
+        with _LOCAL_OPENER.open(url, timeout=2) as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -115,6 +149,7 @@ def is_server_healthy(port: int | str) -> bool:
 
 def start_kuro_server(port: int | str) -> None:
     log("Đang khởi động lại Kuro...")
+    env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8", "KURO_PORT": str(port)}
     if os.name == "nt":
         desktop_py = ROOT / "app_desktop.py"
         pythonw = ROOT / ".venv" / "Scripts" / "pythonw.exe"
@@ -124,17 +159,17 @@ def start_kuro_server(port: int | str) -> None:
                 [exe, str(desktop_py)],
                 cwd=str(ROOT),
                 creationflags=0x00000008 | 0x00000200,
+                env=env,
             )
             return
 
         vbs = ROOT / "kuro.vbs"
         if vbs.exists():
-            subprocess.Popen(["wscript.exe", "//nologo", str(vbs)], cwd=str(ROOT), creationflags=0x00000008)
+            subprocess.Popen(["wscript.exe", "//nologo", str(vbs)], cwd=str(ROOT), creationflags=0x00000008, env=env)
             return
 
     # Fallback chạy trực tiếp uvicorn
     py = venv_python()
-    env = {**os.environ, "PYTHONUTF8": "1", "KURO_PORT": str(port)}
     subprocess.Popen(
         [py, "server/main.py"],
         cwd=str(ROOT),
@@ -181,17 +216,20 @@ def main():
             log("Khôi phục các thay đổi cục bộ từ git stash...")
             run_cmd(["git", "stash", "pop"])
 
-        # Bước 2: Cài đặt / cập nhật thư viện
+        # Bước 2: Cài đặt / cập nhật thư viện (tách riêng cốt lõi và gói kỹ thuật để gói kỹ thuật không làm hỏng lõi)
         write_state({"phase": "installing"})
-        log("Cập nhật các gói thư viện Python nếu có...")
+        log("Cập nhật các gói thư viện lõi Python (requirements.txt)...")
         req_file = ROOT / "requirements.txt"
         req_tech = ROOT / "requirements-ky-thuat.txt"
-        pip_args = [venv_python(), "-m", "pip", "install", "--disable-pip-version-check"]
         if req_file.exists():
-            pip_args.extend(["-r", str(req_file)])
+            r_core = run_cmd([venv_python(), "-m", "pip", "install", "--disable-pip-version-check", "-r", str(req_file)])
+            if r_core.returncode != 0:
+                raise RuntimeError("Cài thư viện cốt lõi (requirements.txt) thất bại. Xem chi tiết trong state/update.log.")
         if req_tech.exists():
-            pip_args.extend(["-r", str(req_tech)])
-        run_cmd(pip_args)
+            log("Cập nhật các gói thư viện kỹ thuật (requirements-ky-thuat.txt)...")
+            r_tech = run_cmd([venv_python(), "-m", "pip", "install", "--disable-pip-version-check", "-r", str(req_tech)])
+            if r_tech.returncode != 0:
+                log("Cảnh báo: Một số gói trong requirements-ky-thuat.txt chưa cài được trên phiên bản Python này; Kuro vẫn tiếp tục khởi động.")
 
         # Cập nhật phím tắt Desktop nếu có file script
         shortcut_ps = ROOT / "tao-loi-tat.ps1"
@@ -205,21 +243,30 @@ def main():
             kill_process(args.server_pid)
         free_port(args.port)
 
-        time.sleep(2)
+        time.sleep(0.5)
 
         start_kuro_server(args.port)
 
-        # Bước 4: Kiểm tra sức khỏe (Health Check)
+        # Bước 4: Kiểm tra sức khỏe (Health Check - chờ tối đa 45s cho máy yếu sau cập nhật)
         log("Đang kiểm tra khởi động server Kuro...")
         ready = False
-        for i in range(30):
+        for i in range(45):
             time.sleep(1)
             if is_server_healthy(args.port):
                 ready = True
                 break
 
         if not ready:
-            raise RuntimeError("Server Kuro không phản hồi sau khi cập nhật (timeout 30s).")
+            err_log = STATE_DIR / "desktop_server_error.log"
+            extra = ""
+            if err_log.is_file():
+                try:
+                    last_lines = err_log.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+                    if last_lines:
+                        extra = f" ({last_lines[-1][:200]})"
+                except Exception:
+                    pass
+            raise RuntimeError(f"Server Kuro không phản hồi sau khi cập nhật (timeout 45s){extra}.")
 
         new_version = "1.0.0"
         if VERSION_FILE.exists():

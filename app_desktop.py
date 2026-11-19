@@ -22,8 +22,7 @@ if str(SERVER_DIR) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# Đảm bảo stdout và stderr luôn tồn tại khi chạy dưới pythonw.exe (GUI mode không có console)
-# tránh lỗi crash "AttributeError: 'NoneType' object has no attribute 'write'" khi uvicorn/logging ghi log
+# Đảm bảo stdout và stderr luôn tồn tại và dùng UTF-8 (tránh crash UnicodeEncodeError cp1252 trên Windows)
 if sys.stdout is None or sys.stderr is None:
     try:
         log_dir = ROOT / "state"
@@ -33,6 +32,12 @@ if sys.stdout is None or sys.stderr is None:
             sys.stdout = gui_log
         if sys.stderr is None:
             sys.stderr = gui_log
+    except Exception:
+        pass
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if _stream and hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -117,34 +122,110 @@ class DesktopApi:
             print(f"[DesktopApi] Lỗi đọc clipboard: {e}")
             return []
 
+    def reload_app(self, hard: bool = True) -> bool:
+        """Tải lại giao diện ngay trên cửa sổ Kuro Desktop (Ctrl+F5 / F5 / Ctrl+R) không cần tắt mở lại app."""
+        if not self._window:
+            return False
+        try:
+            import config
+            port = getattr(config, "PORT", 7788)
+            base_url = f"http://127.0.0.1:{port}/"
+            target_url = f"{base_url}?_r={int(time.time() * 1000)}" if hard else base_url
+            self._window.load_url(target_url)
+            return True
+        except Exception as e:
+            print(f"[DesktopApi] Lỗi tải lại cửa sổ: {e}")
+            return False
 
-def free_port(port: int = 7788):
-    """Giải phóng cổng nếu có tiến trình zombie cũ chiếm giữ (chạy ngầm 100%, không nháy cửa sổ console)."""
+
+def _read_kuro_port() -> int:
+    """Đọc KURO_PORT từ môi trường hoặc .env (mặc định 7788)."""
+    val = os.getenv("KURO_PORT", "").strip()
+    if not val:
+        env_file = ROOT / ".env"
+        if env_file.is_file():
+            try:
+                for line in env_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                    s = line.strip()
+                    if s.startswith("KURO_PORT="):
+                        val = s.split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+            except Exception:
+                pass
+    try:
+        return int(val) if val else 7788
+    except ValueError:
+        return 7788
+
+
+def _is_port_free(port: int) -> bool:
+    import socket
+    for host in ("127.0.0.1", "0.0.0.0"):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind((host, port))
+        except OSError:
+            return False
+        finally:
+            s.close()
+    return True
+
+
+def free_port(port: int = 7788, wait_s: float = 6.0):
+    """Giải phóng cổng nếu có tiến trình cũ chiếm giữ và đợi cổng thực sự được nhả (tránh WinError 10048)."""
     try:
         import subprocess
         no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        cmd = f'netstat -ano | findstr /r /c:":{port} .*LISTENING"'
-        out = subprocess.check_output(cmd, shell=True, text=True, encoding="utf-8", errors="ignore", creationflags=no_win)
-        for line in out.strip().splitlines():
-            parts = line.strip().split()
-            if len(parts) >= 5:
-                pid = int(parts[-1])
-                if pid > 0 and pid != os.getpid():
-                    subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, creationflags=no_win)
+        pids: set[int] = set()
+        # Ưu tiên psutil nếu có, ổn định hơn netstat trên mọi bản Windows
+        try:
+            import psutil
+            for conn in psutil.net_connections(kind="tcp"):
+                if conn.laddr and conn.laddr.port == port and conn.status == psutil.CONN_LISTEN and conn.pid:
+                    if conn.pid != os.getpid():
+                        pids.add(conn.pid)
+        except Exception:
+            pass
+        if not pids:
+            cmd = f'netstat -ano | findstr /r /c:":{port} .*LISTENING"'
+            out = subprocess.check_output(cmd, shell=True, text=True, encoding="utf-8", errors="ignore", creationflags=no_win)
+            for line in out.strip().splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 5 and parts[-1].isdigit():
+                    pid = int(parts[-1])
+                    if pid > 0 and pid != os.getpid():
+                        pids.add(pid)
+        for pid in pids:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=no_win)
     except Exception:
         pass
 
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        if _is_port_free(port):
+            return
+        time.sleep(0.2)
 
-def is_server_running(url: str = "http://127.0.0.1:7788/health") -> bool:
+
+# Opener bỏ qua HTTP Proxy của Windows khi gọi localhost (tránh lỗi trên máy công ty bật proxy/VPN)
+_LOCAL_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def is_server_running(port: int = 7788) -> bool:
+    url = f"http://127.0.0.1:{port}/health"
     try:
-        req = urllib.request.urlopen(url, timeout=0.8)
-        return req.status == 200
+        with _LOCAL_OPENER.open(url, timeout=1.0) as req:
+            return req.status == 200
     except Exception:
         return False
 
 
+_SERVER_ERROR: str | None = None
+
+
 def run_fastapi_server():
-    """Khởi chạy server uvicorn nền nếu chưa có tiến trình nào chạy."""
+    """Khởi chạy server uvicorn nền và ghi nhận lỗi nếu không khởi động được."""
+    global _SERVER_ERROR
     try:
         import uvicorn
         from server.main import app
@@ -153,33 +234,69 @@ def run_fastapi_server():
         uvicorn.run(app, host=config.HOST, port=config.PORT, log_level="warning")
     except BaseException as e:
         import traceback
+        tb = traceback.format_exc()
+        _SERVER_ERROR = f"{type(e).__name__}: {e}\n\n{tb}"
         try:
+            (ROOT / "state").mkdir(parents=True, exist_ok=True)
             with open(ROOT / "state" / "desktop_server_error.log", "w", encoding="utf-8") as f:
-                f.write(traceback.format_exc())
+                f.write(tb)
         except Exception:
             pass
 
 
 def main():
     try:
-        # 0. Giải phóng cổng 7788 nếu có tiến trình zombie từ phiên trước
-        free_port(7788)
-        time.sleep(0.3)
+        # Ẩn console của tiến trình con (claude...) và gom chúng vào job: tắt Kuro Desktop thì cả cây con tắt theo
+        try:
+            import winproc
+            winproc.an_cua_so()
+            winproc.gop_tien_trinh_con()
+        except Exception as e:
+            print(f"[Kuro Desktop] Bỏ qua winproc: {e}")
 
-        # 1. Đảm bảo server Kuro OS đang chạy với code mới nhất
-        print("[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ...")
+        port = _read_kuro_port()
+        app_url = f"http://127.0.0.1:{port}"
+
+        # 0. Giải phóng cổng nếu có tiến trình cũ chiếm giữ và chờ nhả cổng hoàn toàn
+        free_port(port)
+
+        # 1. Đảm bảo server Kuro OS đang chạy với code mới nhất (chờ tối đa 30s cho máy yếu / quét Defender sau cập nhật)
+        print(f"[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ (cổng {port})...")
         server_thread = threading.Thread(target=run_fastapi_server, daemon=True)
         server_thread.start()
-        for _ in range(30):
-            time.sleep(0.2)
-            if is_server_running():
+        ready = False
+        for _ in range(150):
+            if _SERVER_ERROR:
                 break
+            time.sleep(0.2)
+            if is_server_running(port):
+                ready = True
+                break
+
+        if not ready:
+            detail = (_SERVER_ERROR or f"Máy chủ cục bộ không phản hồi tại {app_url} sau 30 giây.").strip()
+            short_detail = detail.splitlines()[0] if _SERVER_ERROR else detail
+            if "No module named" in detail or "python-multipart" in detail:
+                hint = "\n\nGợi ý khắc phục: Chạy lại tệp cap-nhat.bat hoặc setup.bat để cài đủ thư viện Python."
+            elif "10048" in detail:
+                hint = f"\n\nGợi ý khắc phục: Cổng {port} đang bị ứng dụng khác chiếm giữ. Chạy tat-kuro.bat rồi mở lại."
+            else:
+                hint = "\n\nXem chi tiết tại tệp state\\desktop_server_error.log, hoặc chạy cap-nhat.bat / run-app.bat để xem log."
+            if sys.platform == "win32":
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    f"Kuro OS chưa khởi động được máy chủ cục bộ:\n\n{short_detail}{hint}",
+                    "Kuro OS - Lỗi khởi động máy chủ",
+                    16
+                )
+            os._exit(1)
 
         # 2. Khởi tạo cầu nối API và Cửa sổ ứng dụng Windows
         if webview is None:
             print("[Kuro Desktop] Mở giao diện trên trình duyệt web...")
             import webbrowser
-            webbrowser.open("http://127.0.0.1:7788")
+            webbrowser.open(app_url)
             if sys.platform == "win32":
                 import ctypes
                 try:
@@ -201,7 +318,7 @@ def main():
 
         window = webview.create_window(
             title="Kuro OS - Trợ lý Kỹ sư Hạ tầng",
-            url="http://127.0.0.1:7788",
+            url=app_url,
             width=1340,
             height=880,
             min_size=(960, 620),

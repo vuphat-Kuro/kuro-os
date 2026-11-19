@@ -182,6 +182,8 @@ def list_agents_info() -> list[dict]:
         "badge": "Hệ thống",
         "icon": "kuro",
         "members": [],
+        "provider": "",
+        "model": "",
         "is_team": False,
         "is_core": True,
         "pinned": True,
@@ -210,6 +212,8 @@ def list_agents_info() -> list[dict]:
                 "badge": "Điều phối" if is_team else group,
                 "skills": skills,
                 "members": members,
+                "provider": (meta.get("provider") or "").strip(),
+                "model": (meta.get("model") or "").strip(),
                 "is_team": is_team,
                 "icon": "team" if is_team else slug,
                 "is_core": False,
@@ -254,7 +258,27 @@ def system_append() -> str:
     return "\n\n".join(parts)
 
 
-def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None) -> ClaudeAgentOptions:
+# Cách Claude Code Desktop làm việc với tệp: nhận ĐƯỜNG DẪN, tự mở bằng Read theo từng đoạn, không nuốt cả tệp
+DOC_TEP_LON = (
+    "\n\n## ĐỌC TỆP LỚN (hồ sơ, bản vẽ, bảng tính nặng)\n"
+    "- Tệp đính kèm chỉ là đường dẫn. Tự mở bằng Read từ đường dẫn đó, không nhờ người dùng dán nội dung.\n"
+    "- Chưa rõ cỡ tệp thì kiểm tra trước (Bash: `python -c \"import os,sys;print(os.path.getsize(sys.argv[1]))\" <tệp>`), "
+    "không đọc nguyên một tệp hàng chục MB.\n"
+    "- PDF trên 20 MB hoặc trên 20 trang: Read với `pages` (tối đa 20 trang mỗi lần). Xem trang đầu/mục lục/khung tên "
+    "trước, chọn đúng trang cần, đọc tiếp từng đoạn. Cần text hoặc bảng cả tệp thì viết script `pdfplumber` chạy bằng Bash, "
+    "lưu kết quả vào thư mục dự án rồi đọc kết quả.\n"
+    "- Tệp text/CSV lớn: Read với `offset`/`limit` hoặc Grep. Excel lớn: `openpyxl` (read_only) qua script. DXF: `ezdxf`. "
+    "IFC: `ifcopenshell`. DWG: cần chuyển sang DXF trước, nói rõ cho người dùng nếu máy chưa có bộ chuyển đổi.\n"
+    "- Không đọc được tệp thì nói rõ lý do và hướng xử lý, không trả lời như thể đã đọc."
+)
+
+
+# Claude Code chỉ tự nạp skill ở .claude/skills của thư mục làm việc (= dự án), không phải brain: phải chỉ đường cho nó.
+SKILL_NGANH = ("\n\n## Skill ngành của Kuro\nViệc chuyên môn: dùng Read mở đúng file SKILL.md phù hợp dưới đây TRƯỚC khi làm, rồi làm theo. "
+               "Chỉ mở skill khi việc thật sự liên quan; mô tả của skill nói rõ khi nào dùng.\n{skills}")
+
+
+def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None, provider: str | None = None) -> ClaudeAgentOptions:
     extra = agent_prompt_block(agent)
     ws_path = cwd or str(active_workspace_dir())
     ws_note = (
@@ -264,12 +288,13 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy định cấu trúc thư mục lưu cụ thể thì BẮT BUỘC hỏi lại người dùng xem muốn lưu vào thư mục/vị trí nào, tuyệt đối không tự ý lưu vào các vị trí chưa được phép.\n"
         f"- KHO DỮ LIỆU CÔNG TY (UNC): Các kho mạng chung như `\\\\phuongthanhtranconsin.data.com\\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng CHỈ là nơi lưu trữ, tra cứu hồ sơ (READ-ONLY). TUYỆT ĐỐI KHÔNG tự ý lưu kết quả, không tạo tệp tạm hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng)."
     )
-    chosen_model = model or config.MODEL or None
+    prov = provider or config.PROVIDER or "claude"
+    chosen_model = model or config.get_provider_model(prov) or None
     return ClaudeAgentOptions(
-        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note},
+        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note + DOC_TEP_LON + SKILL_NGANH.format(skills=skill_index())},
         cwd=ws_path,
         model=chosen_model,
-        env=config.provider_env(chosen_model),
+        env=config.provider_env(chosen_model, provider=prov),
         resume=claude_id,
         skills="all",
         setting_sources=["project"],      # chỉ đọc cấu hình trong brain, KHÔNG nạp ~/.claude của máy
@@ -281,12 +306,16 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         permission_mode="dontAsk",
         mcp_servers={**mcp_from_file(), "kuro": calc.SERVER},
         include_partial_messages=True,
+        # Mặc định 1 MB: đọc tệp đính kèm lớn (PDF, Excel, txt) sinh một dòng JSON vượt mức là báo CLIJSONDecodeError.
+        # Read của Claude Code tối đa ~20 MB PDF (~27 MB base64): 256 MB dư nhiều, chỉ tốn RAM khi có dòng lớn thật.
+        max_buffer_size=256 * 1024 * 1024,
     )
 
 
-def cli_kind() -> str | None:
+def cli_kind(provider: str | None = None) -> str | None:
     """"codex"/"agy" nếu AI đã chọn chạy bằng chương trình riêng của hãng, không qua Claude Code."""
-    return (config.PROVIDERS.get(config.PROVIDER) or {}).get("cli")
+    prov = provider or config.PROVIDER
+    return (config.PROVIDERS.get(prov) or {}).get("cli")
 
 
 def skill_index() -> str:
@@ -299,7 +328,7 @@ def skill_index() -> str:
         except (IndexError, yaml.YAMLError):
             meta = {}
         desc = str((meta or {}).get("description") or "").replace("\n", " ")[:220]
-        out.append(f"- {p.parent.name}: {desc} (file: {p.relative_to(config.BRAIN).as_posix()})")
+        out.append(f"- {p.parent.name}: {desc} (file: {p.as_posix()})")   # đường dẫn tuyệt đối: cwd của AI là thư mục dự án, không phải brain
     return "\n".join(out)
 
 
@@ -312,6 +341,7 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
         f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy tắc phân loại thư mục lưu, hãy hỏi lại người dùng vị trí muốn lưu, không tự ý tạo thư mục hay lưu vào vị trí chưa được phép.\n"
         f"- KHO DỮ LIỆU CÔNG TY (UNC): Kho `\\\\phuongthanhtranconsin.data.com\\...` CHỈ ĐỂ TRA CỨU HỒ SƠ (READ-ONLY), không lưu kết quả vào đây trừ khi người dùng yêu cầu đích danh."
     )
+    ws_note += DOC_TEP_LON
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
         return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n\n{text}"
     can_shell = "Bash" in config.ALLOWED_TOOLS
@@ -336,18 +366,21 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
             "Câu hỏi của người dùng:\n" + text)
 
 
-async def mot_lan(prompt: str, timeout: int = 120) -> tuple[str, str]:
-    """Hỏi AI đang chọn một câu, không tool, không lưu phiên; trả (chữ, lỗi). Dùng cho ping và dịch prompt diễn hoạ."""
+async def mot_lan(prompt: str, timeout: int = 120, provider: str | None = None, model: str | None = None) -> tuple[str, str]:
+    """Hỏi AI một câu, không tool, không lưu phiên; trả (chữ, lỗi). Dùng cho ping và dịch prompt diễn hoạ."""
+    prov = provider or config.PROVIDER or "claude"
+    eff_model = model or config.get_provider_model(prov) or None
     text, err = "", ""
     try:
         async with asyncio.timeout(timeout):
-            if kind := cli_kind():
-                async for ev in cli_engines.run(kind, prompt, None):
+            if kind := cli_kind(prov):
+                async for ev in cli_engines.run(kind, prompt, None, model=eff_model, provider=prov):
                     text += ev["text"] if ev["type"] == "text" else ""
                     err = ev["text"] if ev["type"] == "error" else err
             else:
-                opts = ClaudeAgentOptions(model=config.MODEL or None, env=config.provider_env(), max_turns=1, tools=[],
-                                          setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
+                opts = ClaudeAgentOptions(model=eff_model, env=config.provider_env(eff_model, provider=prov),
+                                          max_turns=1, tools=[], setting_sources=[], permission_mode="dontAsk",
+                                          cwd=str(config.STATE))
                 async for m in query(prompt=prompt, options=opts):
                     if isinstance(m, ResultMessage):
                         text = m.result or ""
@@ -360,17 +393,20 @@ async def mot_lan(prompt: str, timeout: int = 120) -> tuple[str, str]:
     return text, err
 
 
-async def ping() -> dict:
-    """Hỏi AI đã chọn một câu ngắn, không tool, để màn hình chọn AI báo kết nối được hay chưa."""
-    if kind := cli_kind():
-        text, err = await mot_lan("Trả lời đúng một từ: OK", 120)
+async def ping(provider: str | None = None, model: str | None = None) -> dict:
+    """Hỏi AI một câu ngắn, không tool, để kiểm tra kết nối độc lập theo từng hãng."""
+    prov = provider or config.PROVIDER or "claude"
+    eff_model = model if model is not None else (config.get_provider_model(prov) or None)
+    if kind := cli_kind(prov):
+        text, err = await mot_lan("Trả lời đúng một từ: OK", 120, provider=prov, model=eff_model)
         if err.startswith("Quá"):
             err += f" Thử mở PowerShell gõ `{kind}` xem đã đăng nhập chưa."
-        return {"ok": bool(text) and not err, "text": text[:200], "error": loi_tieng_viet(err)[:600]}
-    opts = ClaudeAgentOptions(model=config.MODEL or None, env=config.provider_env(), max_turns=1, tools=[],
+        return {"ok": bool(text) and not err, "text": text[:200],
+                "error": loi_tieng_viet(err, provider=prov, model=eff_model)[:600], "provider": prov}
+    env = config.provider_env(eff_model, provider=prov)
+    opts = ClaudeAgentOptions(model=eff_model or None, env=env, max_turns=1, tools=[],
                               setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
     text, err = "", ""
-    env = config.provider_env()
     url = env.get("ANTHROPIC_BASE_URL")
     if url:
         # Claude Code tự thử lại rất lâu khi máy chủ im lặng hoặc báo sai key (đã thử: treo đủ 90 giây với lỗi 401),
@@ -382,10 +418,11 @@ async def ping() -> dict:
                     headers={"Authorization": f"Bearer {env['ANTHROPIC_AUTH_TOKEN']}",
                              "x-api-key": env["ANTHROPIC_AUTH_TOKEN"], "anthropic-version": "2023-06-01"})
         except httpx.HTTPError:
-            return {"ok": False, "text": "", "error": f"Không kết nối được tới {url}. Kiểm tra mạng, địa chỉ, "
-                                                      "hoặc Ollama đã mở chưa."}
+            return {"ok": False, "text": "", "provider": prov,
+                    "error": f"Không kết nối được tới {url}. Kiểm tra mạng, địa chỉ, hoặc Ollama đã mở chưa."}
         if r.status_code in (401, 403):
-            return {"ok": False, "text": "", "error": f"Máy chủ từ chối key (lỗi {r.status_code}): {r.text[:200]}"}
+            return {"ok": False, "text": "", "provider": prov,
+                    "error": f"Máy chủ từ chối key (lỗi {r.status_code}): {r.text[:200]}"}
     try:
         async with asyncio.timeout(90):
             async for m in query(prompt="Trả lời đúng một từ: OK", options=opts):
@@ -397,40 +434,100 @@ async def ping() -> dict:
         err = "Quá 90 giây không thấy trả lời. Kiểm tra mạng, địa chỉ máy chủ, hoặc Ollama đã chạy chưa."
     except Exception as e:  # chưa cài Claude Code, sai địa chỉ...
         err = f"{type(e).__name__}: {e}"
-    return {"ok": bool(text) and not err, "text": text[:200], "error": loi_tieng_viet(err)[:600]}
+    return {"ok": bool(text) and not err, "text": text[:200],
+            "error": loi_tieng_viet(err, provider=prov, model=eff_model)[:600], "provider": prov}
 
 
 def split_conv(stored: str | None) -> tuple[str | None, str | None]:
     """Mã hội thoại lưu dạng "<id AI>:<mã>". Mã trần (bản cũ) là của claude; tiền tố cũ codex/agy đổi về id AI."""
-    if not stored:
-        return None, None
-    if ":" not in stored:
-        return "claude", stored
-    owner, conv = stored.split(":", 1)
-    return {"codex": "chatgpt", "agy": "antigravity"}.get(owner, owner), conv
+    return store.parse_conv_id(stored)
 
 
 # Dấu hiệu lỗi "model không tồn tại" đo được (Claude Code: "There's an issue with the selected model ... may not exist").
 _MODEL_LOI = ("issue with the selected model", "may not exist", "model_not_found", "model not found", "invalid model")
 
 
-def loi_tieng_viet(err: str) -> str:
-    if config.MODEL and any(k in err.lower() for k in _MODEL_LOI):
-        p = config.PROVIDERS.get(config.PROVIDER or "claude", {})
-        return f'Model "{config.MODEL}" không có ở {p.get("ten")}. {p.get("goi_y", "")} (Lỗi gốc: {err})'
+def loi_tieng_viet(err: str, provider: str | None = None, model: str | None = None) -> str:
+    prov = provider or config.PROVIDER or "claude"
+    eff_model = model if model is not None else config.get_provider_model(prov)
+    if eff_model and any(k in err.lower() for k in _MODEL_LOI):
+        p = config.PROVIDERS.get(prov, {})
+        return f'Model "{eff_model}" không có ở {p.get("ten")}. {p.get("goi_y", "")} (Lỗi gốc: {err})'
     return err
 
 
-async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None):
+def build_handoff_context(messages: list[dict], max_msgs: int = 8, max_chars: int = 3600) -> tuple[str, int]:
+    """Tạo khối ngữ cảnh bàn giao gọn từ lịch sử phiên khi chuyển sang nhà cung cấp AI khác.
+
+    Giữ tổng độ dài nhỏ (<= 3600 ký tự) để không vượt giới hạn tham số dòng lệnh Windows khi gọi CLI `agy -p`.
+    """
+    if not messages:
+        return "", 0
+    recent = messages[-max_msgs:]
+    lines = []
+    used = 0
+    count = 0
+    for m in recent:
+        txt = (m.get("text") or "").strip()
+        if not txt:
+            continue
+        # Bỏ dòng thông báo chuyển AI hệ thống ở đầu tin assistant nếu có
+        if txt.startswith("_(Đã ") and "\n\n" in txt:
+            txt = txt.split("\n\n", 1)[1].strip()
+        if not txt:
+            continue
+        role_lbl = "Kỹ sư" if m.get("role") == "user" else "Kuro"
+        snippet = txt[:550] + ("..." if len(txt) > 550 else "")
+        entry = f"- {role_lbl}: {snippet}"
+        if used + len(entry) > max_chars and lines:
+            break
+        lines.append(entry)
+        used += len(entry) + 1
+        count += 1
+    if not lines:
+        return "", 0
+    block = (
+        "<ngu_canh_ban_giao>\n"
+        "Phiên chat này trước đó chạy bằng một nhà cung cấp AI khác. Dưới đây là diễn biến gần nhất để bạn tiếp nối mạch công việc tự nhiên, không hỏi lại những gì đã trao đổi:\n"
+        + "\n".join(lines)
+        + "\n</ngu_canh_ban_giao>\n\n"
+    )
+    return block, count
+
+
+async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None,
+                   model: str | None = None, provider: str | None = None, conv_ids: dict[str, str] | None = None,
+                   handoff_messages: list[dict] | None = None):
     """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
-    cur = config.PROVIDER or "claude"
+    cur = provider or config.PROVIDER or "claude"
     owner, conv = split_conv(claude_id)
-    if owner and owner != cur:   # mỗi hãng giữ hội thoại riêng: AI mới không nối được mạch cũ (specs/001 FR-007)
-        yield {"type": "text", "text": f"_(Đã đổi sang {config.PROVIDERS.get(cur, {}).get('ten', cur)}: "
-                                       "AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
-    async for ev in _engine_turn(prompt, conv if owner == cur else None, cur, agent=agent, cwd=cwd, model=model):
+    conv_map = dict(conv_ids or {})
+    if owner and conv and owner not in conv_map:
+        conv_map[owner] = conv
+
+    resume_id = conv_map.get(cur)
+    switched = bool(owner and owner != cur)
+    effective_prompt = prompt
+
+    if switched:
+        prov_name = config.PROVIDERS.get(cur, {}).get("ten", cur)
+        if handoff_messages:
+            handoff_block, n_msgs = build_handoff_context(handoff_messages, max_msgs=4 if resume_id else 8)
+            if handoff_block:
+                effective_prompt = handoff_block + prompt
+                if resume_id:
+                    yield {"type": "text", "text": f"_(Đã chuyển sang {prov_name} - tiếp nối mạch cũ kèm cập nhật {n_msgs} tin gần nhất.)_\n\n"}
+                else:
+                    yield {"type": "text", "text": f"_(Đã chuyển sang {prov_name} - đã bàn giao ngữ cảnh {n_msgs} tin gần nhất.)_\n\n"}
+            else:
+                yield {"type": "text", "text": f"_(Đã đổi sang {prov_name}: AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
+        else:
+            # Giữ nguyên thông báo chuẩn specs/001 FR-007 khi gọi trực tiếp không truyền lịch sử bàn giao
+            yield {"type": "text", "text": f"_(Đã đổi sang {prov_name}: AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
+
+    async for ev in _engine_turn(effective_prompt, resume_id, cur, agent=agent, cwd=cwd, model=model):
         if ev["type"] == "error":
-            ev = {**ev, "text": loi_tieng_viet(ev["text"])}
+            ev = {**ev, "text": loi_tieng_viet(ev["text"], provider=cur, model=model)}
         elif ev["type"] == "final" and ev.get("claude_id"):
             ev = {**ev, "claude_id": f"{cur}:{ev['claude_id']}"}
         yield ev
@@ -438,12 +535,13 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
 
 async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None):
     ws_path = cwd or str(active_workspace_dir())
-    if kind := cli_kind():
-        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path), resume, cwd=ws_path, model=model):
+    if kind := cli_kind(cur):
+        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path),
+                                        resume, cwd=ws_path, model=model, provider=cur):
             yield ev
         return
     try:
-        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path, model=model)):
+        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
@@ -506,21 +604,51 @@ async def _dien_hoa_turn(job: dict, ws_path: str, emit) -> str:
     return head + body
 
 
-async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None, model: str | None = None) -> str:
-    """Một lượt hoàn chỉnh: lưu câu hỏi, chạy, đẩy sự kiện qua emit (nếu có), lưu câu trả lời."""
+async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None,
+               model: str | None = None, provider: str | None = None) -> str:
+    """Một lượt hoàn chỉnh: lưu câu hỏi, chạy theo provider riêng của phiên, đẩy sự kiện qua emit, lưu câu trả lời."""
     ws_path = workspace or str(active_workspace_dir())
     sess = store.get(sid) or {}
-    chosen_model = model or sess.get("model") or ""
-    store.ensure(sid, title=text, agent=agent, workspace=ws_path, model=chosen_model)
-    if chosen_model and chosen_model != sess.get("model"):
-        store.set_model(sid, chosen_model)
-    store.add(sid, "user", text)
+    agent_meta, _ = agent_persona(agent)
+    agent_prov = (agent_meta.get("provider") or "").strip()
+    agent_model = (agent_meta.get("model") or "").strip()
+
+    prev_provider = store.session_provider(sess)
+    chosen_provider = (provider or "").strip() or prev_provider or agent_prov or (config.PROVIDER or "claude")
+    switched_provider = bool(prev_provider and prev_provider != chosen_provider)
+
+    if model is not None:
+        chosen_model = model.strip()
+    elif switched_provider:
+        # Chuyển sang hãng khác mà không chỉ định model cụ thể: dùng mặc định hãng mới, không mang model hãng cũ sang
+        chosen_model = ""
+    else:
+        chosen_model = sess.get("model") or (agent_model if chosen_provider == agent_prov else "") or ""
+
+    prev_msgs = store.messages(sid) if sess else []
+    conv_ids = store.get_conv_ids(sess)
+
+    store.ensure(sid, title=text, agent=agent, workspace=ws_path, model=chosen_model, provider=chosen_provider)
+    if chosen_provider != (sess.get("provider") or "") or chosen_model != (sess.get("model") or ""):
+        store.set_model(sid, chosen_model, provider=chosen_provider)
+    store.add(sid, "user", text, provider=chosen_provider)
+
     if job := dien_hoa.yeu_cau(text):   # "diễn hoạ" + ảnh đính kèm: Kuro tự làm, dùng được với mọi AI (specs/003)
         answer = await _dien_hoa_turn(job, ws_path, emit)
-        store.add(sid, "assistant", answer)
+        store.add(sid, "assistant", answer, provider=chosen_provider)
         return answer
+
     shown, final = [], ""
-    async for ev in run_turn(text, sess.get("claude_id"), agent=agent, cwd=ws_path, model=chosen_model):
+    async for ev in run_turn(
+        text,
+        sess.get("claude_id"),
+        agent=agent,
+        cwd=ws_path,
+        model=chosen_model or None,
+        provider=chosen_provider,
+        conv_ids=conv_ids,
+        handoff_messages=prev_msgs if prev_msgs else None,
+    ):
         if ev["type"] == "text":
             shown.append(ev["text"])
         elif ev["type"] == "error":
@@ -528,9 +656,11 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
         elif ev["type"] == "final":
             final = ev["text"]
             if ev.get("claude_id"):
-                store.set_claude_id(sid, ev["claude_id"])
+                owner_id, raw_id = split_conv(ev["claude_id"])
+                if raw_id:
+                    store.set_conv_id(sid, owner_id or chosen_provider, raw_id)
         if emit:
             await emit({k: v for k, v in ev.items() if k != "claude_id"})
     answer = "".join(shown) or final
-    store.add(sid, "assistant", answer)
+    store.add(sid, "assistant", answer, provider=chosen_provider)
     return answer

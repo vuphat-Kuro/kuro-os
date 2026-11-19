@@ -1145,40 +1145,117 @@
     margin: 4px 0;
   }
 
-  /* Menu Popover chọn Model AI */
+  /* Menu Popover chọn Model AI (Đa nhà cung cấp) */
   .model-menu-popover {
     position: absolute;
     bottom: calc(100% + 8px);
     left: 42px;
-    min-width: 280px;
-    max-width: 360px;
-    max-height: 380px;
-    overflow-y: auto;
+    min-width: 310px;
+    max-width: 390px;
+    max-height: 430px;
+    overflow: hidden;
     background: #0f172a;
     border: 1px solid var(--line-hi);
     border-radius: 10px;
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
     z-index: 120;
-    padding: 6px 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
     animation: rise .2s ease;
   }
   .model-menu-header {
-    padding: 7px 14px 5px;
+    padding: 9px 14px 7px;
     font: 700 10.5px/1 var(--hud);
     letter-spacing: .12em;
     color: var(--cyan-soft);
     text-transform: uppercase;
     border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
+  .model-menu-cfg-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10.5px;
+    cursor: pointer;
+    font-family: var(--hud);
+    letter-spacing: .04em;
+  }
+  .model-menu-cfg-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
+  }
+  .model-menu-controls {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(34, 211, 238, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(7, 16, 26, 0.5);
+  }
+  .model-menu-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .model-menu-tab {
+    border: 1px solid var(--line);
+    background: rgba(15, 23, 42, 0.7);
+    color: var(--muted);
+    font: 600 10.5px/1 var(--hud);
+    padding: 4px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .14s;
+  }
+  .model-menu-tab:hover { color: var(--text); border-color: var(--line-hi); }
+  .model-menu-tab.active {
+    background: rgba(34, 211, 238, 0.16);
+    border-color: var(--cyan);
+    color: var(--cyan-soft);
+  }
+  .model-menu-search {
+    width: 100%;
+    padding: 5px 9px;
+    font-size: 12px;
+    color: var(--text);
+    background: rgba(4, 10, 18, 0.85);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    outline: none;
+  }
+  .model-menu-search:focus { border-color: var(--cyan); }
+  #model-menu-items {
+    overflow-y: auto;
+    max-height: 320px;
+    padding: 4px 0 6px;
+  }
+  .model-menu-group-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px 4px;
+    font: 700 10px/1.2 var(--hud);
+    letter-spacing: .12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-top: 1px solid rgba(34, 211, 238, 0.08);
+    margin-top: 4px;
+  }
+  .model-menu-group-hdr:first-child { border-top: none; margin-top: 0; }
   .model-menu-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 9px 14px;
-    font-size: 13px;
+    padding: 8px 14px;
+    font-size: 12.5px;
     color: var(--text);
     background: transparent;
     border: none;
@@ -1196,10 +1273,208 @@
     color: var(--cyan);
     font-weight: 600;
   }
+  .model-menu-item .model-item-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .model-menu-item .model-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .model-menu-item .model-check {
     color: var(--cyan);
     font-weight: bold;
+    flex: none;
   }
+
+  /* Nhãn hãng AI (pill, menu, sidebar) */
+  .prov-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font: 700 9.5px/1.25 var(--hud);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    background: rgba(34, 211, 238, 0.14);
+    color: var(--cyan-soft);
+    flex: none;
+  }
+  .prov-tag.prov-claude, .prov-tag.prov-anthropic {
+    border-color: rgba(251, 146, 60, 0.45);
+    background: rgba(251, 146, 60, 0.14);
+    color: #fdba74;
+  }
+  .prov-tag.prov-chatgpt {
+    border-color: rgba(52, 211, 153, 0.45);
+    background: rgba(52, 211, 153, 0.14);
+    color: #6ee7b7;
+  }
+  .prov-tag.prov-api {
+    border-color: rgba(192, 132, 252, 0.4);
+    background: rgba(192, 132, 252, 0.14);
+    color: #d8b4fe;
+  }
+
+  /* Thẻ quản lý đa kết nối AI trong Cài đặt */
+  .prov-group-title {
+    margin: 12px 0 6px;
+    font: 700 10.5px/1 var(--hud);
+    letter-spacing: .14em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .prov-card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(8, 18, 30, 0.65);
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+  .prov-card.enabled { border-color: rgba(34, 211, 238, 0.42); }
+  .prov-card.is-default { border-color: var(--cyan); background: rgba(12, 28, 44, 0.78); }
+  .prov-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .prov-card-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .prov-card-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+  .prov-card-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex-wrap: wrap;
+  }
+  .prov-card-meta {
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prov-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+  .prov-card-actions .btn {
+    padding: 4px 8px;
+    font-size: 11.5px;
+  }
+  .prov-card-body {
+    display: none;
+    padding: 8px 12px 12px;
+    border-top: 1px solid rgba(34, 211, 238, 0.14);
+    background: rgba(5, 12, 22, 0.65);
+  }
+  .prov-card.open .prov-card-body { display: block; }
+  .prov-switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 19px;
+    flex: none;
+    margin: 0 !important;
+    cursor: pointer;
+  }
+  .prov-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+  .prov-switch-track {
+    position: absolute;
+    inset: 0;
+    background: rgba(148, 163, 184, 0.25);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    transition: all .18s;
+  }
+  .prov-switch-track::after {
+    content: "";
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    left: 2px;
+    top: 2px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: transform .18s, background .18s;
+  }
+  .prov-switch input:checked + .prov-switch-track {
+    background: rgba(34, 211, 238, 0.28);
+    border-color: var(--cyan);
+  }
+  .prov-switch input:checked + .prov-switch-track::after {
+    transform: translateX(15px);
+    background: var(--cyan);
+  }
+  .prov-switch input:disabled + .prov-switch-track { opacity: 0.7; cursor: not-allowed; }
+  .prov-pill-ok {
+    font: 600 10px/1 var(--hud);
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(52, 211, 153, 0.14);
+    color: #6ee7b7;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+  }
+  .prov-pill-warn {
+    font: 600 10px/1 var(--hud);
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fcd34d;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+  }
+  .prov-pill-def {
+    font: 700 10px/1 var(--hud);
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(34, 211, 238, 0.2);
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+  }
+  .quota-by-provider {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(34, 211, 238, 0.14);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .quota-prov-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .quota-prov-row.active { color: var(--cyan-soft); font-weight: 600; }
 
   /* Menu Popover chọn Mode (Quyền & Cách AI xử lý) */
   .mode-menu-popover {
@@ -1953,9 +2228,18 @@
   .session-item-sub { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:3px; }
   .session-time { font-size:11px; color:var(--muted); font-family:var(--hud); }
   .session-model-badge {
-    display:inline-flex; align-items:center; padding:1px 5px; border-radius:3px; font-size:11px;
+    display:inline-flex; align-items:center; gap:3px; padding:1px 5px; border-radius:3px; font-size:10.5px;
     font-family:var(--hud); background:rgba(34,211,238,.12); color:var(--cyan-soft);
-    border:1px solid rgba(34,211,238,.22); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    border:1px solid rgba(34,211,238,.22); max-width:155px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .session-model-badge.prov-claude, .session-model-badge.prov-anthropic {
+    background:rgba(251,146,60,.12); color:#fdba74; border-color:rgba(251,146,60,.28);
+  }
+  .session-model-badge.prov-chatgpt {
+    background:rgba(52,211,153,.12); color:#6ee7b7; border-color:rgba(52,211,153,.28);
+  }
+  .session-model-badge.prov-api {
+    background:rgba(192,132,252,.12); color:#d8b4fe; border-color:rgba(192,132,252,.28);
   }
   .btn-del-session {
     position:absolute; right:6px; top:50%; transform:translateY(-50%); opacity:0; background:transparent; border:none;
@@ -2266,27 +2550,18 @@
   }
   .terminal-log-wrap pre { margin:0; white-space:pre-wrap; word-break:break-all; }
 
-  /* Khu vực đặt số phiên bản */
-  .version-setting-section {
-    background:rgba(10,22,34,.6); border:1px solid var(--line); padding:14px 16px; border-radius:4px;
-    display:flex; flex-direction:column; gap:10px;
+  /* Nút cập nhật lại từ GitHub */
+  .btn-force-update {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    width:auto; height:auto; white-space:nowrap;
+    padding:7px 12px; font:600 12px/1.2 var(--hud); letter-spacing:.04em;
+    color:var(--cyan-soft); background:rgba(34,211,238,.12);
+    border:1px solid rgba(34,211,238,.35); border-radius:4px;
+    cursor:pointer; transition:all .15s;
   }
-  .section-title { display:flex; justify-content:space-between; align-items:center; font:700 12px/1 var(--hud); letter-spacing:.12em; color:var(--cyan-soft); }
-  .version-input-row { display:flex; align-items:center; gap:8px; }
-  .version-input-row .prefix { font:700 14px/1 var(--hud); color:var(--muted); }
-  .version-input-row input {
-    flex:1; padding:7px 10px; font:700 13px/1 var(--hud); color:var(--cyan-soft);
-    background:var(--panel-solid); border:1px solid var(--line-hi); border-radius:0;
+  .btn-force-update:hover {
+    background:rgba(34,211,238,.22); border-color:var(--cyan); color:#fff;
   }
-  .version-input-row input:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 8px rgba(34,211,238,.3); }
-  .btn-save-ver {
-    padding:7px 14px; font:700 12px/1 var(--hud); letter-spacing:.1em; text-transform:uppercase;
-    color:#031018; background:var(--amber); border:none; cursor:pointer; transition:all .15s;
-  }
-  .btn-save-ver:hover { background:var(--amber-soft); }
-  .save-status-msg { font-size:12px; min-height:16px; }
-  .save-status-msg.ok { color:var(--green); }
-  .save-status-msg.err { color:var(--amber); }
 
   .dialog-footer-actions { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line); padding-top:14px; }
 
@@ -2910,9 +3185,16 @@
         </div>
       </div>
 
-      <!-- Popover Menu chọn Model AI -->
+      <!-- Popover Menu chọn Model AI (Đa nhà cung cấp) -->
       <div id="model-menu-popover" class="model-menu-popover" style="display:none;">
-        <div class="model-menu-header">MÔ HÌNH AI CHO PHIÊN CHAT NÀY</div>
+        <div class="model-menu-header">
+          <span>MÔ HÌNH AI CHO PHIÊN NÀY</span>
+          <button type="button" class="model-menu-cfg-btn" id="btn-model-menu-settings" title="Bật thêm nhà cung cấp AI trong Cài đặt">⚙ Kết nối</button>
+        </div>
+        <div id="model-menu-controls" class="model-menu-controls" style="display:none;">
+          <div id="model-menu-tabs" class="model-menu-tabs"></div>
+          <input type="text" id="model-menu-search" class="model-menu-search" placeholder="Tìm nhanh model..." autocomplete="off">
+        </div>
         <div id="model-menu-items"></div>
       </div>
 
@@ -3002,6 +3284,7 @@
             <span class="quota-status-badge" id="quota-status-badge">🟢 Hạn mức dồi dào</span>
             <button type="button" class="quota-refresh-btn" id="btn-refresh-quota" title="Làm mới số liệu">🔄 Cập nhật</button>
           </div>
+          <div class="quota-by-provider" id="quota-by-provider" style="display:none;"></div>
         </div>
       </div>
 
@@ -3256,6 +3539,20 @@
     <label for="ca-role">Chức trách / Vai trò tóm tắt</label>
     <input id="ca-role" name="role" placeholder="Ví dụ: Lập lưới khống chế, xử lý số liệu quan trắc lún và chuyển vị" required spellcheck="false">
 
+    <div class="row" style="gap:10px;">
+      <div style="flex:1;">
+        <label for="ca-provider">Nhà cung cấp AI mặc định (tùy chọn)</label>
+        <select id="ca-provider" name="provider">
+          <option value="">- Theo mặc định hệ thống -</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label for="ca-model">Model mặc định (tùy chọn)</label>
+        <input id="ca-model" name="model" placeholder="VD: sonnet, gemini-4-neon-high..." spellcheck="false" list="ca-model-list">
+        <datalist id="ca-model-list"></datalist>
+      </div>
+    </div>
+
     <div class="members-select-section">
       <label style="margin-bottom:2px;">Agent điều phối / Phối hợp nhóm (Tùy chọn)</label>
       <small style="color:var(--muted); font-size:11.5px; margin-bottom:6px;">Tích chọn các Agent mà Agent này sẽ chỉ huy hoặc phối hợp chung một nhiệm vụ:</small>
@@ -3301,6 +3598,20 @@
 
     <label for="ea-role">Chức trách / Vai trò tóm tắt</label>
     <input id="ea-role" name="role" required spellcheck="false">
+
+    <div class="row" style="gap:10px;">
+      <div style="flex:1;">
+        <label for="ea-provider">Nhà cung cấp AI mặc định (tùy chọn)</label>
+        <select id="ea-provider" name="provider">
+          <option value="">- Theo mặc định hệ thống -</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label for="ea-model">Model mặc định (tùy chọn)</label>
+        <input id="ea-model" name="model" placeholder="VD: sonnet, gemini-4-neon-high..." spellcheck="false" list="ea-model-list">
+        <datalist id="ea-model-list"></datalist>
+      </div>
+    </div>
 
     <div class="members-select-section">
       <label style="margin-bottom:2px;">Agent điều phối / Phối hợp nhóm (Tùy chọn)</label>
@@ -3367,39 +3678,12 @@
     <p class="sub" id="s-status"></p>
 
     <fieldset>
-      <legend>Lõi AI</legend>
-      <label for="s-KURO_PROVIDER">Chọn AI</label>
+      <legend>Lõi AI &amp; Kết nối song song</legend>
+      <label for="s-KURO_PROVIDER">AI mặc định hệ thống</label>
       <select id="s-KURO_PROVIDER" name="KURO_PROVIDER"><option value="">- Chưa chọn -</option></select>
-      <small id="s-hint"></small>
-      <div id="s-clirow" style="display:none">
-        <button class="btn" type="button" id="s-cli-login">Đăng nhập Claude CLI</button>
-        <span id="s-cli-msg" role="status"></span>
-        <small>Mở cửa sổ chạy claude auth login. Đăng nhập trên trình duyệt xong, Kuro tự nhận.</small>
-      </div>
-      <div id="s-keyrow">
-        <label for="s-KURO_AI_KEY">API key</label>
-        <div class="row">
-          <input id="s-KURO_AI_KEY" name="KURO_AI_KEY" type="password" autocomplete="off" data-secret="1" spellcheck="false">
-          <button class="btn" type="button" data-clear="KURO_AI_KEY">Xóa</button>
-        </div>
-        <small>Đổi sang AI khác thì nhập key của AI đó.</small>
-      </div>
-      <div id="s-urlrow">
-        <label for="s-KURO_BASE_URL">Địa chỉ máy chủ</label>
-        <input id="s-KURO_BASE_URL" name="KURO_BASE_URL" spellcheck="false">
-        <small>Để trống = địa chỉ mặc định của hãng.</small>
-      </div>
-      <label for="s-KURO_MODEL">Model</label>
-      <select id="s-KURO_MODEL_SELECT" style="display:none; margin-bottom:6px; width:100%;" class="dialog-select" aria-label="Chọn model có sẵn"></select>
-      <div id="s-model-input-wrap">
-        <input id="s-KURO_MODEL" name="KURO_MODEL" spellcheck="false" placeholder="Nhập tên model hoặc chọn từ danh sách..." list="s-model-datalist">
-        <datalist id="s-model-datalist"></datalist>
-      </div>
-      <small id="s-model-hint">Để trống = model mặc định. Với Claude có thể ghi: sonnet, opus, haiku.</small>
-      <div class="test">
-        <button class="btn" type="button" id="s-test">Lưu và kiểm tra kết nối</button>
-        <span id="s-test-msg" role="status"></span>
-      </div>
+      <small id="s-hint">Dùng mặc định cho phiên chat mới chưa chọn riêng, Telegram, việc theo lịch và diễn họa. Bên dưới bạn có thể bật nhiều hãng AI cùng lúc để chọn nhanh và chạy song song giữa các phiên.</small>
+
+      <div id="s-providers-list" style="margin-top:10px;">Đang tải danh sách kết nối AI...</div>
     </fieldset>
 
     <fieldset>
@@ -3488,7 +3772,7 @@
         <div class="vc-val" id="vd-latest-ver">v1.7.8</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
-          <button type="button" class="btn-tool-sm" id="btn-force-update" style="padding:5px 10px; font-size:11px; color:var(--cyan-soft); background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.3); cursor:pointer; border-radius:3px; transition:all .15s;">⚡ Cập nhật lại từ GitHub</button>
+          <button type="button" class="btn-force-update" id="btn-force-update">⚡ Cập nhật lại từ GitHub</button>
         </div>
       </div>
     </div>
@@ -3541,22 +3825,6 @@
       <div id="vd-reload-notice" style="display:none; color:var(--green); font-weight:600; text-align:center; margin-top:8px;">
         ✅ Cập nhật thành công! Trang sẽ tự động tải lại sau giây lát...
       </div>
-    </div>
-
-    <!-- KHU VỰC ĐẶT SỐ PHIÊN BẢN (CHO KỸ SƯ / ADMIN) -->
-    <div class="version-setting-section">
-      <div class="section-title">
-        <span>⚙️ ĐẶT SỐ PHIÊN BẢN (QUẢN TRỊ)</span>
-        <small style="color:var(--muted); font-size:11px;">Ghi số phiên bản vào hệ thống khi đóng gói phát hành</small>
-      </div>
-      <div class="version-input-row">
-        <span class="prefix">v</span>
-        <input type="text" id="vd-input-ver" placeholder="1.5.11" pattern="^\d+(\.\d+)*$" required>
-        <button type="button" class="btn-tool-sm" id="btn-bump-patch" title="Tăng bản vá (+0.0.1)">+0.0.1</button>
-        <button type="button" class="btn-tool-sm" id="btn-bump-minor" title="Tăng chức năng (+0.1.0)">+0.1.0</button>
-        <button type="button" class="btn-save-ver" id="btn-save-version">💾 Lưu số phiên bản</button>
-      </div>
-      <div id="vd-save-status" class="save-status-msg"></div>
     </div>
 
     <div class="dialog-footer-actions">

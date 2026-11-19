@@ -1,5 +1,17 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.0] - 2026-11-19
+- **Kết nối đa nhà cung cấp AI & chạy song song độc lập theo từng phiên:**
+  - Mục **Cài đặt > Lõi AI** nâng cấp thành quản lý đa kết nối: bật đồng thời Google Antigravity (`agy`), Claude Code (`claude`), ChatGPT (`codex`) và các hãng API/Ollama, lưu key/URL/model mặc định và kiểm tra kết nối riêng từng hãng.
+  - Menu chọn nhanh model ngay dưới khung chat gom nhóm theo các hãng đang bật, có tab lọc hãng, ô tìm kiếm nhanh và nhãn phân biệt `[AGY]` / `[Claude]` / `[Codex]` trên nút chọn & danh sách phiên.
+  - Mỗi phiên lưu riêng `provider`, `model` và bản đồ mã hội thoại theo hãng (`conv_ids`), cho phép chạy song song nhiều phiên khác hãng và tự động bàn giao ngữ cảnh khi đổi hãng giữa phiên.
+  - Hạn mức Quota và Context Inspector cập nhật theo đúng nhà cung cấp AI của phiên đang mở; Agent hỗ trợ gán AI + model mặc định.
+- **Kuro App Desktop & Tự cập nhật ổn định trên mọi máy Windows:**
+  - Bổ sung phím tắt `Ctrl + F5` / `Ctrl + Shift + R` (tải lại sạch bỏ cache) và `F5` / `Ctrl + R` trực tiếp trên Kuro App Desktop (WebView2), không cần tắt mở lại app.
+  - Sửa lỗi màn hình `127.0.0.1 refused to connect` khi cập nhật trên máy khác: tách riêng cài `requirements.txt` (thêm `python-multipart`) và `requirements-ky-thuat.txt`, chờ cổng nhả hẳn tránh `WinError 10048`, bỏ qua Windows Proxy cho `127.0.0.1`, tăng thời gian chờ khởi động máy chủ và báo lỗi rõ ràng nếu thiếu gói.
+  - Sửa nút `Cập nhật lại từ GitHub` không còn bị co xuống dòng và gỡ bỏ khung tự sửa số phiên bản trên giao diện.
+  - Bổ sung cơ chế quản lý tiến trình con `winproc` (chạy ngầm + Job Object không để tiến trình mồ côi) và hệ thống gói tiện ích tùy chọn (`goi/autocad`).
+
 ## [1.7.8] - 2026-11-17
 - Triệt tiêu hoàn toàn hiện tượng nhấp nháy cửa sổ terminal (Command Prompt console đen) khi mở Kuro và khi thực hiện tác vụ:
   - **Khởi động 100% ngầm (Zero-Flash Startup):** Tối ưu hóa file `run.bat` tự động ủy quyền thực thi sang `kuro.vbs` chạy qua `wscript.exe` / `pythonw.exe`, đóng cửa sổ cmd ngay lập tức sau 0 giây, không còn bất kỳ màn hình console đen nào xuất hiện.

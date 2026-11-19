@@ -41,6 +41,7 @@ import store
 import telegram
 import kho
 import update
+import winproc
 
 
 @asynccontextmanager
@@ -80,17 +81,26 @@ CHUA_GHEP = """<meta name="viewport" content="width=device-width"><body style="f
 <h3>Kuro: thiết bị này chưa được ghép</h3><p>Trên máy tính chạy Kuro, gõ <b>/remote</b> trong khung chat rồi quét mã QR.</p>"""
 
 
+def _apply_no_cache(path: str, resp):
+    """Không cache các tệp giao diện web chính để Ctrl+F5 trên Kuro Desktop & trình duyệt luôn lấy bản mới nhất."""
+    if path in ("/", "/index.html", "/sw.js") or path.endswith((".html", ".js", ".css")):
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+    return resp
+
+
 @app.middleware("http")
 async def chan_thiet_bi_la(req: Request, call_next):
     if may_nay(req):
-        return await call_next(req)
+        return _apply_no_cache(req.url.path, await call_next(req))
     if dung_ma(req.query_params.get("t")):     # vừa quét QR: đổi mã trên địa chỉ thành cookie rồi bỏ khỏi địa chỉ
         r = RedirectResponse(str(req.url.remove_query_params("t")), 303)
         r.set_cookie("kuro_t", req.query_params["t"], max_age=365 * 86400, httponly=True, samesite="strict")
         return r
     if not da_ghep(req):
         return HTMLResponse(CHUA_GHEP, 401)
-    return await call_next(req)
+    return _apply_no_cache(req.url.path, await call_next(req))
 
 
 @app.get("/health")
@@ -185,11 +195,40 @@ def get_settings():
     for k, (secret, _) in config.SETTINGS.items():
         v = os.getenv(k, "")
         out[k] = {"set": bool(v), "hint": "…" + v[-4:] if v else ""} if secret else {"value": v}
-    out["KURO_MODEL"] = {"value": config.MODEL}     # model của AI đang chọn, không phải khóa chung cũ
-    return {"settings": out, "providers": config.PROVIDERS, "claude_cli": bool(shutil.which("claude")),
-            "model_theo_ai": {p: os.getenv(config.model_key(p), "") for p in config.PROVIDERS},
-            "cli": {k: bool(cli_engines.find(k)) for k in ("codex", "agy")},
-            "telegram_on": bool(config.TG_TOKEN)}
+    out["KURO_MODEL"] = {"value": config.MODEL}     # model của AI mặc định, giữ tương thích ngược
+    enabled = config.enabled_providers()
+    enabled_set = set(enabled)
+    cli_status = {
+        "claude": bool(shutil.which("claude")),
+        "antigravity": bool(cli_engines.find("agy")),
+        "chatgpt": bool(cli_engines.find("codex")),
+    }
+    providers_config = {}
+    for p, info in config.PROVIDERS.items():
+        key_val = config.get_provider_key(p)
+        providers_config[p] = {
+            "enabled": p in enabled_set,
+            "is_default": p == config.PROVIDER,
+            "model": config.get_provider_model(p),
+            "has_key": bool(key_val),
+            "key_hint": ("…" + key_val[-4:]) if key_val else "",
+            "base_url": config.get_provider_url(p),
+            "default_url": info.get("url", ""),
+            "needs_key": bool(info.get("key")),
+            "cli_installed": cli_status.get(p),
+            "group": info.get("group", "api"),
+            "short": info.get("short", p),
+        }
+    return {
+        "settings": out,
+        "providers": config.PROVIDERS,
+        "providers_config": providers_config,
+        "enabled_providers": enabled,
+        "claude_cli": cli_status["claude"],
+        "model_theo_ai": {p: config.get_provider_model(p) for p in config.PROVIDERS},
+        "cli": {"codex": cli_status["chatgpt"], "agy": cli_status["antigravity"]},
+        "telegram_on": bool(config.TG_TOKEN),
+    }
 
 
 @app.post("/api/settings", dependencies=[Depends(local_only)])
@@ -198,23 +237,58 @@ async def save_settings(body: dict[str, str]):
     for k, v in body.items():
         if k not in config.SETTINGS:
             raise HTTPException(400, f"Không sửa được {k}")
-        v = v.strip().replace(" ", "") if k in ("KURO_ALLOWED_TOOLS", "TELEGRAM_OWNER_IDS") else v.strip()
+        v = "" if v is None else str(v)
+        v = v.strip().replace(" ", "") if k in ("KURO_ALLOWED_TOOLS", "TELEGRAM_OWNER_IDS", "KURO_ENABLED_PROVIDERS") else v.strip()
         if not re.fullmatch(config.SETTINGS[k][1], v):     # cũng chặn xuống dòng chèn thêm khóa lạ vào .env
             raise HTTPException(400, f"Giá trị {k} không hợp lệ")
         updates[k] = v
+
+    # Validate & chuẩn hóa KURO_MODEL (kiểu cũ) theo AI đích
     if "KURO_MODEL" in updates:
-        # Model luôn ghi vào khóa của AI đích (AI vừa chọn trong cùng lần lưu, không thì AI đang dùng): specs/001
         provider = updates.get("KURO_PROVIDER", config.PROVIDER)
         model = updates.pop("KURO_MODEL")
         agy = await cli_engines.models("agy") if provider == "antigravity" and model else []
         if err := config.model_error(provider, model, agy):
             raise HTTPException(400, err)
-        model = next((m["id"] for m in agy if m["id"].lower() == model.lower()), model)   # lưu đúng cách viết
+        model = next((m["id"] for m in agy if m["id"].lower() == model.lower()), model)
         updates[config.model_key(provider)] = model
+
+    # Validate các khóa model riêng theo từng AI (KURO_MODEL_<PROVIDER>)
+    agy_cache = None
+    for p in config.PROVIDERS:
+        mk = config.model_key(p)
+        if mk in updates and updates[mk]:
+            if p == "antigravity":
+                if agy_cache is None:
+                    agy_cache = await cli_engines.models("agy")
+                agy = agy_cache
+            else:
+                agy = []
+            if err := config.model_error(p, updates[mk], agy):
+                raise HTTPException(400, err)
+            if p == "antigravity" and agy:
+                updates[mk] = next((m["id"] for m in agy if m["id"].lower() == updates[mk].lower()), updates[mk])
+
+    # Đảm bảo AI mặc định luôn nằm trong danh sách enabled nếu KURO_ENABLED_PROVIDERS có giá trị
+    eff_default = updates.get("KURO_PROVIDER", config.PROVIDER)
+    if "KURO_ENABLED_PROVIDERS" in updates:
+        en_list = [x for x in updates["KURO_ENABLED_PROVIDERS"].split(",") if x in config.PROVIDERS]
+        if eff_default in config.PROVIDERS and eff_default not in en_list:
+            en_list.insert(0, eff_default)
+        updates["KURO_ENABLED_PROVIDERS"] = ",".join(dict.fromkeys(en_list))
+    elif "KURO_PROVIDER" in updates and updates["KURO_PROVIDER"] in config.PROVIDERS:
+        existing_en = os.getenv("KURO_ENABLED_PROVIDERS", "").strip()
+        if existing_en:
+            en_list = [x for x in existing_en.split(",") if x in config.PROVIDERS]
+            if updates["KURO_PROVIDER"] not in en_list:
+                en_list.insert(0, updates["KURO_PROVIDER"])
+                updates["KURO_ENABLED_PROVIDERS"] = ",".join(en_list)
+
     old_tg = (config.TG_TOKEN, config.TG_OWNERS)
     config.save_env(updates)
     # Model, tool, API key có hiệu lực từ lượt chat kế tiếp; vòng Telegram chỉ khởi tạo lúc server lên.
-    return {"ok": True, "restart": (config.TG_TOKEN, config.TG_OWNERS) != old_tg}
+    return {"ok": True, "restart": (config.TG_TOKEN, config.TG_OWNERS) != old_tg,
+            "enabled_providers": config.enabled_providers()}
 
 
 DEFAULT_AGY_MODELS = [
@@ -233,32 +307,94 @@ DEFAULT_AGY_MODELS = [
 ]
 
 
-@app.get("/api/models", dependencies=[Depends(local_only)])
-async def get_models(provider: str | None = None):
-    p = provider if provider is not None else config.PROVIDER
-    kind = "agy" if p == "antigravity" else "codex" if p in ("chatgpt", "codex") else (engine.cli_kind() if not provider else None)
-    if p in ("", "claude"):
-        found = config.CLAUDE_MODELS
-    elif kind == "agy":
+async def _models_for_provider(p: str) -> list[dict]:
+    """Lấy danh sách model khả dụng cho một nhà cung cấp AI cụ thể."""
+    p = p or "claude"
+    if p == "claude":
+        return list(config.CLAUDE_MODELS)
+    if p == "antigravity":
         found = await cli_engines.models("agy")
-        if not found:
-            found = DEFAULT_AGY_MODELS
-    elif kind:
-        found = await cli_engines.models(kind)
-    else:
-        found = []
-    curr = os.getenv(config.model_key(p), "") if provider else config.MODEL
-    return {"models": found, "current": curr}
+        return list(found) if found else list(DEFAULT_AGY_MODELS)
+    if p in ("chatgpt", "codex"):
+        found = await cli_engines.models("codex")
+        cur = config.get_provider_model("chatgpt")
+        items = list(found) if found else []
+        if cur and not any(m["id"] == cur for m in items):
+            items.append({"id": cur, "ten": cur})
+        return items
+    # Các hãng API key / Ollama / Custom: nếu người dùng đã cấu hình model mặc định thì đưa lên để chọn nhanh
+    cur = config.get_provider_model(p)
+    return [{"id": cur, "ten": cur}] if cur else []
 
 
-@app.get("/api/quota")
-def get_quota(session_id: str | None = None):
+@app.get("/api/models", dependencies=[Depends(local_only)])
+async def get_models(provider: str | None = None, scope: str | None = None):
+    if scope == "enabled":
+        enabled = config.enabled_providers()
+        lists = await asyncio.gather(*(_models_for_provider(p) for p in enabled))
+        groups = []
+        cli_map = {
+            "claude": bool(shutil.which("claude")),
+            "antigravity": bool(cli_engines.find("agy")),
+            "chatgpt": bool(cli_engines.find("codex")),
+        }
+        for p, items in zip(enabled, lists):
+            info = config.PROVIDERS.get(p, {})
+            def_m = config.get_provider_model(p)
+            # Loại bỏ phần tử rỗng trùng (UI sẽ tự render mục "Mặc định" đầu mỗi nhóm)
+            clean_items = [m for m in items if m.get("id")]
+            if def_m and not any(m["id"].lower() == def_m.lower() for m in clean_items):
+                clean_items.insert(0, {"id": def_m, "ten": def_m})
+            groups.append({
+                "provider": p,
+                "name": info.get("ten", p),
+                "short": info.get("short", p),
+                "default_model": def_m,
+                "cli_installed": cli_map.get(p),
+                "models": clean_items,
+            })
+        def_prov = config.PROVIDER or (enabled[0] if enabled else "claude")
+        default_group = next((g for g in groups if g["provider"] == def_prov), groups[0] if groups else None)
+        return {
+            "default_provider": def_prov,
+            "default_model": config.get_provider_model(def_prov),
+            "enabled_providers": enabled,
+            "groups": groups,
+            "models": default_group["models"] if default_group else [],
+            "current": config.get_provider_model(def_prov),
+        }
+
+    p = provider if provider is not None else config.PROVIDER
+    found = await _models_for_provider(p or "claude")
+    curr = config.get_provider_model(p or "claude") if provider else config.MODEL
+    return {"models": found, "current": curr, "provider": p or "claude"}
+
+
+def _provider_quota_stats(provider: str, now: float, default_provider: str) -> dict:
+    """Tính toán số lượt hỏi trong block 5h và 7 ngày cho một nhà cung cấp cụ thể."""
     from datetime import datetime
-    now = time.time()
     t_5h_ago = now - 5 * 3600
-    msgs_5h = store._q("SELECT ts FROM messages WHERE role='user' AND ts >= ? ORDER BY ts ASC", (t_5h_ago,))
-    count_5h = len(msgs_5h)
+    t_week_ago = now - 7 * 86400
+    if provider == default_provider:
+        msgs_5h = store._q(
+            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND (provider=? OR provider='' OR provider IS NULL) ORDER BY ts ASC",
+            (t_5h_ago, provider),
+        )
+        msgs_week = store._q(
+            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND (provider=? OR provider='' OR provider IS NULL)",
+            (t_week_ago, provider),
+        )
+    else:
+        msgs_5h = store._q(
+            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND provider=? ORDER BY ts ASC",
+            (t_5h_ago, provider),
+        )
+        msgs_week = store._q(
+            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND provider=?",
+            (t_week_ago, provider),
+        )
 
+    count_5h = len(msgs_5h)
     if count_5h > 0:
         first_ts = msgs_5h[0]["ts"]
         reset_ts = first_ts + 5 * 3600
@@ -272,23 +408,45 @@ def get_quota(session_id: str | None = None):
         reset_in_str = "sẵn sàng 5h mới"
 
     max_5h = 45
-    pct_5h = min(100.0, round((count_5h / max_5h) * 100, 1))
-
-    t_week_ago = now - 7 * 86400
-    msgs_week = store._q("SELECT ts FROM messages WHERE role='user' AND ts >= ?", (t_week_ago,))
-    count_week = len(msgs_week)
     max_week = 350
+    pct_5h = min(100.0, round((count_5h / max_5h) * 100, 1))
+    count_week = len(msgs_week)
     pct_week = min(100.0, round((count_week / max_week) * 100, 1))
+    return {
+        "block_5h": {
+            "percent": pct_5h,
+            "used_count": count_5h,
+            "max_count": max_5h,
+            "reset_time": reset_time_str,
+            "reset_in": reset_in_str,
+        },
+        "weekly": {
+            "percent": pct_week,
+            "used_count": count_week,
+            "max_count": max_week,
+            "reset_day": "Thứ Hai 07:00",
+        },
+    }
 
+
+@app.get("/api/quota")
+def get_quota(session_id: str | None = None, provider: str | None = None):
+    now = time.time()
     sess = store.get(session_id) if session_id else None
-    model_id = (sess.get("model") if sess else None) or config.MODEL or ""
-    provider = config.PROVIDER or "antigravity"
-    provider_info = config.PROVIDERS.get(provider, {})
-    provider_name = provider_info.get("ten", provider)
+    default_prov = config.PROVIDER or "antigravity"
+    active_prov = (provider or "").strip() or store.session_provider(sess) or default_prov
+    model_id = (sess.get("model") if sess else None) or config.get_provider_model(active_prov) or ""
+    provider_info = config.PROVIDERS.get(active_prov, {})
+    provider_name = provider_info.get("ten", active_prov)
+    provider_short = provider_info.get("short", active_prov)
+
+    stats = _provider_quota_stats(active_prov, now, default_prov)
+    pct_5h = stats["block_5h"]["percent"]
+    pct_week = stats["weekly"]["percent"]
 
     model_name = model_id or "Model mặc định"
-    for m in DEFAULT_AGY_MODELS:
-        if m["id"] == model_id:
+    for m in (DEFAULT_AGY_MODELS + config.CLAUDE_MODELS):
+        if m["id"] and m["id"] == model_id:
             model_name = m["ten"]
             break
 
@@ -302,33 +460,51 @@ def get_quota(session_id: str | None = None):
         status_code = "normal"
         status_text = "🟢 Hạn mức dồi dào"
 
+    by_provider = []
+    for p in config.enabled_providers():
+        p_info = config.PROVIDERS.get(p, {})
+        p_stats = _provider_quota_stats(p, now, default_prov)
+        by_provider.append({
+            "provider": p,
+            "short": p_info.get("short", p),
+            "name": p_info.get("ten", p),
+            "used_5h": p_stats["block_5h"]["used_count"],
+            "pct_5h": p_stats["block_5h"]["percent"],
+            "used_week": p_stats["weekly"]["used_count"],
+            "pct_week": p_stats["weekly"]["percent"],
+        })
+
     return {
         "ok": True,
-        "provider": provider,
+        "provider": active_prov,
         "provider_name": provider_name,
+        "provider_short": provider_short,
         "model_id": model_id,
         "model_name": model_name,
-        "block_5h": {
-            "percent": pct_5h,
-            "used_count": count_5h,
-            "max_count": max_5h,
-            "reset_time": reset_time_str,
-            "reset_in": reset_in_str
-        },
-        "weekly": {
-            "percent": pct_week,
-            "used_count": count_week,
-            "max_count": max_week,
-            "reset_day": "Thứ Hai 07:00"
-        },
+        "block_5h": stats["block_5h"],
+        "weekly": stats["weekly"],
+        "by_provider": by_provider,
         "status": status_code,
-        "status_text": status_text
+        "status_text": status_text,
     }
 
 
 @app.post("/api/test-ai", dependencies=[Depends(local_only)])
-async def test_ai():
-    return await engine.ping()
+async def test_ai(req: Request):
+    provider = None
+    model = None
+    try:
+        raw = await req.body()
+        if raw:
+            body = json.loads(raw)
+            if isinstance(body, dict):
+                provider = (body.get("provider") or "").strip() or None
+                model = (body.get("model") or "").strip() if "model" in body else None
+    except Exception:
+        pass
+    if provider and provider not in config.PROVIDERS:
+        raise HTTPException(400, f"Nhà cung cấp không hợp lệ: {provider}")
+    return await engine.ping(provider=provider, model=model)
 
 
 def _claude_exe() -> str:
@@ -467,6 +643,10 @@ def create_agent(body: dict):
     prompt = (body.get("prompt") or "").strip() or f"Bạn là {name}, chuyên trách {role}."
     skills = body.get("skills") or []
     members = body.get("members") or []
+    provider = (body.get("provider") or "").strip()
+    if provider and provider not in config.PROVIDERS:
+        raise HTTPException(400, f"Nhà cung cấp AI không hợp lệ: {provider}")
+    model = (body.get("model") or "").strip()
     from datetime import datetime
     content = f"""---
 type: agent
@@ -476,7 +656,8 @@ role: {role}
 group: {group}
 skills: {skills}
 members: {members}
-model: ""
+provider: "{provider}"
+model: "{model}"
 updated: {datetime.now():%Y-%m-%d}
 ---
 {prompt}
@@ -484,7 +665,7 @@ updated: {datetime.now():%Y-%m-%d}
     for d in (config.ROOT / "agents", config.BRAIN / "agents"):
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{slug}.md").write_text(content, encoding="utf-8")
-    return {"ok": True, "slug": slug, "name": name, "group": group, "members": members}
+    return {"ok": True, "slug": slug, "name": name, "group": group, "members": members, "provider": provider, "model": model}
 
 
 @app.get("/api/agents/{slug}")
@@ -499,6 +680,8 @@ def get_agent_detail(slug: str):
         "group": meta.get("group") or ("Hệ thống" if slug == "kuro-core" else "Chuyên môn"),
         "skills": meta.get("skills") or [],
         "members": meta.get("members") or [],
+        "provider": (meta.get("provider") or "").strip(),
+        "model": (meta.get("model") or "").strip(),
         "prompt": body,
         "is_core": slug == "kuro-core",
     }
@@ -516,6 +699,10 @@ def update_agent(slug: str, body: dict):
     prompt = (body.get("prompt") or "").strip() or f"Bạn là {name}, chuyên trách {role}."
     skills = body.get("skills") or []
     members = body.get("members") or []
+    provider = (body.get("provider") or "").strip()
+    if provider and provider not in config.PROVIDERS:
+        raise HTTPException(400, f"Nhà cung cấp AI không hợp lệ: {provider}")
+    model = (body.get("model") or "").strip()
     from datetime import datetime
     content = f"""---
 type: agent
@@ -525,7 +712,8 @@ role: {role}
 group: {group}
 skills: {skills}
 members: {members}
-model: ""
+provider: "{provider}"
+model: "{model}"
 updated: {datetime.now():%Y-%m-%d}
 ---
 {prompt}
@@ -533,7 +721,7 @@ updated: {datetime.now():%Y-%m-%d}
     for d in (config.BRAIN / "agents", config.ROOT / "agents"):
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{slug}.md").write_text(content, encoding="utf-8")
-    return {"ok": True, "slug": slug, "name": name, "group": group, "members": members}
+    return {"ok": True, "slug": slug, "name": name, "group": group, "members": members, "provider": provider, "model": model}
 
 
 @app.post("/api/agents/upload")
@@ -710,9 +898,12 @@ def create_session(body: dict):
     agent = body.get("agent") or "kuro-core"
     title = body.get("title") or "Phiên mới"
     workspace = body.get("workspace") or str(engine.active_workspace_dir())
+    provider = (body.get("provider") or "").strip()
+    if provider and provider not in config.PROVIDERS:
+        raise HTTPException(400, f"Nhà cung cấp AI không hợp lệ: {provider}")
     model = (body.get("model") or "").strip()
-    sid = store.ensure(None, title=title, agent=agent, workspace=workspace, model=model)
-    return {"id": sid, "agent": agent, "title": title, "workspace": workspace, "model": model}
+    sid = store.ensure(None, title=title, agent=agent, workspace=workspace, model=model, provider=provider)
+    return {"id": sid, "agent": agent, "title": title, "workspace": workspace, "provider": provider, "model": model}
 
 
 @app.delete("/api/sessions/{sid}")
@@ -731,14 +922,21 @@ def get_session_info(sid: str):
     sess = store.get(sid)
     if not sess:
         raise HTTPException(404, "Không tìm thấy phiên")
+    if not sess.get("provider"):
+        sess["provider"] = store.session_provider(sess)
     return sess
 
 
 @app.post("/api/sessions/{sid}/model")
 def set_session_model(sid: str, body: dict):
     model = (body.get("model") or "").strip()
-    store.set_model(sid, model)
-    return {"ok": True, "model": model}
+    provider = body.get("provider")
+    if provider is not None:
+        provider = str(provider).strip()
+        if provider and provider not in config.PROVIDERS:
+            raise HTTPException(400, f"Nhà cung cấp AI không hợp lệ: {provider}")
+    store.set_model(sid, model, provider=provider)
+    return {"ok": True, "provider": provider or "", "model": model}
 
 
 # Quản lý task chat theo từng session (xử lý độc lập, song song)
@@ -771,16 +969,17 @@ async def upload_general_file(file: UploadFile = File(...)):
     attach_dir.mkdir(parents=True, exist_ok=True)
     target_path = attach_dir / safe_name
     
-    content = await file.read()
-    target_path.write_bytes(content)
-    
+    with target_path.open("wb") as out:   # ghi từng khối ra đĩa, tệp hàng trăm MB không phình RAM
+        shutil.copyfileobj(file.file, out, 1024 * 1024)
+    size = target_path.stat().st_size
+
     return {
         "ok": True,
         "filename": safe_name,
         "original_name": filename,
         "path": str(target_path),
         "url": f"/api/attachments/{safe_name}",
-        "size": len(content),
+        "size": size,
         "is_image": ext in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
     }
 
@@ -1064,8 +1263,11 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     msg_tokens = int(msg_chars / 3.6) + (len(msgs) * 6) if msgs else 0
     msgs_count = len(msgs)
 
-    # 2. Model context window
-    window_size = get_model_context_window(config.PROVIDER, config.MODEL)
+    # 2. Model context window (ưu tiên provider + model riêng của phiên)
+    sess_row = store.get(sid) if sid else None
+    sess_provider = store.session_provider(sess_row) or (config.PROVIDER or "antigravity")
+    sess_model = (sess_row.get("model") if sess_row else None) or config.get_provider_model(sess_provider) or ""
+    window_size = get_model_context_window(sess_provider, sess_model)
 
     # 3. Memory files thực tế
     candidates = [
@@ -1252,16 +1454,19 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
 
     return {
         "id": sid,
-        "title": store.get(sid).get("title", "") if sid and store.get(sid) else "Phiên mới",
+        "title": sess_row.get("title", "") if sess_row else "Phiên mới",
         "agent": agent_slug,
         "agent_name": agent_name,
-        "session_model": (store.get(sid).get("model") if sid and store.get(sid) else "") or "",
+        "session_provider": store.session_provider(sess_row) if sess_row else "",
+        "session_model": (sess_row.get("model") if sess_row else "") or "",
         "environment": {
             "host": "Máy tính này (Local Windows)",
             "brain_path": str(config.BRAIN),
             "git_branch": branch,
-            "provider": config.PROVIDER or "antigravity",
-            "model": (store.get(sid).get("model") if sid and store.get(sid) else None) or config.MODEL or "Mặc định",
+            "provider": sess_provider,
+            "provider_name": config.PROVIDERS.get(sess_provider, {}).get("ten", sess_provider),
+            "provider_short": config.PROVIDERS.get(sess_provider, {}).get("short", sess_provider),
+            "model": sess_model or "Mặc định",
             "context_window": window_size,
         },
         "usage": {
@@ -1331,8 +1536,11 @@ async def compact_session(sid: str):
     )
     
     summary_text = ""
+    sess_prov = store.session_provider(sess) or (config.PROVIDER or "claude")
+    sess_mod = (sess.get("model") or "").strip() or None
     try:
-        async for ev in engine.run_turn(summary_prompt, None, agent=sess.get("agent", "kuro-core")):
+        async for ev in engine.run_turn(summary_prompt, None, agent=sess.get("agent", "kuro-core"),
+                                        model=sess_mod, provider=sess_prov):
             if ev.get("type") == "text":
                 summary_text += ev.get("text", "")
             elif ev.get("type") == "final" and not summary_text:
@@ -1966,17 +2174,34 @@ async def ws(sock: WebSocket):
                 continue
             agent = req.get("agent") or "kuro-core"
             workspace = req.get("workspace") or str(engine.active_workspace_dir())
-            req_model = (req.get("model") or "").strip() or None
-            
-            # Ưu tiên model gửi lên trong request; nếu không có thì lấy model đã lưu của phiên đó
+            req_provider = (req.get("provider") or "").strip()
+            if req_provider and req_provider not in config.PROVIDERS:
+                req_provider = ""
+            has_req_model = "model" in req and req.get("model") is not None
+            req_model = (req.get("model") or "").strip() if has_req_model else None
+
+            # Ưu tiên provider/model gửi lên; nếu đổi provider mà không truyền model thì không mang model hãng cũ sang
             existing_sess = store.get(req.get("session")) if req.get("session") else None
-            effective_model = req_model or (existing_sess.get("model") if existing_sess else None) or None
+            existing_provider = store.session_provider(existing_sess)
+            agent_meta, _ = engine.agent_persona(agent)
+            agent_prov = (agent_meta.get("provider") or "").strip()
+            agent_model = (agent_meta.get("model") or "").strip()
 
-            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace, model=effective_model or "")
-            if effective_model:
-                store.set_model(sid, effective_model)
+            effective_provider = req_provider or existing_provider or agent_prov or (config.PROVIDER or "claude")
+            switched_prov = bool(existing_provider and existing_provider != effective_provider)
+            if has_req_model:
+                effective_model = req_model or ""
+            elif switched_prov:
+                effective_model = ""
+            else:
+                effective_model = (existing_sess.get("model") if existing_sess else "") or (agent_model if effective_provider == agent_prov else "") or ""
 
-            # Cập nhật trạng thái active (phiên và thư mục làm việc, model lưu riêng theo từng session)
+            sid = store.ensure(req.get("session"), title=text, agent=agent, workspace=workspace,
+                               model=effective_model, provider=effective_provider)
+            if effective_provider != (existing_sess.get("provider") if existing_sess else "") or effective_model != (existing_sess.get("model") if existing_sess else ""):
+                store.set_model(sid, effective_model, provider=effective_provider)
+
+            # Cập nhật trạng thái active (phiên và thư mục làm việc, provider + model lưu riêng theo từng session)
             cur_st = get_active_state()
             cur_st["agent"] = agent
             cur_st["session"] = sid
@@ -1991,6 +2216,7 @@ async def ws(sock: WebSocket):
                 "agent": agent,
                 "workspace": workspace,
                 "title": text,
+                "provider": effective_provider,
                 "model": effective_model
             })
             await manager.broadcast({
@@ -2000,21 +2226,25 @@ async def ws(sock: WebSocket):
                 "workspace": workspace,
                 "text": text,
                 "attachments": req.get("attachments") or [],
+                "provider": effective_provider,
                 "model": effective_model
             })
 
             # Chạy phản hồi trong Task nền riêng biệt cho từng phiên (không làm nghẽn socket!)
-            # Cho phép các phiên khác gửi tin nhắn và xử lý đồng thời hoàn toàn độc lập!
-            async def run_session_turn(session_id: str, prompt_text: str, session_agent: str, session_ws: str, session_model: str | None):
+            # Cho phép các phiên khác (kể cả khác nhà cung cấp AI: agy vs claude) chạy song song hoàn toàn độc lập!
+            async def run_session_turn(session_id: str, prompt_text: str, session_agent: str, session_ws: str,
+                                       session_provider: str, session_model: str | None):
                 try:
                     async def broadcast_chunk(chunk: dict):
                         payload = dict(chunk)
                         payload["session"] = session_id
                         payload["agent"] = session_agent
                         payload["workspace"] = session_ws
+                        payload["provider"] = session_provider
                         await manager.broadcast(payload)
 
-                    answer = await engine.chat(session_id, prompt_text, agent=session_agent, emit=broadcast_chunk, workspace=session_ws, model=session_model)
+                    answer = await engine.chat(session_id, prompt_text, agent=session_agent, emit=broadcast_chunk,
+                                               workspace=session_ws, model=session_model, provider=session_provider)
 
                     # Broadcast sự kiện hoàn tất lượt với toàn bộ nội dung câu trả lời hoàn chỉnh
                     await manager.broadcast({
@@ -2022,6 +2252,7 @@ async def ws(sock: WebSocket):
                         "session": session_id,
                         "agent": session_agent,
                         "workspace": session_ws,
+                        "provider": session_provider,
                         "answer": answer
                     })
 
@@ -2031,6 +2262,8 @@ async def ws(sock: WebSocket):
                         "id": session_id,
                         "agent": session_agent,
                         "workspace": session_ws,
+                        "provider": session_provider,
+                        "model": session_model or "",
                         "title": prompt_text
                     })
                 except asyncio.CancelledError:
@@ -2058,7 +2291,9 @@ async def ws(sock: WebSocket):
             if sid in session_chat_tasks and not session_chat_tasks[sid].done():
                 session_chat_tasks[sid].cancel()
 
-            this_turn_task = asyncio.create_task(run_session_turn(sid, text, agent, workspace, effective_model))
+            this_turn_task = asyncio.create_task(
+                run_session_turn(sid, text, agent, workspace, effective_provider, effective_model)
+            )
             session_chat_tasks[sid] = this_turn_task
     except WebSocketDisconnect:
         manager.disconnect(sock)
@@ -2069,4 +2304,6 @@ async def ws(sock: WebSocket):
 app.mount("/", StaticFiles(directory=config.ROOT / "dashboard", html=True), name="ui")
 
 if __name__ == "__main__":
+    winproc.an_cua_so()
+    winproc.gop_tien_trinh_con()
     uvicorn.run(app, host=config.HOST, port=config.PORT)

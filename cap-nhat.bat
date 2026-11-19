@@ -9,7 +9,10 @@ cd /d "%~dp0"
   echo [2/4] Tai ban moi...
   git pull --ff-only || (echo [LOI] Khong cap nhat duoc. Neu ban da tu sua file ma nguon, hay hoi nguoi quan ly Kuro. & pause & exit /b 1)
   echo [3/4] Cap nhat thu vien...
-  .venv\Scripts\python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-ky-thuat.txt || (echo [LOI] pip install that bai & pause & exit /b 1)
+  .venv\Scripts\python -m pip install --disable-pip-version-check -r requirements.txt || (echo [LOI] Cai thu vien cot loi requirements.txt that bai & pause & exit /b 1)
+  if exist "%~dp0requirements-ky-thuat.txt" (
+    .venv\Scripts\python -m pip install --disable-pip-version-check -r requirements-ky-thuat.txt || echo [CANH BAO] Mot so goi trong requirements-ky-thuat.txt chua cai duoc, Kuro van chay binh thuong.
+  )
   echo [4/4] Lam moi bieu tuong tren man hinh chinh...
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tao-loi-tat.ps1"
   echo.
