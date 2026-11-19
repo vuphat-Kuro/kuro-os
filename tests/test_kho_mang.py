@@ -1,5 +1,6 @@
 """Chặn cứng xóa tệp trên kho mạng công ty. Chạy: .venv\\Scripts\\python -m unittest tests.test_kho_mang"""
 import asyncio
+import json
 import os
 import sys
 import tempfile
@@ -54,6 +55,26 @@ class ChanXoaAgy(unittest.TestCase):
         self.assertTrue(chan_agy("run_command", CommandLine=f'Remove-Item -LiteralPath "{KHO}\\a.pdf"', Cwd=r"d:\1"))
         self.assertTrue(chan_agy("delete_directory", DirectoryPath=KHO))
         self.assertTrue(chan_agy("write_to_file", TargetFile=r"D:\1\x.py", CodeContent=f'import os; os.remove(r"{KHO}\\a")'))
+
+    def test_luon_tra_decision(self):   # agy coi đầu ra thiếu "decision" là từ chối, chặn mọi tool (lỗi bản 8ebf487)
+        import subprocess
+        hook = Path(__file__).resolve().parent.parent / "server" / "agy_chan_xoa.py"
+        inp = '{"toolCall": {"name": "view_file", "args": {"AbsolutePath": "D:\\\\1\\\\a.xlsx"}}}'
+        for flag, mong in (("1", "allow"), ("", "ask")):
+            r = subprocess.run([sys.executable, str(hook)], input=inp.encode(), capture_output=True,
+                               env={**os.environ, "KURO_AGY": flag})
+            self.assertEqual(json.loads(r.stdout)["decision"], mong)
+
+    def test_go_hook_cu(self):
+        import cli_engines
+        f = Path(TMP) / "hooks.json"
+        f.write_text('{"kuro-chan-xoa-kho-mang": {}, "cua-nguoi-dung": {"enabled": true}}', encoding="utf-8")
+        cu, cli_engines.HOOK_AGY = cli_engines.HOOK_AGY, f
+        try:
+            cli_engines.go_hook_agy()
+        finally:
+            cli_engines.HOOK_AGY = cu
+        self.assertEqual(json.loads(f.read_text(encoding="utf-8")), {"cua-nguoi-dung": {"enabled": True}})
 
     def test_khong_chan(self):
         self.assertFalse(chan_agy("run_command", CommandLine=r"Remove-Item D:\1\a.pdf", Cwd=r"d:\1"))

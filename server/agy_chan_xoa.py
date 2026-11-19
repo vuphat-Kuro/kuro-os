@@ -1,9 +1,10 @@
 """Hook PreToolUse của agy (Google Antigravity CLI): chặn lệnh xóa/di chuyển tệp trên kho mạng công ty.
 
 Hook của Claude Code (engine.chan_xoa_kho_mang) không áp dụng khi Kuro chạy AI bằng agy, nên agy cần hook riêng.
-cli_engines.cai_hook_agy() ghi hook này vào ~/.gemini/config/hooks.json (nơi agy nạp hook toàn máy). Hook chỉ có
-hiệu lực với agy do Kuro chạy (biến môi trường KURO_AGY=1), agy người dùng tự mở thì không đụng tới.
-Vào (stdin): {"toolCall": {"name", "args"}, ...}. Ra (stdout): {"decision": "deny", "reason"} hoặc {} (không ý kiến).
+CHƯA CÀI: bản đầu trả {} khi không chặn, agy coi là từ chối nên chặn mọi tool; cli_engines.go_hook_agy() đang gỡ nó.
+Cài lại vào ~/.gemini/config/hooks.json chỉ sau khi thử với agy thật rằng {"decision": "allow"} cho tool chạy bình thường.
+Vào (stdin): {"toolCall": {"name", "args"}, ...}. Ra (stdout): {"decision": "deny"|"allow"|"ask", "reason"}; agy
+bắt buộc có "decision".
 """
 import contextlib
 import json
@@ -47,11 +48,13 @@ def quyet_dinh(call: dict) -> dict:
 
 def main():
     raw = sys.stdin.buffer.read().decode("utf-8", "replace")
-    out = {}
+    # agy do Kuro chạy đã tự duyệt mọi tool (--dangerously-skip-permissions) nên "allow" giữ nguyên hành vi.
+    # shortcut: agy người dùng tự mở thì "ask" (hỏi người dùng), chưa thử thật; nếu phiền thì đổi cách cài hook.
+    out = {"decision": "allow" if os.getenv("KURO_AGY") == "1" else "ask"}
     if os.getenv("KURO_AGY") == "1":
         try:
             with contextlib.redirect_stdout(sys.stderr):   # config in thông báo khi nạp; stdout chỉ dành cho JSON
-                out = quyet_dinh(json.loads(raw or "{}").get("toolCall") or {})
+                out = quyet_dinh(json.loads(raw or "{}").get("toolCall") or {}) or out
         except Exception as e:   # shortcut: lỗi hook thì cho qua (không chặn), chỉ ghi stderr
             print(f"[agy_chan_xoa] {e}", file=sys.stderr)
     sys.stdout.write(json.dumps(out, ensure_ascii=False))

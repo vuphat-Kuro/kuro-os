@@ -19,7 +19,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import config
@@ -27,19 +26,15 @@ import config
 HOOK_AGY = Path.home() / ".gemini" / "config" / "hooks.json"   # agy nạp hooks.json toàn máy ở đây
 
 
-def cai_hook_agy():
-    """Ghi hook chặn xóa kho mạng (agy_chan_xoa.py) vào hooks.json của agy, giữ nguyên hook khác của người dùng."""
-    py = Path(sys.executable).with_name("python.exe")   # pythonw (app desktop) không có stdout cho hook
-    cmd = f'"{py if py.is_file() else sys.executable}" "{Path(__file__).with_name("agy_chan_xoa.py")}"'
-    muon = {"PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": cmd, "timeout": 20}]}]}
+def go_hook_agy():
+    """Gỡ hook chặn xóa kho mạng của Kuro khỏi hooks.json của agy, giữ nguyên hook khác của người dùng.
+    Bản 8ebf487 cài hook trả {} khi không chặn; agy bắt buộc có "decision" nên coi là từ chối và chặn MỌI tool
+    (cả đọc tệp trong dự án). Tạm gỡ cho tới khi hook agy_chan_xoa.py được thử với agy thật."""
     try:
-        data = json.loads(HOOK_AGY.read_text(encoding="utf-8-sig")) if HOOK_AGY.is_file() else {}
-    except ValueError:
-        print(f"[agy] {HOOK_AGY} hỏng JSON, chưa cài được hook chặn xóa kho mạng")
+        data = json.loads(HOOK_AGY.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
         return
-    if data.get("kuro-chan-xoa-kho-mang") != muon:
-        data["kuro-chan-xoa-kho-mang"] = muon
-        HOOK_AGY.parent.mkdir(parents=True, exist_ok=True)
+    if data.pop("kuro-chan-xoa-kho-mang", None) is not None:
         HOOK_AGY.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -150,7 +145,7 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
     cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write, provider=provider)
     if kind == "agy":
-        cai_hook_agy()
+        go_hook_agy()
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
     work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(
