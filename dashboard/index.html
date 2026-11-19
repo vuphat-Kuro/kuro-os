@@ -3034,7 +3034,7 @@
       <button type="button" class="ws-rules-pill" id="ws-rules-status-pill" title="Bấm để xem hoặc cài đặt quy tắc thư mục dự án">
         <span id="ws-rules-status-text">⚙ Đang kiểm tra quy tắc...</span>
       </button>
-      <button type="button" class="ws-rules-edit-btn" id="btn-ws-rules-open" title="Cấu hình Kuro Standard / QUY_TAC_RIENG.md">Quy tắc</button>
+      <button type="button" class="ws-rules-edit-btn" id="btn-ws-rules-open" title="Quy tắc làm việc của dự án (QUY_TAC_LAM_VIEC.md)">Quy tắc</button>
     </div>
 
     <!-- Danh sách Dự án gần đây (Recent Workspaces Bar) -->
@@ -4217,7 +4217,7 @@
   </div>
 </div>
 
-<!-- DIALOG QUY TẮC THƯ MỤC DỰ ÁN (KURO STANDARD & QUY_TAC_RIENG.md) -->
+<!-- DIALOG QUY TẮC THƯ MỤC DỰ ÁN (KURO STANDARD -> QUY_TAC_LAM_VIEC.md trong dự án) -->
 <dialog id="workspace-rules-dialog" aria-labelledby="wsr-title">
   <div class="wsr-wrap">
     <div class="dialog-header-row">
@@ -4270,15 +4270,15 @@
 
     <details class="wsr-custom-box" id="wsr-custom-details">
       <summary style="cursor:pointer; font:700 11.5px/1.2 var(--hud); letter-spacing:.08em; color:var(--cyan-soft); text-transform:uppercase;">
-        📝 Quy tắc riêng của dự án (QUY_TAC_RIENG.md - tùy chọn)
+        📝 Quy tắc làm việc của dự án (QUY_TAC_LAM_VIEC.md)
       </summary>
       <small style="color:var(--muted); font-size:11.5px;">
-        Chỉ cần lưu trong một tệp <code>QUY_TAC_RIENG.md</code> ở thư mục gốc dự án. Kuro sẽ tự động đọc và tuân thủ mỗi lượt chat.
+        Tệp <code>QUY_TAC_LAM_VIEC.md</code> ở gốc dự án là quy tắc Kuro làm theo ở mỗi lượt chat. Áp dụng Kuro Standard thì tệp được viết sẵn từ mẫu; sau đó sửa ở đây hoặc mở tệp trực tiếp. Xóa trắng nội dung và lưu = bỏ quy tắc.
       </small>
-      <textarea id="wsr-custom-text" placeholder="Nhập quy tắc riêng của dự án (để trống nếu chỉ dùng Kuro Standard)..."></textarea>
+      <textarea id="wsr-custom-text" placeholder="Nội dung QUY_TAC_LAM_VIEC.md (để trống = dự án không có quy tắc riêng, Kuro làm việc bình thường)..."></textarea>
       <div class="wsr-actions">
-        <button type="button" class="btn-hdr" id="btn-wsr-fill-template">Điền mẫu gợi ý</button>
-        <button type="button" class="btn-hdr" id="btn-wsr-save-custom" style="border-color:var(--cyan); color:var(--cyan-soft);">💾 Lưu QUY_TAC_RIENG.md</button>
+        <button type="button" class="btn-hdr" id="btn-wsr-fill-template">Điền mẫu Kuro Standard</button>
+        <button type="button" class="btn-hdr" id="btn-wsr-save-custom" style="border-color:var(--cyan); color:var(--cyan-soft);">💾 Lưu QUY_TAC_LAM_VIEC.md</button>
       </div>
     </details>
   </div>
@@ -4287,6 +4287,6 @@
 <!-- POPOVER TÙY CHỌN MỞ FILE XUẤT RA TRONG TIN NHẮN KURO -->
 <div id="file-action-popover" class="file-action-popover" style="display:none;" role="menu"></div>
 
-<script src="app.js?v=53"></script>
+<script src="app.js?v=54"></script>
 </body>
 </html>

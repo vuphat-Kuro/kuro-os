@@ -1,4 +1,4 @@
-"""Kiểm thử quy tắc Local Workspace (Kuro Standard: 3 thư mục + 7 quy tắc + QUY_TAC_RIENG.md)."""
+"""Kiểm thử quy tắc thư mục dự án: nguồn duy nhất là tệp QUY_TAC_LAM_VIEC.md trong dự án."""
 import os
 import sys
 import tempfile
@@ -15,6 +15,8 @@ import engine  # noqa: E402
 import main  # noqa: E402
 import workspace_rules  # noqa: E402
 
+RF = "QUY_TAC_LAM_VIEC.md"
+
 
 class WorkspaceRulesTest(unittest.TestCase):
     def setUp(self):
@@ -29,77 +31,89 @@ class WorkspaceRulesTest(unittest.TestCase):
     def tearDown(self):
         config.STATE, engine.WORKSPACES_FILE = self.keep
 
-    def test_unset_then_apply_kuro_standard_and_custom(self):
+    def prompt(self, ws):
+        return workspace_rules.build_workspace_rules_prompt(ws, engine.get_workspaces_config())
+
+    def test_apply_standard_writes_rules_file_then_user_edit_wins(self):
         ws = self.tmp / "DU_AN_CAU_XYZ"
         ws.mkdir()
-
-        # 1. Mở dự án mới chưa có quy tắc -> needs_prompt = True
-        r_open = self.client.post("/api/workspaces/open", json={"path": str(ws)})
-        self.assertEqual(r_open.status_code, 200)
-        rules = r_open.json()["rules"]
+        rules = self.client.post("/api/workspaces/open", json={"path": str(ws)}).json()["rules"]
         self.assertEqual(rules["mode"], "unset")
         self.assertTrue(rules["needs_prompt"])
 
-        # 2. Áp dụng Kuro Standard -> tạo đủ 3 thư mục chuẩn và nạp đủ 7 quy tắc vào prompt
-        r_apply = self.client.post("/api/workspaces/rules", json={"mode": "standard"})
-        self.assertEqual(r_apply.status_code, 200)
-        self.assertEqual(r_apply.json()["mode"], "standard")
-        self.assertFalse(r_apply.json()["needs_prompt"])
+        # Áp dụng Kuro Standard -> 3 thư mục + tệp quy tắc viết từ mẫu, prompt lấy từ tệp
+        r = self.client.post("/api/workspaces/rules", json={"mode": "standard"}).json()
+        self.assertEqual(r["mode"], "rules")
+        self.assertFalse(r["needs_prompt"])
         for d in ("01_TAI_LIEU", "02_KURO_XU_LY", "03_KET_QUA"):
             self.assertTrue((ws / d).is_dir(), f"Thiếu thư mục {d}")
+        self.assertTrue((ws / RF).is_file())
+        self.assertIn("TASK_001_", self.prompt(ws))
 
-        prompt_block = workspace_rules.build_workspace_rules_prompt(ws, engine.get_workspaces_config())
-        self.assertIn("01_TAI_LIEU", prompt_block)
-        self.assertIn("02_KURO_XU_LY", prompt_block)
-        self.assertIn("03_KET_QUA", prompt_block)
-        self.assertIn("TASK_001_", prompt_block)
-        self.assertIn("7 QUY TẮC LÀM VIỆC", prompt_block)
+        # Người dùng sửa tệp ngoài Kuro -> lượt sau làm theo bản đã sửa, không còn mẫu cũ
+        (ws / RF).write_text("# Quy tắc\n- Kết quả lưu vào thư mục XUAT/\n", encoding="utf-8")
+        p = self.prompt(ws)
+        self.assertIn("XUAT/", p)
+        self.assertNotIn("TASK_001_", p)
 
-        # 3. Lưu thêm QUY_TAC_RIENG.md -> tự chuyển sang standard+custom và bơm vào prompt
-        r_custom = self.client.post("/api/workspaces/rules", json={
-            "mode": "keep",
-            "custom_content": "- Xuất thuyết minh theo TCVN 11823:2017\n- Bảng Excel dùng font Times New Roman",
-        })
-        self.assertEqual(r_custom.status_code, 200)
-        self.assertEqual(r_custom.json()["mode"], "standard+custom")
-        self.assertTrue((ws / "QUY_TAC_RIENG.md").is_file())
-        prompt_block2 = workspace_rules.build_workspace_rules_prompt(ws, engine.get_workspaces_config())
-        self.assertIn("TCVN 11823:2017", prompt_block2)
+        # Áp dụng lại Kuro Standard không ghi đè tệp người dùng đã sửa
+        self.client.post("/api/workspaces/rules", json={"mode": "standard"})
+        self.assertIn("XUAT/", (ws / RF).read_text(encoding="utf-8"))
 
-    def test_existing_custom_rules_used_immediately_without_prompt(self):
+        # Sửa qua hộp thoại, rồi xóa trắng = bỏ quy tắc, làm việc bình thường
+        r = self.client.post("/api/workspaces/rules", json={"mode": "keep", "content": "- Font Times New Roman"}).json()
+        self.assertIn("Times New Roman", r["content"])
+        r = self.client.post("/api/workspaces/rules", json={"mode": "keep", "content": "  "}).json()
+        self.assertFalse(r["has_rules"])
+        self.assertIn("NƠI LƯU KẾT QUẢ BẮT BUỘC", self.prompt(ws))
+
+    def test_existing_rules_file_used_without_prompt(self):
         ws = self.tmp / "DU_AN_DA_CO_QUY_TAC"
         ws.mkdir()
-        (ws / "QUY_TAC_RIENG.md").write_text("# Quy tắc riêng\n- Lưu hết vào thư mục BaoCao/\n", encoding="utf-8")
-
-        r_open = self.client.post("/api/workspaces/open", json={"path": str(ws)})
-        self.assertEqual(r_open.status_code, 200)
-        rules = r_open.json()["rules"]
-        self.assertEqual(rules["mode"], "custom")
+        (ws / RF).write_text("# Quy tắc\n- Lưu hết vào thư mục BaoCao/\n", encoding="utf-8")
+        rules = self.client.post("/api/workspaces/open", json={"path": str(ws)}).json()["rules"]
+        self.assertEqual(rules["mode"], "rules")
         self.assertFalse(rules["needs_prompt"])
-        self.assertTrue(rules["has_custom_rules"])
 
-    def test_existing_three_dirs_detected_as_standard(self):
-        ws = self.tmp / "DU_AN_DA_CO_3_THU_MUC"
+    def test_three_dirs_without_rules_file_works_normally(self):
+        ws = self.tmp / "DU_AN_3_THU_MUC_KHONG_TEP"
         for d in ("01_TAI_LIEU", "02_KURO_XU_LY", "03_KET_QUA"):
             (ws / d).mkdir(parents=True)
+        rules = self.client.post("/api/workspaces/open", json={"path": str(ws)}).json()["rules"]
+        self.assertFalse(rules["has_rules"])
+        self.assertNotIn("TASK_001_", self.prompt(ws))
 
-        r_open = self.client.post("/api/workspaces/open", json={"path": str(ws)})
-        rules = r_open.json()["rules"]
-        self.assertEqual(rules["mode"], "standard")
-        self.assertFalse(rules["needs_prompt"])
+    def test_old_v181_project_migrated_to_rules_file(self):
+        ws = self.tmp / "DU_AN_CU"
+        ws.mkdir()
+        (ws / "QUY_TAC_RIENG.md").write_text("- Bảng Excel dùng font Times New Roman\n", encoding="utf-8")
+        cfg = engine.get_workspaces_config()
+        cfg["rules"] = {ws.resolve().as_posix().lower(): "standard"}
+        engine.save_workspaces_config(cfg)
+        st = workspace_rules.inspect_workspace_rules(ws, engine.get_workspaces_config())
+        self.assertEqual(st["mode"], "rules")
+        txt = (ws / RF).read_text(encoding="utf-8")
+        self.assertIn("TASK_001_", txt)
+        self.assertIn("Times New Roman", txt)
+        self.assertFalse((ws / "QUY_TAC_RIENG.md").exists())
 
     def test_decline_rules_remembered_no_repeat_prompt(self):
         ws = self.tmp / "DU_AN_KHONG_AP_DUNG"
         ws.mkdir()
         self.client.post("/api/workspaces/open", json={"path": str(ws)})
-        r_no = self.client.post("/api/workspaces/rules", json={"mode": "none"})
-        self.assertEqual(r_no.json()["mode"], "none")
-        self.assertFalse(r_no.json()["needs_prompt"])
+        r_no = self.client.post("/api/workspaces/rules", json={"mode": "none"}).json()
+        self.assertEqual(r_no["mode"], "none")
+        self.assertFalse(r_no["needs_prompt"])
         self.assertFalse((ws / "01_TAI_LIEU").exists())
-
-        # Mở lại dự án đó -> không hỏi lại nữa
         r_reopen = self.client.post("/api/workspaces/open", json={"path": str(ws)})
         self.assertFalse(r_reopen.json()["rules"]["needs_prompt"])
+
+    def test_attachments_inside_xu_ly(self):
+        ws = self.tmp / "DU_AN_DINH_KEM"
+        ws.mkdir()
+        self.assertEqual(workspace_rules.attachments_dir(ws), ws / ".attachments")
+        (ws / "02_KURO_XU_LY").mkdir()
+        self.assertEqual(workspace_rules.attachments_dir(ws), ws / "02_KURO_XU_LY" / ".attachments")
 
 
 if __name__ == "__main__":

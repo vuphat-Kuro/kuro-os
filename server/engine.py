@@ -356,7 +356,7 @@ def skill_index() -> str:
 def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None) -> str:
     ws_path = ws_dir or str(active_workspace_dir())
     ws_cfg = get_workspaces_config()
-    ws_rules_st = workspace_rules.inspect_workspace_rules(Path(ws_path), ws_cfg)
+    co_quy_tac = workspace_rules.inspect_workspace_rules(Path(ws_path), ws_cfg)["has_rules"]
     ws_rules = workspace_rules.build_workspace_rules_prompt(Path(ws_path), ws_cfg) + f"\n{KHO_MANG_CAM_XOA}"
     ws_note = ws_rules + DOC_TEP_LON
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
@@ -367,17 +367,16 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
     if can_shell:
-        if ws_rules_st["standard_enabled"]:
-            calc_rule = ("Viết script Python và file trung gian vào `02_KURO_XU_LY/` (tạo thư mục con `TASK_xxx_.../` nếu nhiệm vụ có nhiều file), "
-                         "chạy bằng shell hoặc python để tính toán chính xác, xuất sản phẩm hoàn thiện (Excel, PDF, DXF, HTML công cụ...) vào `03_KET_QUA/` "
-                         "và thông báo rõ tên file cùng đường dẫn kết quả trong câu trả lời.")
+        if co_quy_tac:
+            calc_rule = ("Viết script Python, chạy bằng shell hoặc python để tính toán chính xác. Script, file trung gian và sản phẩm "
+                         f"hoàn thiện lưu đúng nơi quy định trong `{workspace_rules.RULES_FILE}` ở trên; thông báo rõ tên file cùng đường dẫn kết quả.")
         else:
             calc_rule = ("Viết script Python vào thư mục dự án, chạy bằng shell hoặc python để tính toán chính xác, tạo tệp HTML/Excel và ghi đường "
                          "dẫn script/tệp vào câu trả lời.")
     elif can_write:
-        if ws_rules_st["standard_enabled"]:
-            calc_rule = ("Phiên này được phép tạo và ghi tệp tin trực tiếp vào thư mục dự án. Lưu tệp trung gian vào `02_KURO_XU_LY/` "
-                         "và sản phẩm hoàn thiện vào `03_KET_QUA/`. Không sửa đổi tệp gốc trong `01_TAI_LIEU/`.")
+        if co_quy_tac:
+            calc_rule = ("Phiên này được phép tạo và ghi tệp tin trực tiếp vào thư mục dự án, lưu đúng nơi quy định trong "
+                         f"`{workspace_rules.RULES_FILE}` ở trên.")
         else:
             calc_rule = ("Phiên này được phép tạo và ghi đè tệp tin (.html, .xlsx, .md...) trực tiếp vào thư mục dự án. "
                          "Khi người dùng yêu cầu xuất file báo cáo, hãy dùng công cụ ghi tệp tạo ra file thật trên ổ cứng.")
@@ -600,11 +599,10 @@ async def dien_hoa_anh(anh: Path, mo_ta: str, che_do: str, ws_path: str) -> list
     prompt_en, err = await mot_lan(DICH_PROMPT.format(mo_ta=mo_ta), 120)
     prompt_en = (prompt_en.strip().splitlines() or [""])[0].strip(' "') if not err else ""
     ws_p = Path(ws_path)
-    st_rules = workspace_rules.inspect_workspace_rules(ws_p, get_workspaces_config())
-    out_dir = (ws_p / "03_KET_QUA" / "dien-hoa") if st_rules["standard_enabled"] else (ws_p / "dien-hoa")
+    out_dir = (ws_p / "03_KET_QUA" / "dien-hoa") if (ws_p / "03_KET_QUA").is_dir() else (ws_p / "dien-hoa")
     ra = await asyncio.to_thread(dien_hoa.ve, anh, prompt_en or mo_ta or "finished building exterior", che_do, out_dir)
     for p in ra:   # bản sao trong .attachments để khung chat hiện ảnh qua /api/attachments
-        att = Path(ws_path) / ".attachments"
+        att = workspace_rules.attachments_dir(ws_p)
         att.mkdir(parents=True, exist_ok=True)
         shutil.copy2(p, att / p.name)
     return ra

@@ -1043,11 +1043,10 @@ async def upload_general_file(file: UploadFile = File(...)):
     ext = Path(filename).suffix.lower()
     safe_name = f"att_{time.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}_{Path(filename).stem[:24]}{ext}"
     
-    ws_dir = engine.active_workspace_dir()
-    attach_dir = ws_dir / ".attachments"
+    attach_dir = workspace_rules.attachments_dir(engine.active_workspace_dir())
     attach_dir.mkdir(parents=True, exist_ok=True)
     target_path = attach_dir / safe_name
-    
+
     with target_path.open("wb") as out:   # ghi từng khối ra đĩa, tệp hàng trăm MB không phình RAM
         shutil.copyfileobj(file.file, out, 1024 * 1024)
     size = target_path.stat().st_size
@@ -1103,11 +1102,10 @@ async def upload_image(file: UploadFile = File(...)):
         ext = ".png"
     safe_name = f"img_{time.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
     
-    ws_dir = engine.active_workspace_dir()
-    attach_dir = ws_dir / ".attachments"
+    attach_dir = workspace_rules.attachments_dir(engine.active_workspace_dir())
     attach_dir.mkdir(parents=True, exist_ok=True)
     target_path = attach_dir / safe_name
-    
+
     content = await file.read()
     target_path.write_bytes(content)
     
@@ -1125,12 +1123,12 @@ async def upload_image(file: UploadFile = File(...)):
 def get_attachment(filename: str):
     safe_filename = Path(filename).name
     ws_dir = engine.active_workspace_dir()
-    target = (ws_dir / ".attachments" / safe_filename).resolve()
-    if not target.is_file():
-        target = (config.ROOT / ".attachments" / safe_filename).resolve()
-        if not target.is_file():
-            raise HTTPException(404, "Không tìm thấy ảnh đính kèm")
-    return FileResponse(target)
+    # chỗ mới (02_KURO_XU_LY/.attachments), chỗ cũ ở gốc dự án, rồi thư mục Kuro
+    for d in (workspace_rules.attachments_dir(ws_dir), ws_dir / ".attachments", config.ROOT / ".attachments"):
+        target = (d / safe_filename).resolve()
+        if target.is_file():
+            return FileResponse(target)
+    raise HTTPException(404, "Không tìm thấy ảnh đính kèm")
 
 
 @app.get("/api/skills")
@@ -1675,8 +1673,8 @@ def get_workspace_rules(path: str | None = None):
     info = workspace_rules.inspect_workspace_rules(ws, cfg)
     return {
         **info,
-        "custom_content": workspace_rules.read_custom_rules(ws),
-        "template": workspace_rules.CUSTOM_RULES_TEMPLATE,
+        "content": workspace_rules.read_rules(ws),
+        "template": workspace_rules.KURO_STANDARD_TEMPLATE,
     }
 
 
@@ -1686,16 +1684,13 @@ async def save_workspace_rules(body: dict):
     p_str = (body.get("path") or "").strip()
     ws = Path(p_str).resolve() if p_str else engine.active_workspace_dir()
     mode = (body.get("mode") or "keep").strip().lower()
-    create_custom = bool(body.get("create_custom"))
-    custom_content = body.get("custom_content") if "custom_content" in body else None
     try:
         info = workspace_rules.apply_workspace_rules(
             ws,
             mode=mode,
             ws_cfg=cfg,
             save_cfg_fn=engine.save_workspaces_config,
-            create_custom=create_custom,
-            custom_content=custom_content,
+            content=body.get("content"),   # None = không đụng tới nội dung tệp quy tắc
         )
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -1710,7 +1705,7 @@ async def save_workspace_rules(body: dict):
     return {
         "ok": True,
         **info,
-        "custom_content": workspace_rules.read_custom_rules(ws),
+        "content": workspace_rules.read_rules(ws),
     }
 
 

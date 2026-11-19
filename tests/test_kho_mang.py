@@ -44,11 +44,10 @@ class ChanXoaKhoMang(unittest.TestCase):
 
     def test_cli_nhac_luat_moi_luot(self):   # hội thoại agy/codex cũ cũng phải nhận luật kho mạng + quy tắc thư mục
         ws = Path(tempfile.mkdtemp())
-        for d in ("01_TAI_LIEU", "02_KURO_XU_LY", "03_KET_QUA"):
-            (ws / d).mkdir()
+        (ws / "QUY_TAC_LAM_VIEC.md").write_text("# QUY TẮC LÀM VIỆC\n- Kết quả lưu vào XUAT/\n", encoding="utf-8")
         p = engine.cli_prompt("dọn dẹp thư mục", first=False, ws_dir=str(ws))
         self.assertIn("CẤM XÓA", p)
-        self.assertIn("KURO STANDARD", p)
+        self.assertIn("XUAT/", p)
         self.assertTrue(p.endswith("dọn dẹp thư mục"))
 
 

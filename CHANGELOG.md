@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.2] - 2026-11-19
+- **Quy tắc làm việc nằm trong chính thư mục dự án (`QUY_TAC_LAM_VIEC.md`):**
+  - Mỗi lượt chat Kuro đọc lại tệp `QUY_TAC_LAM_VIEC.md` ở gốc dự án: có tệp thì làm đúng theo nội dung hiện tại (kể cả khi người dùng đã tự sửa), không có tệp thì làm việc bình thường. Kuro không giữ quy tắc trong nội bộ; mẫu Kuro Standard chỉ dùng để viết tệp lần đầu khi chọn **Áp dụng Kuro Standard** (tạo 3 thư mục + tệp quy tắc, không ghi đè tệp đã có).
+  - Đổi tên `QUY_TAC_RIENG.md` thành `QUY_TAC_LAM_VIEC.md`. Dự án làm từ 1.8.1 (đã chọn Kuro Standard, có hoặc không có `QUY_TAC_RIENG.md`) được tự gộp thành một tệp `QUY_TAC_LAM_VIEC.md`.
+  - Hộp thoại **Quy tắc** sửa trực tiếp toàn bộ tệp `QUY_TAC_LAM_VIEC.md`; xóa trắng nội dung và lưu là bỏ quy tắc.
+- **Gốc dự án gọn đúng 3 thư mục:** tệp/ảnh đính kèm khung chat và bản sao ảnh diễn họa giờ lưu trong `02_KURO_XU_LY/.attachments` (dự án không có thư mục này thì vẫn ở `.attachments` như cũ); tệp đính kèm cũ ở gốc dự án vẫn mở được.
+
 ## [1.8.1] - 2026-11-19
 - **Bảo vệ kho mạng công ty `\\phuongthanhtranconsin.data.com` (kể cả ổ map X:, Y:...):**
   - Luật mới: Kuro **cấm xóa** mọi tệp/thư mục trên kho mạng, **kể cả khi người dùng yêu cầu** (người dùng tự xóa bằng tay); không tự tạo tệp trên kho, chỉ thêm/tạo khi người dùng yêu cầu đích danh. Ghi trong `CLAUDE.md`, `AGENTS.md` và lời dặn AI.

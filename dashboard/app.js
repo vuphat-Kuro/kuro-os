@@ -4524,15 +4524,9 @@ function updateWorkspaceRulesBadge(rules) {
     return;
   }
   const mode = rules.mode || "unset";
-  if (mode === "standard+custom") {
+  if (mode === "rules") {
     pill.className = "ws-rules-pill ok";
-    txt.textContent = "✓ Kuro Standard + Quy tắc riêng";
-  } else if (mode === "standard") {
-    pill.className = "ws-rules-pill ok";
-    txt.textContent = "✓ Kuro Standard (3 thư mục · 7 quy tắc)";
-  } else if (mode === "custom") {
-    pill.className = "ws-rules-pill ok";
-    txt.textContent = "✓ Đang dùng QUY_TAC_RIENG.md";
+    txt.textContent = "✓ Theo QUY_TAC_LAM_VIEC.md";
   } else if (mode === "none") {
     pill.className = "ws-rules-pill";
     txt.textContent = "• Không áp dụng quy tắc mặc định";
@@ -4557,14 +4551,10 @@ async function openWorkspaceRulesDialog(isNewProjectPrompt = false) {
     const noteEl = $("wsr-prompt-note");
     if (noteEl) {
       if (isNewProjectPrompt || data.needs_prompt) {
-        noteEl.textContent = "Dự án này chưa có quy tắc làm việc. Bạn có muốn áp dụng Kuro Standard (tạo sẵn 3 thư mục và 7 quy tắc) cho thư mục này không?";
+        noteEl.textContent = "Dự án này chưa có quy tắc làm việc. Bạn có muốn áp dụng Kuro Standard (tạo 3 thư mục và tệp QUY_TAC_LAM_VIEC.md) cho thư mục này không?";
         noteEl.style.display = "block";
-      } else if (data.standard_enabled) {
-        noteEl.textContent = "Dự án đang áp dụng Kuro Standard. Bạn có thể bổ sung thêm QUY_TAC_RIENG.md bên dưới nếu cần.";
-        noteEl.style.color = "#6ee7b7";
-        noteEl.style.display = "block";
-      } else if (data.has_custom_rules) {
-        noteEl.textContent = "Dự án đang dùng tệp QUY_TAC_RIENG.md riêng.";
+      } else if (data.has_rules) {
+        noteEl.textContent = "Kuro làm việc theo tệp QUY_TAC_LAM_VIEC.md trong thư mục dự án. Sửa tệp (bên dưới hoặc mở trực tiếp) là đổi quy tắc.";
         noteEl.style.color = "#6ee7b7";
         noteEl.style.display = "block";
       } else {
@@ -4574,17 +4564,17 @@ async function openWorkspaceRulesDialog(isNewProjectPrompt = false) {
 
     const customEl = $("wsr-custom-text");
     if (customEl) {
-      customEl.value = data.custom_content || "";
+      customEl.value = data.content || "";
       customEl.dataset.template = data.template || "";
     }
     const detailsEl = $("wsr-custom-details");
-    if (detailsEl) detailsEl.open = Boolean(data.has_custom_rules);
+    if (detailsEl) detailsEl.open = Boolean(data.has_rules);
 
     if ($("wsr-msg")) $("wsr-msg").textContent = "";
     const applyBtn = $("btn-wsr-apply");
     if (applyBtn) {
-      applyBtn.textContent = data.standard_enabled && data.has_standard_dirs
-        ? "✓ Đang dùng Kuro Standard (Đảm bảo đủ 3 thư mục)"
+      applyBtn.textContent = data.has_rules
+        ? "✓ Đã có QUY_TAC_LAM_VIEC.md (Đảm bảo đủ 3 thư mục)"
         : "✅ Áp dụng Kuro Standard";
     }
     if (!dlg.open) dlg.showModal();
@@ -4598,8 +4588,7 @@ async function applyWorkspaceRulesChoice(mode, opts = {}) {
   if (msgEl) msgEl.textContent = "Đang lưu...";
   try {
     const payload = { mode };
-    if (opts.customContent !== undefined) payload.custom_content = opts.customContent;
-    if (opts.createCustom) payload.create_custom = true;
+    if (opts.content !== undefined) payload.content = opts.content;
     const res = await fetch("/api/workspaces/rules", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -4612,16 +4601,16 @@ async function applyWorkspaceRulesChoice(mode, opts = {}) {
 
     if (mode === "standard") {
       if ($("state") && !busy) {
-        $("state").textContent = "Đã áp dụng Kuro Standard (3 thư mục & 7 quy tắc)";
+        $("state").textContent = "Đã áp dụng Kuro Standard (3 thư mục & QUY_TAC_LAM_VIEC.md)";
         setTimeout(() => { if (!busy && $("state")) $("state").textContent = "Sẵn sàng"; }, 2800);
       }
       if ($("workspace-rules-dialog")?.open && !opts.keepOpen) $("workspace-rules-dialog").close();
     } else if (mode === "none") {
       if ($("workspace-rules-dialog")?.open && !opts.keepOpen) $("workspace-rules-dialog").close();
     } else if (msgEl) {
-      msgEl.textContent = data.has_custom_rules
-        ? "Đã lưu QUY_TAC_RIENG.md vào gốc dự án."
-        : "Đã xóa QUY_TAC_RIENG.md.";
+      msgEl.textContent = data.has_rules
+        ? "Đã lưu QUY_TAC_LAM_VIEC.md vào gốc dự án."
+        : "Đã bỏ QUY_TAC_LAM_VIEC.md, dự án làm việc bình thường.";
     }
   } catch (err) {
     if (msgEl) msgEl.textContent = "Lỗi: " + err.message;
@@ -4647,7 +4636,7 @@ $("btn-wsr-fill-template") && ($("btn-wsr-fill-template").onclick = () => {
 });
 $("btn-wsr-save-custom") && ($("btn-wsr-save-custom").onclick = () => {
   const ta = $("wsr-custom-text");
-  applyWorkspaceRulesChoice("keep", { customContent: ta ? ta.value : "", keepOpen: true });
+  applyWorkspaceRulesChoice("keep", { content: ta ? ta.value : "", keepOpen: true });
 });
 
 async function loadWorkspaces() {
