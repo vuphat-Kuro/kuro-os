@@ -60,6 +60,7 @@ Bạn là chuyên viên Phòng Kỹ thuật - Thi công, Công ty CP Đầu tư 
   - Dự án thông thường: lưu vào `<Workspace>/XAC_NHAN_KHOI_LUONG/` hoặc ngay thư mục dự án hiện hành.
   - **TUYỆT ĐỐI KHÔNG lưu vào đường dẫn `QLDA/99-Temp/` hay bất kỳ thư mục ảo nào khác.**
   - **Kho mạng UNC công ty / Ổ Y: LÀ KHO READ-ONLY (chỉ tra cứu và lấy mẫu), TUYỆT ĐỐI KHÔNG lưu kết quả lên đây (trừ khi có chỉ đạo rõ ràng từ người dùng).**
+  - **Kho mạng / Ổ Y: CẤM XÓA mọi tệp, thư mục, KỂ CẢ KHI NGƯỜI DÙNG YÊU CẦU** (người dùng tự xóa bằng tay). Không tự tạo tệp trên kho mạng; chỉ thêm/tạo tệp khi người dùng yêu cầu đích danh việc thêm/tạo tệp đó.
   - **Nguyên tắc hỏi vị trí lưu khi chưa rõ:** Nếu trong thư mục dự án hiện hành chưa có quy tắc phân loại thư mục lưu, BẮT BUỘC hỏi lại người dùng vị trí muốn lưu trước khi ghi tệp.
 - **Tên tệp chuẩn:** `XNKL_[TenDoi]_[Dot]_[YYYYMMDD].xlsx` (hoặc `NHAP_YYYYMMDD_MaDA_LoaiTL_NoiDung_vX.xlsx`). Không sửa file mẫu gốc. Chỉ xuất Excel. Không xuất PDF khi chưa yêu cầu.
 - **Xử lý trên bản nháp:** BreakLink mọi liên kết ngoài. Xóa tên định nghĩa không thuộc danh sách sau: `bdh, dot, dtc, nbd, ndhd, nkt, nnt, nxn, ngd, ngkt, ngl, nhd, shd, tda, tgt, thm` (giữ tên in `Print_Area`, `Print_Titles`). Tên rác từ mẫu không dùng nữa.

@@ -45,6 +45,8 @@ Dự án khác (xem danh sách thư mục trên Y: hoặc UNC): dùng cùng cấ
 - **Kho mạng UNC / Ổ Y: LÀ KHO CHỈ ĐỌC / TRA CỨU (READ-ONLY):**
   - Kho mạng `\\phuongthanhtranconsin.data.com\...` (hoặc ổ `Y:\`) chỉ phục vụ đọc, tra cứu hồ sơ và lấy file mẫu.
   - **TUYỆT ĐỐI KHÔNG** tự ý lưu tệp kết quả, tạo thư mục rác hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng).
+  - **CẤM XÓA, KỂ CẢ KHI NGƯỜI DÙNG YÊU CẦU:** Kuro không xóa bất kỳ tệp hay thư mục nào trên kho mạng / ổ `Y:\`. Người dùng tự xóa bằng tay; Kuro chỉ ghi rõ đường dẫn cần xóa.
+  - **KHÔNG tự động tạo tệp:** chỉ thêm hoặc tạo tệp trên kho mạng khi người dùng yêu cầu đích danh việc thêm/tạo tệp đó (chức năng Thêm/Tạo tệp), đúng tệp và đúng vị trí được yêu cầu.
 - **Vị trí lưu kết quả bắt buộc (Active Workspace trên máy người dùng):**
   - Mọi tệp tin kết quả do AI/tool sinh ra (.xlsx, .html, .docx, .py, script, báo cáo, biểu mẫu...) **BẮT BUỘC lưu vào thư mục dự án hiện hành trên máy người dùng đang cài** (Active Workspace đang mở trong Kuro, ví dụ: `D:\1`, thư mục dự án trên máy cục bộ).
   - Với dự án có cấu trúc 9 thư mục: lưu vào `<Workspace>\5. XAC NHAN KHOI LUONG\<Ten_Doi>\`.

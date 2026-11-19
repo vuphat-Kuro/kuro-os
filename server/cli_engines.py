@@ -19,9 +19,28 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import config
+
+HOOK_AGY = Path.home() / ".gemini" / "config" / "hooks.json"   # agy nạp hooks.json toàn máy ở đây
+
+
+def cai_hook_agy():
+    """Ghi hook chặn xóa kho mạng (agy_chan_xoa.py) vào hooks.json của agy, giữ nguyên hook khác của người dùng."""
+    py = Path(sys.executable).with_name("python.exe")   # pythonw (app desktop) không có stdout cho hook
+    cmd = f'"{py if py.is_file() else sys.executable}" "{Path(__file__).with_name("agy_chan_xoa.py")}"'
+    muon = {"PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": cmd, "timeout": 20}]}]}
+    try:
+        data = json.loads(HOOK_AGY.read_text(encoding="utf-8-sig")) if HOOK_AGY.is_file() else {}
+    except ValueError:
+        print(f"[agy] {HOOK_AGY} hỏng JSON, chưa cài được hook chặn xóa kho mạng")
+        return
+    if data.get("kuro-chan-xoa-kho-mang") != muon:
+        data["kuro-chan-xoa-kho-mang"] = muon
+        HOOK_AGY.parent.mkdir(parents=True, exist_ok=True)
+        HOOK_AGY.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def find(binary: str) -> str | None:
@@ -130,10 +149,12 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
     cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write, provider=provider)
+    if kind == "agy":
+        cai_hook_agy()
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
     work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(
-        *cmd, cwd=work_dir, limit=16 * 1024 * 1024,
+        *cmd, cwd=work_dir, limit=16 * 1024 * 1024, env={**os.environ, "KURO_AGY": "1"},   # bật hook chặn xóa kho mạng
         stdin=subprocess.PIPE if stdin else subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if stdin:

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import httpx
 import yaml
-from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOptions, ResultMessage,
+from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOptions, HookMatcher, ResultMessage,
                               StreamEvent, ToolUseBlock, query)
 
 import calc
@@ -258,6 +258,31 @@ def system_append() -> str:
     return "\n\n".join(parts)
 
 
+# Dùng chung cho cả phiên Claude Code lẫn CLI (codex/agy)
+KHO_MANG_CAM_XOA = (
+    "- CẤM XÓA TRÊN KHO MẠNG, KỂ CẢ KHI NGƯỜI DÙNG YÊU CẦU: không xóa bất kỳ tệp/thư mục nào trên "
+    "`\\\\phuongthanhtranconsin.data.com\\...` (kể cả qua ổ map như `Y:\\`) bằng mọi cách (lệnh shell, script, công cụ tệp). "
+    "Việc xóa do người dùng tự làm bằng tay: từ chối và ghi rõ đường dẫn để người dùng tự xóa.\n"
+    "- KHÔNG TỰ ĐỘNG TẠO TỆP TRÊN KHO MẠNG: chỉ thêm/tạo tệp khi người dùng yêu cầu đích danh việc thêm/tạo tệp đó, "
+    "đúng tệp và đúng vị trí được yêu cầu."
+)
+
+
+async def chan_xoa_kho_mang(inp, tool_use_id, ctx):
+    """PreToolUse (lớp chặn cứng sau lời dặn trên): chặn lệnh shell, mã tính toán, script viết ra có xóa/di chuyển tệp trên kho mạng."""
+    ten, vao = inp.get("tool_name", ""), inp.get("tool_input") or {}
+    if ten in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        if not str(vao.get("file_path") or vao.get("notebook_path") or "").lower().endswith(config.DUOI_MA):
+            return {}   # tệp văn bản/báo cáo: chỉ chặn script, tránh chặn nhầm báo cáo có chữ "move"/"delete"
+    elif ten not in ("Bash", "PowerShell") and not ten.startswith("mcp__kuro__"):
+        return {}
+    text = "\n".join(str(v) for k, v in vao.items() if k != "old_string")
+    if config.xoa_tren_kho_mang(text):
+        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                       "permissionDecisionReason": config.TU_CHOI_XOA_KHO}}
+    return {}
+
+
 # Cách Claude Code Desktop làm việc với tệp: nhận ĐƯỜNG DẪN, tự mở bằng Read theo từng đoạn, không nuốt cả tệp
 DOC_TEP_LON = (
     "\n\n## ĐỌC TỆP LỚN (hồ sơ, bản vẽ, bảng tính nặng)\n"
@@ -286,7 +311,8 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         f"Đường dẫn thư mục dự án trên máy người dùng: `{ws_path}`.\n"
         f"- NƠI LƯU KẾT QUẢ BẮT BUỘC: Mọi tệp tin kết quả (.xlsx, .html, .docx, .py, script, báo cáo...) do AI tạo ra PHẢI lưu vào thư mục dự án này (`{ws_path}`).\n"
         f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy định cấu trúc thư mục lưu cụ thể thì BẮT BUỘC hỏi lại người dùng xem muốn lưu vào thư mục/vị trí nào, tuyệt đối không tự ý lưu vào các vị trí chưa được phép.\n"
-        f"- KHO DỮ LIỆU CÔNG TY (UNC): Các kho mạng chung như `\\\\phuongthanhtranconsin.data.com\\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng CHỈ là nơi lưu trữ, tra cứu hồ sơ (READ-ONLY). TUYỆT ĐỐI KHÔNG tự ý lưu kết quả, không tạo tệp tạm hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng)."
+        f"- KHO DỮ LIỆU CÔNG TY (UNC): Các kho mạng chung như `\\\\phuongthanhtranconsin.data.com\\12.KỸ THUẬT THI CÔNG` và các kho hợp đồng CHỈ là nơi lưu trữ, tra cứu hồ sơ (READ-ONLY). TUYỆT ĐỐI KHÔNG tự ý lưu kết quả, không tạo tệp tạm hay ghi đè vào kho mạng chung này (trừ khi có chỉ đạo rõ ràng từ người dùng).\n"
+        f"{KHO_MANG_CAM_XOA}"
     )
     prov = provider or config.PROVIDER or "claude"
     chosen_model = model or config.get_provider_model(prov) or None
@@ -304,6 +330,7 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         allowed_tools=config.ALLOWED_TOOLS + ["Agent"] + calc.KHO_TOOLS,   # kho luôn bật (specs/002); mã vẫn phải duyệt
         agents=load_agents(),
         permission_mode="dontAsk",
+        hooks={"PreToolUse": [HookMatcher(hooks=[chan_xoa_kho_mang])]},
         mcp_servers={**mcp_from_file(), "kuro": calc.SERVER},
         include_partial_messages=True,
         # Mặc định 1 MB: đọc tệp đính kèm lớn (PDF, Excel, txt) sinh một dòng JSON vượt mức là báo CLIJSONDecodeError.
@@ -339,11 +366,13 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
         f"Thư mục hiện hành trên máy người dùng: `{ws_path}`.\n"
         f"- NƠI LƯU KẾT QUẢ BẮT BUỘC: Mọi file kết quả (.xlsx, .html, .docx, script tính toán...) PHẢI lưu vào thư mục dự án hiện hành `{ws_path}`.\n"
         f"- NGUYÊN TẮC HỎI VỊ TRÍ LƯU: Nếu trong thư mục dự án chưa có quy tắc phân loại thư mục lưu, hãy hỏi lại người dùng vị trí muốn lưu, không tự ý tạo thư mục hay lưu vào vị trí chưa được phép.\n"
-        f"- KHO DỮ LIỆU CÔNG TY (UNC): Kho `\\\\phuongthanhtranconsin.data.com\\...` CHỈ ĐỂ TRA CỨU HỒ SƠ (READ-ONLY), không lưu kết quả vào đây trừ khi người dùng yêu cầu đích danh."
+        f"- KHO DỮ LIỆU CÔNG TY (UNC): Kho `\\\\phuongthanhtranconsin.data.com\\...` CHỈ ĐỂ TRA CỨU HỒ SƠ (READ-ONLY), không lưu kết quả vào đây trừ khi người dùng yêu cầu đích danh.\n"
+        f"{KHO_MANG_CAM_XOA}"
     )
     ws_note += DOC_TEP_LON
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
-        return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n\n{text}"
+        # luật kho mạng nhắc lại mỗi lượt: hội thoại cũ bắt đầu trước khi có luật thì CLI chưa từng nhận nó
+        return f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}. Thư mục làm việc: {ws_path})\n{KHO_MANG_CAM_XOA}\n\n{text}"
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
     if can_shell:

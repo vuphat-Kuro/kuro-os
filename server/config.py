@@ -3,6 +3,7 @@ import difflib
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 from pathlib import Path
@@ -30,6 +31,40 @@ REMINDERS_FILE = STATE / "reminders.json"
 DATA_KTTC = os.getenv("KURO_DATA_KTTC", r"\\phuongthanhtranconsin.data.com\12.KỸ THUẬT THI CÔNG")
 DATA_HD_DU_AN = os.getenv("KURO_DATA_HD_DU_AN", r"\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\HĐ các Dự án")
 DATA_HD_THAU_PHU = os.getenv("KURO_DATA_HD_THAU_PHU", r"\\phuongthanhtranconsin.data.com\4.HÀNH CHÍNH QUẢN TRỊ\HỢP ĐỒNG KINH TẾ - HỢP ĐỒNG DỰ ÁN\Hợp đồng kinh tế - Linh\HỢP ĐỒNG")
+
+
+def goc_kho_mang() -> set[str]:
+    """Tên máy chủ kho mạng chung (chữ thường), lấy từ các đường dẫn UNC DATA_*."""
+    return {d.lstrip("\\").split("\\")[0].lower() for d in (DATA_KTTC, DATA_HD_DU_AN, DATA_HD_THAU_PHU)
+            if d.startswith("\\\\")}
+
+
+def la_kho_mang(p) -> bool:
+    """Đường dẫn nằm trên kho mạng chung công ty (Kuro cấm xóa). resolve() đổi ổ map (Y:) về UNC nên bắt cả ổ map."""
+    s = str(Path(p).resolve()).lower()
+    return any(g in s for g in goc_kho_mang())
+
+
+# Chặn cứng xóa trên kho mạng, dùng chung cho hook của Claude Code (engine.py) và của agy (agy_chan_xoa.py).
+# shortcut: dò theo chữ, không bắt được đường dẫn ghép từ nhiều mảnh; cần chắc tuyệt đối thì bỏ quyền xóa NTFS của tài khoản trên kho.
+LENH_XOA = re.compile(r"(?i)\b(rm|rmdir|rd|del|erase|ri|mv|move|move-item|remove-item|unlink|rmtree|send2trash)\b"
+                      r"|delete|/(mir|purge|mov)\b|os\.remove")
+_KY_TU_O = re.compile(r"(?<!\w)([a-zA-Z]):")
+DUOI_MA = (".py", ".ps1", ".psm1", ".bat", ".cmd", ".vbs", ".js", ".sh", ".bas", ".ipynb")
+TU_CHOI_XOA_KHO = ("Kuro bị cấm xóa hay di chuyển tệp trên kho mạng công ty, kể cả khi người dùng yêu cầu. "
+                   "Không thử cách khác: báo người dùng tự xóa bằng tay và ghi rõ đường dẫn.")
+
+
+def nhac_kho_mang(text: str) -> bool:
+    """Chuỗi có nhắc tới kho mạng: tên máy chủ, hoặc ổ map tới kho (X:, Y:...)."""
+    low = text.lower()
+    return (any(g in low for g in goc_kho_mang())
+            or any(la_kho_mang(f"{o}:\\") for o in {m.upper() for m in _KY_TU_O.findall(text)}))
+
+
+def xoa_tren_kho_mang(text: str) -> bool:
+    """Lệnh/mã vừa có động từ xóa hay di chuyển vừa nhắc tới kho mạng."""
+    return bool(LENH_XOA.search(text)) and nhac_kho_mang(text)
 
 
 # AI chạy Kuro. Mọi hãng đều đi qua Claude Code (giữ nguyên skill, agent, tool): hãng khác Claude được trỏ tới

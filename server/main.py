@@ -2051,6 +2051,8 @@ def delete_fs_item(body: dict):
     target = (base / path).resolve()
     if not str(target).startswith(str(base.resolve())) or target == base.resolve() or not target.exists():
         raise HTTPException(400, "Đường dẫn không hợp lệ hoặc không tồn tại")
+    if config.la_kho_mang(target):
+        raise HTTPException(403, "Kuro không xóa tệp trên kho mạng công ty. Hãy tự xóa bằng tay trong Windows Explorer.")
     try:
         if target.is_dir():
             shutil.rmtree(target)
