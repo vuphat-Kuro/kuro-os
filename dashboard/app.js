@@ -1668,6 +1668,8 @@ async function loadSessionContext(sid) {
 
     $("ctx-used-percent").textContent = `Đã dùng ${pct}%`;
     $("ctx-used-ratio").textContent = `${formattedTok} / ${formattedWin}`;
+    const winSrc = { "claude-code": "Cửa sổ và số liệu lấy từ bộ đếm của Claude Code", "mac-dinh": "Model ngoài họ Claude: cửa sổ mặc định 200k, đặt KURO_CONTEXT_WINDOW_<AI> trong .env để chỉnh", "bang-tra-cuu": "Cửa sổ lấy từ tài liệu hãng (Claude Code không biết model này, có thể tự nén sớm ở 200k); số liệu khác do Claude Code đếm", "uoc-tinh": "AI chạy bằng CLI riêng: số liệu là ước tính (Agy đo thật phần nền, Codex chưa đo được)" };
+    $("ctx-used-ratio").title = winSrc[env.window_source] || "";
     $("sidebar-context-badge").textContent = `${pct}%`;
     $("header-context-text").textContent = `📊 ${pct}% · ${formattedTok}`;
 
@@ -1681,7 +1683,7 @@ async function loadSessionContext(sid) {
 
     const barSegments = [
       "messages", "memory_files", "system_tools", "mcp_tools",
-      "system_prompt", "skills", "autocompact_buffer", "free_space"
+      "system_prompt", "skills", "custom_agents", "autocompact_buffer", "free_space"
     ];
 
     barSegments.forEach(key => {
@@ -1690,7 +1692,8 @@ async function loadSessionContext(sid) {
       const el = document.createElement("div");
       const isFree = key === "free_space";
       el.className = "ctx-bar-seg" + (isFree ? " ctx-bar-free" : "");
-      el.style.width = Math.max(1, seg.percent) + "%";
+      el.style.width = seg.percent + "%";
+      el.style.minWidth = "2px";
       el.style.backgroundColor = isFree ? "transparent" : (seg.color || "#475569");
       el.title = `${seg.name}: ${formatTokens(seg.tokens)} (${seg.percent}%)`;
       bar.appendChild(el);

@@ -23,6 +23,7 @@ from urllib.parse import urlparse, quote
 import uuid
 
 import io
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -1314,95 +1315,152 @@ def api_network_remote(url: str | None = None):
     return get_network_info(url)
 
 
-def get_model_context_window(provider: str | None = None, model: str | None = None) -> int:
-    """Xác định dung lượng Context Window theo Provider và Model AI đang dùng."""
-    prov = (provider or config.PROVIDER or "antigravity").lower()
-    mod = (model or config.MODEL or "").lower()
+# Ký tự/token của văn bản tiếng Việt: đo thật 2026-11 qua Claude Code get_context_usage (1.55-1.79). Số cũ 3.5-3.6 là hệ số tiếng Anh.
+CTX_CHARS_PER_TOK = 1.7
+_CTX_REAL: dict = {}
+_CTX_REAL_LOCK = threading.Lock()
+_CTX_REAL_TTL = 600   # giây; số "cố định" (prompt, tool, skill, bộ nhớ) chỉ đổi khi sửa tệp nên cache 10 phút là đủ
 
-    if prov in ("antigravity", "gemini") or "gemini" in mod or "flash" in mod or "pro" in mod:
+
+CTX_CHARS_PER_TOK_GEMINI = 2.8   # agy đo thật 2026-11: prompt Kuro 16276 ký tự = 5775 token (bộ tách từ Gemini gọn hơn Claude)
+AGY_BASE_TOKENS = 11_100   # agy 1.5.13 đo thật: prompt hệ thống + 60 công cụ của agy, giống nhau ở thư mục trống và thư mục dự án
+
+
+def _ctx_tok(chars: int, provider: str | None = None) -> int:
+    return int(chars / (CTX_CHARS_PER_TOK_GEMINI if provider == "antigravity" else CTX_CHARS_PER_TOK))
+
+
+def get_model_context_window(provider: str | None = None, model: str | None = None) -> int:
+    """Cửa sổ ngữ cảnh khi Claude Code không biết (AI chạy bằng CLI riêng, model ngoài họ Claude) hoặc hỏi lỗi.
+    Nguồn: Claude 5.x đo thật bằng Claude Code; Codex đo bằng `codex debug models`; Agy do người dùng chốt 1M;
+    DeepSeek, GLM, Kimi lấy từ tài liệu chính thức (api-docs.deepseek.com, docs.z.ai, platform.kimi.ai), tra 2026-11.
+    Đặt KURO_CONTEXT_WINDOW_<AI viết hoa> trong .env để ghi đè."""
+    prov = (provider or config.PROVIDER or "claude").lower()
+    mod = (model or config.get_provider_model(prov) or "").lower()
+    ov = os.getenv(f"KURO_CONTEXT_WINDOW_{prov.upper()}", "").strip()
+    if ov.isdigit() and int(ov) > 0:
+        return int(ov)
+    if prov == "antigravity":
         return 1_000_000
-    if "claude" in prov or "anthropic" in prov or any(k in mod for k in ("claude", "sonnet", "opus", "haiku")):
-        return 200_000
-    if any(k in prov for k in ("chatgpt", "codex", "openai")) or any(k in mod for k in ("gpt", "o1", "o3")):
-        return 128_000
-    if "deepseek" in prov or "deepseek" in mod:
-        return 128_000
-    if "ollama" in prov:
+    if prov in ("claude", "anthropic") or mod.startswith("claude") or mod in ("opus", "sonnet", "haiku"):
+        return 200_000 if re.match(r"claude-(?:(?:opus|sonnet|haiku)-)?[34](?:[-.]|$)", mod) else 1_000_000
+    if prov == "chatgpt" or "gpt" in mod:
+        return 272_000
+    if prov == "deepseek" or "deepseek" in mod:
+        return 1_048_576
+    if prov == "zai" or "glm" in mod:
+        return 1_000_000 if re.search(r"glm-5\.[23]", mod) else 200_000
+    if prov == "kimi" or "kimi" in mod:
+        return 1_048_576 if "k3" in mod else 262_144
+    if "gemini" in mod:
+        return 1_000_000
+    if prov == "ollama":
         return 32_000
-    return 1_000_000 if prov == "antigravity" else 200_000
+    return 200_000
+
+
+async def _fetch_real_context(provider: str, model: str, agent_slug: str, ws: str):
+    from claude_agent_sdk import ClaudeSDKClient
+    si = engine.skill_index()
+
+    async def one(strip_index: bool):
+        o = engine.options(None, agent_slug, cwd=ws, model=model or None, provider=provider)
+        if strip_index:   # lần thứ hai bỏ danh mục skill: hiệu hai lần đo = token thật của danh mục skill Kuro
+            sp = dict(o.system_prompt)
+            sp["append"] = sp["append"].replace(si, "")
+            o.system_prompt = sp
+        async with ClaudeSDKClient(o) as c:
+            return await c.get_context_usage()
+
+    return await asyncio.gather(one(False), one(True))
+
+
+def _real_context_usage(provider: str, model: str, agent_slug: str, ws: str) -> dict | None:
+    """Số THẬT từ Claude Code (get_context_usage, cùng bộ đếm với lệnh /context), cache 10 phút.
+    None nếu AI chạy bằng CLI riêng (agy/codex) hoặc Claude Code không trả lời."""
+    if engine.cli_kind(provider):
+        return None
+    key = (provider, model, agent_slug, ws)
+    with _CTX_REAL_LOCK:
+        hit = _CTX_REAL.get(key)
+        if hit and time.time() - hit[0] < _CTX_REAL_TTL:
+            return hit[1]
+        try:
+            full, bare = asyncio.run(asyncio.wait_for(_fetch_real_context(provider, model, agent_slug, ws), 60))
+        except Exception as e:
+            print(f"[context] không lấy được số thật từ Claude Code: {e}")
+            _CTX_REAL[key] = (time.time() - _CTX_REAL_TTL + 60, hit[1] if hit else None)   # thử lại sau 60 giây
+            return hit[1] if hit else None
+        cat = {c["name"]: c["tokens"] for c in full["categories"]}
+        bare_sp = {c["name"]: c["tokens"] for c in bare["categories"]}.get("System prompt", 0)
+        real = {
+            "window": full.get("rawMaxTokens") or full["maxTokens"],
+            "buffer": cat.get("Autocompact buffer", 0),
+            "window_default": full.get("autocompactSource") == "unknown-model",   # model lạ: Claude Code tự lấy 200k
+            "model": full.get("model", ""),
+            "system_prompt": cat.get("System prompt", 0),
+            "skill_index": max(0, cat.get("System prompt", 0) - bare_sp),
+            "system_tools": cat.get("System tools", 0),
+            "agents": cat.get("Custom agents", 0),
+            "memory": cat.get("Memory files", 0),
+            "skills": cat.get("Skills", 0),
+            "memory_files": full.get("memoryFiles") or [],
+            "mcp_tools": full.get("mcpTools") or [],
+            "agent_tokens": {a.get("agentType"): a.get("tokens", 0) for a in (full.get("agents") or [])},
+        }
+        _CTX_REAL[key] = (time.time(), real)
+        return real
+
+
+_CTX_MSG: dict = {}
+
+
+def _real_messages_tokens(provider: str, model: str, agent_slug: str, ws: str, conv_id: str, n_msgs: int) -> int | None:
+    """Token thật của hội thoại (gồm kết quả tool, tệp đính kèm) bằng cách nạp lại phiên vào Claude Code.
+    Không gọi model. Cache theo (phiên, số tin) nên chỉ đo lại khi có tin mới."""
+    key = (provider, conv_id, n_msgs)
+    if key in _CTX_MSG:
+        return _CTX_MSG[key]
+    from claude_agent_sdk import ClaudeSDKClient
+
+    async def go():
+        o = engine.options(conv_id, agent_slug, cwd=ws, model=model or None, provider=provider)
+        async with ClaudeSDKClient(o) as c:
+            return await c.get_context_usage()
+    try:
+        u = asyncio.run(asyncio.wait_for(go(), 60))
+        tok = next((c["tokens"] for c in u["categories"] if c["name"] == "Messages"), None)
+    except Exception as e:
+        print(f"[context] không đo được Messages thật: {e}")
+        return None
+    if len(_CTX_MSG) > 200:
+        _CTX_MSG.clear()
+    _CTX_MSG[key] = tok
+    return tok
 
 
 def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
-    """Tập hợp chi tiết và số liệu thực tế của toàn bộ ngữ cảnh (tệp bộ nhớ, công cụ MCP, kỹ năng, agent)."""
-    # 1. Message tokens & count
+    """Tập hợp số liệu ngữ cảnh. Claude/API chạy qua Claude Code: lấy số THẬT từ bộ đếm của Claude Code.
+    Agy/Codex (CLI riêng) không hỏi được: ước tính từ đúng nội dung Kuro gửi đi (đánh dấu measured=False)."""
+    # 1. Messages: ước tính từ chữ (Claude Code chỉ đếm được khi nạp lại cả phiên)
     msgs = store.messages(sid) if sid else []
     msg_chars = sum(len(m.get("text", "")) for m in msgs)
-    msg_tokens = int(msg_chars / 3.6) + (len(msgs) * 6) if msgs else 0
+    msg_tokens = 0   # tính sau khi biết provider
     msgs_count = len(msgs)
 
-    # 2. Model context window (ưu tiên provider + model riêng của phiên)
+    # 2. Provider + model của phiên
     sess_row = store.get(sid) if sid else None
     sess_provider = store.session_provider(sess_row) or (config.PROVIDER or "antigravity")
     sess_model = (sess_row.get("model") if sess_row else None) or config.get_provider_model(sess_provider) or ""
-    window_size = get_model_context_window(sess_provider, sess_model)
 
-    # 3. Memory files thực tế
-    candidates = [
-        config.ROOT / "CLAUDE.md",
-        config.ROOT / "AGENTS.md",
-        config.BRAIN / "memory" / "MEMORY.md",
-        config.ROOT / "KE-HOACH.md",
-    ]
-    facts_dir = config.BRAIN / "memory" / "facts"
-    if facts_dir.is_dir():
-        candidates.extend(sorted(facts_dir.glob("*.md")))
-
-    memory_files = []
-    seen_paths = set()
-    for p in candidates:
-        if not p.is_file():
-            continue
-        canon = str(p.resolve())
-        if canon in seen_paths:
-            continue
-        seen_paths.add(canon)
-        try:
-            txt = p.read_text(encoding="utf-8", errors="ignore")
-            chars = len(txt)
-            tok = max(1, int(chars / 3.5))
-            try:
-                rel = p.relative_to(config.ROOT)
-                disp = str(rel).replace("\\", "/")
-            except Exception:
-                disp = f"brains/{config.BRAIN.name}/{p.name}"
-            memory_files.append({
-                "name": p.name,
-                "path": disp,
-                "full_path": str(p).replace("\\", "/"),
-                "chars": chars,
-                "tokens": tok,
-                "exists": True
-            })
-        except Exception:
-            pass
-
-    mem_tokens = sum(f["tokens"] for f in memory_files)
-    mem_count = len(memory_files)
-
-    # 4. Agent & System prompt
+    # 3. Agent
     if not agent_slug:
-        if sid:
-            sess = store.get(sid)
-            agent_slug = sess.get("agent", "kuro-core") if sess else "kuro-core"
-        else:
-            agent_slug = "kuro-core"
-    meta, body = engine.agent_persona(agent_slug)
-    prompt_chars = len(body) + len(meta.get("role", "")) + 600
-    prompt_tokens = int(prompt_chars / 3.5)
+        agent_slug = (sess_row.get("agent", "kuro-core") if sess_row else "kuro-core")
+    meta, _body = engine.agent_persona(agent_slug)
     agent_name = meta.get("name") or agent_slug
+    ws = str(engine.active_workspace_dir())
 
-    # 5. Skills thực tế
-    skills = []
+    skill_rows = []   # (slug, name, desc, số ký tự dòng của skill trong danh mục)
     seen_skills = set()
     for d in (config.BRAIN / ".claude" / "skills", config.ROOT / "skills", config.BRAIN / "skills"):
         if not d.is_dir():
@@ -1420,85 +1478,86 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
                         smeta = yaml.safe_load(raw.split("---\n", 2)[1]) or {}
                     except Exception:
                         pass
-                chars = len(raw)
-                tok = max(20, min(2500, int(chars / 3.6)))
-                skills.append({
-                    "slug": slug,
-                    "name": smeta.get("name") or slug,
-                    "desc": (smeta.get("description") or "").replace("\n", " ").strip()[:160],
-                    "tokens": tok
-                })
+                desc = str(smeta.get("description") or "").replace("\n", " ").strip()
+                skill_rows.append((slug, smeta.get("name") or slug, desc[:160], len(slug) + min(len(desc), 220) + len(sp.as_posix()) + 12))
             except Exception:
                 pass
-    skill_tokens = sum(s["tokens"] for s in skills)
-    skills_count = len(skills)
 
-    # 6. Custom Agents
+    real = _real_context_usage(sess_provider, sess_model, agent_slug, ws)
+    measured = real is not None
+    conv_id = store.get_conv_ids(sid).get(sess_provider) if sid else None
+    real_msg = _real_messages_tokens(sess_provider, sess_model, agent_slug, ws, conv_id, msgs_count) if (measured and conv_id) else None
+    msg_tokens = real_msg if real_msg is not None else ((_ctx_tok(msg_chars, sess_provider) + msgs_count * 6) if msgs else 0)
+    memory_files = []
+    if measured:
+        window_size = real["window"]
+        window_source = "claude-code"
+        if real["window_default"]:   # model ngoài họ Claude: Claude Code không biết cửa sổ nên tự lấy 200k
+            window_size = get_model_context_window(sess_provider, sess_model)
+            window_source = "bang-tra-cuu" if window_size != 200_000 else "mac-dinh"
+        autocompact_buffer = real["buffer"]
+        for f in real["memory_files"]:
+            p = Path(f["path"])
+            memory_files.append({"name": p.name, "path": str(p).replace("\\", "/"), "full_path": str(p).replace("\\", "/"),
+                                 "tokens": f.get("tokens", 0), "exists": True})
+        mem_tokens = real["memory"]
+        skill_index_tok = real["skill_index"]
+        prompt_tokens = max(0, real["system_prompt"] - skill_index_tok)
+        skill_tokens = real["skills"] + skill_index_tok
+        system_tools_tokens = real["system_tools"]
+        agents_tokens = real["agents"]
+        mcp_rows = [{"name": f"{t.get('serverName') or t.get('server') or 'mcp'} · {t.get('name', 'tool')}",
+                     "server": t.get("serverName") or t.get("server") or "mcp",
+                     "desc": "Công cụ MCP (số đo thật từ Claude Code)", "tokens": t.get("tokens", 0)} for t in real["mcp_tools"]]
+        mcp_tools_tokens = sum(t["tokens"] for t in mcp_rows)
+        sys_names = [t for t in config.ALLOWED_TOOLS if not t.startswith("mcp__")] + ["Skill", "Agent"]
+        share = system_tools_tokens // max(1, len(sys_names))
+        sys_rows = [{"name": f"system · {n}", "server": "system",
+                     "desc": "Công cụ của Claude Code (tổng đo thật, chia đều cho các công cụ)", "tokens": share} for n in sys_names]
+        mcp_tools = sys_rows + mcp_rows
+    else:
+        window_size = get_model_context_window(sess_provider, sess_model)
+        window_source = "uoc-tinh"
+        autocompact_buffer = min(33_000, int(window_size * 0.2))
+        # Memory: Codex đọc AGENTS.md ở thư mục dự án; Agy chưa xác minh
+        for p in (Path(ws) / "AGENTS.md",):
+            if p.is_file():
+                txt = p.read_text(encoding="utf-8", errors="ignore")
+                memory_files.append({"name": p.name, "path": str(p).replace("\\", "/"), "full_path": str(p).replace("\\", "/"),
+                                     "tokens": max(1, _ctx_tok(len(txt), sess_provider)), "exists": True})
+        mem_tokens = sum(f["tokens"] for f in memory_files)
+        full_prompt = engine.cli_prompt("", True, agent_slug, ws)
+        skill_index_tok = _ctx_tok(len(engine.skill_index()), sess_provider)
+        skill_tokens = skill_index_tok
+        prompt_tokens = max(0, _ctx_tok(len(full_prompt), sess_provider) - skill_index_tok)
+        system_tools_tokens = AGY_BASE_TOKENS if sess_provider == "antigravity" else 0   # Codex: chưa đo được (cần codex login)
+        agents_tokens = 0
+        mcp_tools, mcp_tools_tokens = [], 0
+
+    # Danh sách skill: chia token danh mục theo độ dài từng dòng
+    line_total = sum(r[3] for r in skill_rows) or 1
+    skills = [{"slug": s, "name": n, "desc": d, "tokens": int(skill_index_tok * c / line_total)} for s, n, d, c in skill_rows]
+    skills_count = len(skills)
+    mem_count = len(memory_files)
+
+    # Agent: token thật theo agentType nếu có, không thì ước tính theo chữ
     custom_agents = []
     for a in engine.list_agents_info():
         aslug = a.get("slug", "")
-        ameta, abody = engine.agent_persona(aslug)
-        achars = len(abody) + len(ameta.get("role", "")) + 400
-        atok = max(50, int(achars / 3.5))
-        custom_agents.append({
-            "slug": aslug,
-            "name": a.get("name") or aslug,
-            "role": a.get("role") or "",
-            "group": a.get("group") or "Chuyên môn",
-            "is_team": a.get("is_team", False),
-            "tokens": atok
-        })
+        if measured and aslug in real["agent_tokens"]:
+            atok = real["agent_tokens"][aslug]
+        else:
+            ameta, abody = engine.agent_persona(aslug)
+            atok = max(1, _ctx_tok(len(abody) + len(ameta.get("role", "")) + 400))
+        custom_agents.append({"slug": aslug, "name": a.get("name") or aslug, "role": a.get("role") or "",
+                              "group": a.get("group") or "Chuyên môn", "is_team": a.get("is_team", False), "tokens": atok})
     custom_agents_count = len(custom_agents)
 
-    # 7. MCP Tools & System Tools
-    mcp_tools = [
-        {
-            "name": "kuro · tinh_python",
-            "server": "kuro",
-            "desc": "Thực hiện phép tính Python an toàn, kiểm toán chính xác",
-            "tokens": 180
-        },
-        {"name": "system · Read", "server": "system", "desc": "Đọc nội dung tệp tin văn bản, mã nguồn", "tokens": 165},
-        {"name": "system · Write", "server": "system", "desc": "Tạo mới hoặc ghi đè nội dung tệp tin", "tokens": 175},
-        {"name": "system · Edit", "server": "system", "desc": "Chỉnh sửa chính xác khối nội dung tệp tin", "tokens": 190},
-        {"name": "system · Glob", "server": "system", "desc": "Tìm kiếm tệp tin theo mẫu pattern", "tokens": 140},
-        {"name": "system · Grep", "server": "system", "desc": "Tìm kiếm nội dung tệp tin bằng RegEx", "tokens": 155},
-        {"name": "system · Bash", "server": "system", "desc": "Thực thi lệnh shell / powershell an toàn", "tokens": 210},
-        {"name": "system · WebSearch", "server": "system", "desc": "Tìm kiếm tài liệu kỹ thuật trên web", "tokens": 180},
-        {"name": "system · WebFetch", "server": "system", "desc": "Truy xuất nội dung trang web kỹ thuật", "tokens": 170},
-    ]
-    if config.MCP_FILE.is_file():
-        try:
-            mcp_data = json.loads(config.MCP_FILE.read_text(encoding="utf-8"))
-            for sname, sval in mcp_data.get("mcpServers", {}).items():
-                tools_list = sval.get("tools") or []
-                if tools_list:
-                    for t in tools_list:
-                        t_name = t if isinstance(t, str) else t.get("name", "tool")
-                        mcp_tools.append({
-                            "name": f"{sname} · {t_name}",
-                            "server": sname,
-                            "desc": f"Công cụ mở rộng {t_name} từ {sname}",
-                            "tokens": 220
-                        })
-                else:
-                    mcp_tools.append({
-                        "name": f"{sname} · service",
-                        "server": sname,
-                        "desc": f"Dịch vụ MCP tích hợp: {sname}",
-                        "tokens": 250
-                    })
-        except Exception:
-            pass
-
     mcp_tools_count = len(mcp_tools)
-    mcp_tools_tokens = sum(t["tokens"] for t in mcp_tools if t["server"] != "system")
-    system_tools_tokens = sum(t["tokens"] for t in mcp_tools if t["server"] == "system")
 
-    # 8. Buffer & Tổng
-    autocompact_threshold = int(window_size * 0.8)
-    autocompact_buffer = int(window_size * 0.05)
-    total_used = msg_tokens + mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens
+    # Tổng. Claude Code: ngưỡng tự nén = cửa sổ - buffer (buffer cố định 33k, không phải 5% cửa sổ)
+    autocompact_threshold = max(0, window_size - autocompact_buffer)
+    total_used = msg_tokens + mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens + agents_tokens
     free_space = max(0, window_size - total_used - autocompact_buffer)
     tokens_until_compact = max(0, autocompact_threshold - total_used)
     percent_used = round((total_used / window_size) * 100, 1)
@@ -1545,6 +1604,8 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
             "provider_short": config.PROVIDERS.get(sess_provider, {}).get("short", sess_provider),
             "model": sess_model or "Mặc định",
             "context_window": window_size,
+            "window_source": window_source,
+            "measured": measured,
         },
         "usage": {
             "total_tokens": total_used,
@@ -1560,6 +1621,7 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
             "mcp_tools": {"tokens": mcp_tools_tokens, "percent": round((mcp_tools_tokens / window_size) * 100, 1), "color": "#c084fc", "name": "MCP tools"},
             "system_prompt": {"tokens": prompt_tokens, "percent": round((prompt_tokens / window_size) * 100, 1), "color": "#94a3b8", "name": "System prompt"},
             "skills": {"tokens": skill_tokens, "percent": round((skill_tokens / window_size) * 100, 1), "color": "#facc15", "name": "Skills"},
+            "custom_agents": {"tokens": agents_tokens, "percent": round((agents_tokens / window_size) * 100, 1), "color": "#818cf8", "name": "Custom agents"},
             "autocompact_buffer": {"tokens": autocompact_buffer, "percent": round((autocompact_buffer / window_size) * 100, 1), "color": "#475569", "name": "Autocompact buffer"},
             "free_space": {"tokens": free_space, "percent": round((free_space / window_size) * 100, 1), "color": "#0f172a", "name": "Free space"},
         },

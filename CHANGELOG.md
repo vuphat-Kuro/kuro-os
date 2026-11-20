@@ -1,5 +1,16 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.5] - 2026-11-20
+- **Tab Ngữ cảnh lấy số thật từ bộ đếm của Claude Code (cùng nguồn với lệnh `/context`), không còn tự nhẩm bằng hằng số:**
+  - Cửa sổ Opus/Sonnet/Haiku 5.5 là `1.000.000` (trước hiện nhầm 200k); buffer tự nén cố định `33k` thay vì 5% cửa sổ.
+  - Skills tách đúng: danh mục skill Kuro đo thật bằng hiệu hai lần đo (khoảng `3.9k`), không cộng toàn văn 28 SKILL.md (trước hiện `43.2k`). System prompt, System tools, Custom agents (mới thêm vào thanh) đều là số đo thật.
+  - Memory files chỉ gồm tệp Claude Code thực sự nạp ở thư mục dự án đang mở, không còn liệt kê cố định `CLAUDE.md`, `AGENTS.md`, `KE-HOACH.md`, `facts`.
+  - Messages nạp lại phiên vào Claude Code để đếm cả kết quả tool và tệp đính kèm (phiên thử: `204.5k` thật so với `5.7k` ước tính cũ). Cache 10 phút cho phần cố định.
+  - Hệ số ước tính theo từng bộ tách từ: Claude `1.7` ký tự/token, Agy/Gemini `2.8` (đo thật); trước dùng `3.5-3.6` của tiếng Anh.
+  - Bảng cửa sổ theo hãng: Agy `1M`, Codex `272k` (`codex debug models`), DeepSeek `1.048.576`, GLM 5.2/5.3 `1M` (4.7/5.1 `200k`), Kimi K3 `1.048.576` (K2 `262.144`); ghi đè bằng `KURO_CONTEXT_WINDOW_<AI>` trong `.env`. Phần nền của Agy đo thật `11.1k` token.
+  - Đã xác minh Agy nạp `AGENTS.md` ở thư mục làm việc và KHÔNG nạp `CLAUDE.md`.
+  - Giao diện: thêm đoạn Custom agents vào thanh ngữ cảnh, bỏ ép tối thiểu 1% mỗi đoạn, thêm tooltip nguồn số liệu.
+
 ## [1.8.4] - 2026-11-20
 - **Đồng bộ hệ thống biểu tượng Lucide Icons mặc định & SVG chuyên ngành cầu đường KURO:**
   - Nhúng Inline SVG Symbol Sprite (`#kuro-icon-sprite`, 0 KB tài nguyên ngoài, chỉ gồm đúng các biểu tượng thực sự sử dụng) thống nhất nét `1.85px` bo đầu `round`, tự động thích ứng màu theo cả Bản Sáng và Bản Tối.
