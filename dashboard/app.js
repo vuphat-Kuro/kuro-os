@@ -348,7 +348,31 @@ function isSessionBusy(sid) {
 }
 
 function isCurrentSessionBusy() {
-  return isSessionBusy(session);
+  return isSessionBusy(session) || (!session && runningSessions.has("__pending__"));
+}
+
+function buildProcessingHtml(label, tools = []) {
+  const safeLabel = escapeHtml(label || "Đang phân tích yêu cầu...");
+  const toolsHtml = (tools && tools.length)
+    ? `<div class="kuro-thinking-tools">${tools.map(t => `<span class="tool">${DOMPurify.sanitize(t)}</span>`).join("")}</div>`
+    : "";
+  return `<div class="kuro-thinking-box"><div class="kuro-thinking-row"><span class="kuro-thinking-dots"><i></i><i></i><i></i></span><span class="kuro-thinking-label">${safeLabel}</span></div>${toolsHtml}</div>`;
+}
+
+function ensureProcessingBotEl(sessData, agentName, label) {
+  if (!sessData) return null;
+  if (!sessData.tools) sessData.tools = [];
+  if (!sessData.botEl || !sessData.botEl.isConnected) {
+    const a = currentAgent();
+    const sender = (agentName || sessData.agent || a.name || "KURO").toUpperCase();
+    sessData.botEl = addMessage("bot", "", sender);
+  }
+  sessData.botEl.classList.add("is-processing");
+  if (!sessData.text) {
+    sessData.botEl.innerHTML = buildProcessingHtml(label || sessData.statusLabel || "Đang phân tích yêu cầu...", sessData.tools);
+  }
+  $("log").scrollTop = $("log").scrollHeight;
+  return sessData.botEl;
 }
 
 function updateSendButtonState() {
@@ -368,7 +392,7 @@ function updateSendButtonState() {
 
   const indicator = $("typing-indicator");
   if (indicator) {
-    indicator.style.display = isBusy ? "inline" : "none";
+    indicator.style.display = "none";
   }
 
   document.body.classList.toggle("busy", isBusy);
@@ -427,12 +451,16 @@ async function stopSession(sid) {
   } catch (_) {}
 
   // 3. Nếu là phiên đang mở, cập nhật DOM
-  if (runningSessions.has(targetSid)) {
-    const sessData = runningSessions.get(targetSid);
-    if (targetSid === session && sessData && sessData.botEl) {
+  const keyToDel = runningSessions.has(targetSid) ? targetSid : (runningSessions.has("__pending__") ? "__pending__" : null);
+  if (keyToDel) {
+    const sessData = runningSessions.get(keyToDel);
+    if ((keyToDel === session || keyToDel === "__pending__") && sessData && sessData.botEl) {
+      sessData.botEl.classList.remove("is-processing");
+      const tb = sessData.botEl.querySelector(".kuro-thinking-box");
+      if (tb) tb.remove();
       sessData.botEl.insertAdjacentHTML("beforeend", `<div style="margin-top:8px; font-style:italic; color:var(--amber); font-size:13px;">⏹ _(Đã dừng phản hồi theo yêu cầu)_</div>`);
     }
-    runningSessions.delete(targetSid);
+    runningSessions.delete(keyToDel);
   }
 
   updateSendButtonState();
@@ -440,14 +468,15 @@ async function stopSession(sid) {
 }
 
 function setBusy(b, sid) {
-  const targetSid = sid || session;
+  const targetSid = sid || session || "__pending__";
   if (targetSid) {
     if (b) {
       if (!runningSessions.has(targetSid)) {
-        runningSessions.set(targetSid, { text: "", agent: selectedAgent, botEl: null });
+        runningSessions.set(targetSid, { text: "", agent: selectedAgent, botEl: null, tools: [], statusLabel: "Đang phân tích yêu cầu..." });
       }
     } else {
       runningSessions.delete(targetSid);
+      if (targetSid !== "__pending__") runningSessions.delete("__pending__");
     }
   }
   busy = runningSessions.size > 0;
@@ -1436,12 +1465,15 @@ async function openSession(id) {
       const sessData = runningSessions.get(id);
       if (sessData) {
         sessData.botEl = addMessage("bot", "", (sessData.agent || a.name).toUpperCase());
+        sessData.botEl.classList.add("is-processing");
         if (sessData.text) {
           try {
             sessData.botEl.innerHTML = md(sessData.text);
           } catch (_) {
             sessData.botEl.textContent = sessData.text;
           }
+        } else {
+          sessData.botEl.innerHTML = buildProcessingHtml(sessData.statusLabel || "Đang phân tích yêu cầu...", sessData.tools || []);
         }
       }
     }
@@ -2043,8 +2075,12 @@ function connect() {
           const data = runningSessions.get(oldSid);
           runningSessions.delete(oldSid);
           runningSessions.set(m.id, data);
+        } else if (runningSessions.has("__pending__")) {
+          const data = runningSessions.get("__pending__");
+          runningSessions.delete("__pending__");
+          runningSessions.set(m.id, data);
         } else if (!runningSessions.has(m.id)) {
-          runningSessions.set(m.id, { text: "", agent: m.agent || selectedAgent, botEl: null });
+          runningSessions.set(m.id, { text: "", agent: m.agent || selectedAgent, botEl: null, tools: [], statusLabel: "Đang phân tích yêu cầu..." });
         }
         if (m.provider !== undefined) activeSessionProvider = m.provider || "";
         if (m.model !== undefined) activeSessionModel = m.model || "";
@@ -2065,7 +2101,7 @@ function connect() {
       if (m.type === "user_message") {
         const uSid = m.session;
         if (uSid && !runningSessions.has(uSid)) {
-          runningSessions.set(uSid, { text: "", agent: m.agent, botEl: null });
+          runningSessions.set(uSid, { text: "", agent: m.agent || selectedAgent, botEl: null, tools: [], statusLabel: "Đang phân tích yêu cầu..." });
         }
         if (m.workspace && currentWorkspace.path && m.workspace.toLowerCase() !== currentWorkspace.path.toLowerCase()) {
           currentWorkspace.path = m.workspace;
@@ -2079,8 +2115,13 @@ function connect() {
         }
         if (session === uSid) {
           const lastMsg = $("log").querySelector(".msg:last-child");
-          if (!lastMsg || !lastMsg.classList.contains("user") || lastMsg.textContent.trim() !== (m.text || "").trim()) {
+          const sessData = runningSessions.get(uSid);
+          const alreadyHasPendingBot = sessData && sessData.botEl && sessData.botEl.isConnected;
+          if (!alreadyHasPendingBot && (!lastMsg || !lastMsg.classList.contains("user") || lastMsg.textContent.trim() !== (m.text || "").trim())) {
             addMessage("user", "").textContent = m.text;
+          }
+          if (sessData && !alreadyHasPendingBot) {
+            ensureProcessingBotEl(sessData, m.agent || currentAgent().name, "Đang phân tích yêu cầu...");
           }
         }
         updateSendButtonState();
@@ -2114,7 +2155,7 @@ function connect() {
       // 5. Luồng sinh câu trả lời Streaming từ AI (cô lập độc lập theo session)
       const targetSid = m.session || session;
       if ((m.type === "text" || m.type === "tool") && targetSid && !runningSessions.has(targetSid)) {
-        runningSessions.set(targetSid, { text: "", agent: m.agent || selectedAgent, botEl: null });
+        runningSessions.set(targetSid, { text: "", agent: m.agent || selectedAgent, botEl: null, tools: [], statusLabel: "Đang phân tích yêu cầu..." });
         updateSendButtonState();
       }
       const sessData = targetSid ? runningSessions.get(targetSid) : null;
@@ -2124,21 +2165,33 @@ function connect() {
           sessData.text = (sessData.text || "") + m.text;
         }
         if (targetSid === session) {
-          if (!sessData.botEl) {
+          if (!sessData.botEl || !sessData.botEl.isConnected) {
             const a = currentAgent();
             sessData.botEl = addMessage("bot", "", (m.agent || a.name).toUpperCase());
           }
+          sessData.botEl.classList.remove("is-processing");
           bot = sessData.botEl;
           botText = sessData.text;
           scheduleBotRender();
         }
       } else if (m.type === "tool") {
-        if (targetSid === session && sessData && sessData.botEl) {
-          sessData.botEl.insertAdjacentHTML("beforeend", `<span class="tool">${DOMPurify.sanitize(m.name)}</span>`);
+        if (sessData) {
+          if (!sessData.tools) sessData.tools = [];
+          if (m.name) sessData.tools.push(m.name);
+          sessData.statusLabel = m.name ? `Đang sử dụng công cụ: ${m.name}...` : "Đang xử lý công cụ...";
+        }
+        if (targetSid === session && sessData) {
+          ensureProcessingBotEl(sessData, m.agent || currentAgent().name, sessData.statusLabel);
+          if (sessData.text && sessData.botEl) {
+            const oldBox = sessData.botEl.querySelector(".kuro-thinking-box");
+            if (oldBox) oldBox.remove();
+            sessData.botEl.insertAdjacentHTML("beforeend", buildProcessingHtml(sessData.statusLabel, sessData.tools));
+          }
         }
       } else if (m.type === "error") {
         if (sessData) sessData.text = (sessData.text || "") + `\n\n**Lỗi:** ${m.text}`;
         if (targetSid === session && sessData && sessData.botEl) {
+          sessData.botEl.classList.remove("is-processing");
           sessData.botEl.innerHTML = md(sessData.text);
           mood("err");
         }
@@ -2146,7 +2199,12 @@ function connect() {
         renderPending = false;
         const errMsg = m.error || m.text || "Lỗi không xác định khi xử lý phản hồi.";
         if (targetSid === session) {
-          const targetEl = (sessData && sessData.botEl) || addMessage("bot", "", (m.agent || currentAgent().name).toUpperCase());
+          const targetEl = (sessData && sessData.botEl && sessData.botEl.isConnected)
+            ? sessData.botEl
+            : addMessage("bot", "", (m.agent || currentAgent().name).toUpperCase());
+          targetEl.classList.remove("is-processing");
+          const tb = targetEl.querySelector(".kuro-thinking-box");
+          if (tb) tb.remove();
           targetEl.insertAdjacentHTML("beforeend", `<div style="margin-top:8px; color:var(--accent); font-size:13px;"><b>Lỗi:</b> ${DOMPurify.sanitize(errMsg)}</div>`);
           mood("err");
           bot = null;
@@ -2160,6 +2218,9 @@ function connect() {
         renderPending = false;
         if (targetSid === session) {
           if (sessData && sessData.botEl) {
+            sessData.botEl.classList.remove("is-processing");
+            const tb = sessData.botEl.querySelector(".kuro-thinking-box");
+            if (tb) tb.remove();
             sessData.botEl.insertAdjacentHTML("beforeend", `<div style="margin-top:8px; font-style:italic; color:var(--amber); font-size:13px;">⏹ _(Đã dừng phản hồi theo yêu cầu)_</div>`);
           }
           bot = null;
@@ -2173,10 +2234,11 @@ function connect() {
         const ans = (m.answer || (sessData ? sessData.text : "") || m.text || "").trim();
         if (targetSid === session) {
           if (sessData) {
-            if (!sessData.botEl) {
+            if (!sessData.botEl || !sessData.botEl.isConnected) {
               const a = currentAgent();
               sessData.botEl = addMessage("bot", "", (m.agent || a.name).toUpperCase());
             }
+            sessData.botEl.classList.remove("is-processing");
             try {
               sessData.botEl.innerHTML = md(ans || "_(Đã hoàn tất)_");
             } catch (err) {
@@ -2800,6 +2862,14 @@ function sendChatMessage(displayText, promptToSend) {
     uMsg.innerHTML = attHtml + (displayText ? `<div>${escapeHtml(displayText)}</div>` : "");
   } else {
     uMsg.textContent = displayText;
+  }
+
+  // Hiển thị ngay bong bóng quá trình xử lý của Kuro phía dưới tin nhắn người dùng
+  const runKey = session || "__pending__";
+  const curRun = runningSessions.get(runKey);
+  if (curRun) {
+    const a = typeof currentAgent === "function" ? currentAgent() : null;
+    ensureProcessingBotEl(curRun, (a && a.name) || selectedAgent, "Đang phân tích yêu cầu...");
   }
 
   const sentAttachments = [...pendingAttachments];
