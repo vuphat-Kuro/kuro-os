@@ -70,6 +70,185 @@ except ImportError:
         print(f"[Desktop App] Không nạp được pywebview: {e}")
         webview = None
 
+_UI_THEME_FILE = ROOT / "state" / "ui_theme.txt"
+_TITLEBAR_PALETTE = {
+    "light": {
+        "dark": False,
+        "bg": "#dfe6f0",
+        "caption": 0x00F0E6DF,  # #dfe6f0 (COLORREF 0x00BBGGRR)
+        "text": 0x00361B0E,     # #0e1b36
+        "border": 0x00E4D2C5,   # #c5d2e4
+        "rgb": (223, 230, 240),
+    },
+    "dark": {
+        "dark": True,
+        "bg": "#09101c",
+        "caption": 0x001C1009,  # #09101c (COLORREF 0x00BBGGRR)
+        "text": 0x00FAF0E8,     # #e8f0fa
+        "border": 0x004B2F1E,   # #1e2f4b
+        "rgb": (9, 16, 28),
+    },
+}
+
+
+def _normalize_ui_theme(theme: str | None) -> str:
+    return "dark" if str(theme or "").strip().lower() == "dark" else "light"
+
+
+def _load_saved_ui_theme() -> str:
+    try:
+        if _UI_THEME_FILE.is_file():
+            return _normalize_ui_theme(_UI_THEME_FILE.read_text(encoding="utf-8", errors="ignore"))
+    except Exception:
+        pass
+    return "light"
+
+
+def _save_ui_theme(theme: str):
+    try:
+        _UI_THEME_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _UI_THEME_FILE.write_text(_normalize_ui_theme(theme), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _get_native_form(window):
+    if window is None:
+        return None
+    native = getattr(window, "native", None)
+    if native is not None:
+        return native
+    try:
+        from webview.platforms import winforms
+        uid = getattr(window, "uid", None)
+        if uid and uid in winforms.BrowserView.instances:
+            return winforms.BrowserView.instances[uid]
+    except Exception:
+        pass
+    return None
+
+
+def _get_window_hwnd(window) -> int:
+    native = _get_native_form(window)
+    if native is not None:
+        try:
+            handle = getattr(native, "Handle", None)
+            if handle is not None:
+                hwnd = int(handle.ToInt64()) if hasattr(handle, "ToInt64") else int(handle.ToInt32())
+                if hwnd:
+                    return hwnd
+        except Exception:
+            pass
+    if sys.platform != "win32":
+        return 0
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        target_pid = os.getpid()
+        found = [0]
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def _enum_cb(hwnd, _lparam):
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            pid = wintypes.DWORD(0)
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            if pid.value == target_pid and user32.GetParent(hwnd) == 0:
+                found[0] = int(hwnd)
+                return False
+            return True
+
+        user32.EnumWindows(_enum_cb, 0)
+        return found[0]
+    except Exception:
+        return 0
+
+
+def _apply_windows_titlebar_theme(window, theme: str = "light") -> bool:
+    """Đồng bộ màu thanh tiêu đề cửa sổ Windows 10/11 (DWM) theo chế độ Sáng/Tối của Kuro OS."""
+    if sys.platform != "win32":
+        return False
+    norm = _normalize_ui_theme(theme)
+    pal = _TITLEBAR_PALETTE[norm]
+    hwnd = _get_window_hwnd(window)
+    if not hwnd:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        dwmapi = ctypes.windll.dwmapi
+        user32 = ctypes.windll.user32
+
+        dwmapi.DwmSetWindowAttribute.argtypes = [
+            wintypes.HWND, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD
+        ]
+        dwmapi.DwmSetWindowAttribute.restype = ctypes.c_long
+        user32.SetWindowPos.argtypes = [
+            wintypes.HWND, wintypes.HWND,
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.UINT
+        ]
+        user32.SetWindowPos.restype = wintypes.BOOL
+
+        # 1. Bật/tắt chế độ tối cho thanh tiêu đề & bộ nút -, □, × (Win 10 20H1+ & Win 11)
+        dark_val = ctypes.c_int(1 if pal["dark"] else 0)
+        res = dwmapi.DwmSetWindowAttribute(
+            hwnd, 20, ctypes.byref(dark_val), ctypes.sizeof(dark_val)
+        )
+        if res != 0:
+            dwmapi.DwmSetWindowAttribute(
+                hwnd, 19, ctypes.byref(dark_val), ctypes.sizeof(dark_val)
+            )
+
+        # 2. Đặt chính xác màu nền, màu chữ và màu viền trên Windows 11 (build >= 22000)
+        for attr, colorref in ((35, pal["caption"]), (36, pal["text"]), (34, pal["border"])):
+            c_val = ctypes.c_uint32(colorref)
+            dwmapi.DwmSetWindowAttribute(
+                hwnd, attr, ctypes.byref(c_val), ctypes.sizeof(c_val)
+            )
+
+        # 3. Đồng bộ màu nền khung WinForms để không bị loang trắng khi kéo giãn cửa sổ
+        native = _get_native_form(window)
+        if native is not None:
+            try:
+                import System
+                from System.Drawing import Color
+                r, g, b = pal["rgb"]
+                target_color = Color.FromArgb(r, g, b)
+
+                def _set_bg():
+                    try:
+                        native.BackColor = target_color
+                    except Exception:
+                        pass
+
+                if getattr(native, "InvokeRequired", False):
+                    native.BeginInvoke(System.Action(_set_bg))
+                else:
+                    _set_bg()
+            except Exception:
+                pass
+
+        # 4. Ép vẽ lại khung cửa sổ để thanh tiêu đề đổi màu tức thì
+        SWP_NOSIZE = 0x0001
+        SWP_NOMOVE = 0x0002
+        SWP_NOZORDER = 0x0004
+        SWP_NOACTIVATE = 0x0010
+        SWP_FRAMECHANGED = 0x0020
+        user32.SetWindowPos(
+            hwnd, 0, 0, 0, 0, 0,
+            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
+        )
+        try:
+            dwmapi.DwmFlush()
+        except Exception:
+            pass
+        return True
+    except Exception as e:
+        print(f"[DesktopApi] Không cập nhật được màu thanh tiêu đề: {e}")
+        return False
+
+
 class DesktopApi:
     """Cầu nối API giữa JavaScript giao diện và hệ điều hành Windows."""
     def __init__(self):
@@ -81,6 +260,12 @@ class DesktopApi:
     def is_desktop_app(self) -> bool:
         """Xác nhận đây là ứng dụng Native Desktop."""
         return True
+
+    def set_titlebar_theme(self, theme: str = "light") -> bool:
+        """Đồng bộ màu thanh tiêu đề Windows native theo giao diện Sáng/Tối."""
+        norm = _normalize_ui_theme(theme)
+        _save_ui_theme(norm)
+        return _apply_windows_titlebar_theme(self._window, norm)
 
     def choose_folder(self, initial_dir: str = "") -> str:
         """
@@ -315,6 +500,7 @@ def main():
         api = DesktopApi()
         icon_path = (ROOT / "kuro_logo.ico").resolve()
         icon_str = str(icon_path) if icon_path.is_file() else None
+        initial_theme = _load_saved_ui_theme()
 
         window = webview.create_window(
             title="Kuro OS - Trợ lý Kỹ sư Hạ tầng",
@@ -322,16 +508,21 @@ def main():
             width=1340,
             height=880,
             min_size=(960, 620),
+            background_color=_TITLEBAR_PALETTE[initial_theme]["bg"],
             text_select=True,
             zoomable=True,
             js_api=api
         )
         api.set_window(window)
 
+        def on_shown():
+            _apply_windows_titlebar_theme(window, _load_saved_ui_theme())
+
         def on_closed():
             # Thoát dứt khoát khi tắt cửa sổ để không để lại tiến trình ma
             os._exit(0)
 
+        window.events.shown += on_shown
         window.events.closed += on_closed
 
         # 3. Khởi chạy cửa sổ ứng dụng Windows Native (Edge WebView2)

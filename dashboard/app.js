@@ -6443,15 +6443,29 @@ window.addEventListener("resize", () => {
 });
 
 // Chuyển đổi giao diện Sáng nổi khối Soft UI (mặc định) <-> Tối Navy Đêm đồng bộ
+function syncDesktopTitlebarTheme(isDark) {
+  const theme = isDark ? "dark" : "light";
+  try {
+    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.set_titlebar_theme === "function") {
+      window.pywebview.api.set_titlebar_theme(theme).catch(() => {});
+    }
+  } catch (_) {}
+}
 function syncThemeUI() {
   const isDark = document.body.classList.contains("theme-dark");
   const iconEl = $("theme-toggle-icon");
   const textEl = $("theme-toggle-text");
   const metaEl = document.getElementById("meta-theme-color");
+  const appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (iconEl) iconEl.innerHTML = kuroIcon(isDark ? "ic-sun" : "ic-moon", "ic-sm");
   if (textEl) textEl.textContent = isDark ? "Bản sáng" : "Bản tối";
   if (metaEl) metaEl.setAttribute("content", isDark ? "#09101c" : "#dfe6f0");
+  if (appleMeta) appleMeta.setAttribute("content", isDark ? "black-translucent" : "default");
+  syncDesktopTitlebarTheme(isDark);
 }
+window.addEventListener("pywebviewready", () => {
+  syncDesktopTitlebarTheme(document.body.classList.contains("theme-dark"));
+});
 const btnThemeToggle = $("btn-theme-toggle");
 if (btnThemeToggle) {
   syncThemeUI();
