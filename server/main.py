@@ -450,67 +450,99 @@ async def get_models(provider: str | None = None, scope: str | None = None):
     return {"models": found, "current": curr, "provider": p or "claude"}
 
 
-def _provider_quota_stats(provider: str, now: float, default_provider: str) -> dict:
-    """Tính toán số lượt hỏi trong block 5h và 7 ngày cho một nhà cung cấp cụ thể."""
+_USAGE = {"t": 0.0, "v": None}
+_USAGE_RE = re.compile(r"Current (session|week \(all models\)): (\d+(?:\.\d+)?)% used(?: · resets ([^\n(]+?))?(?: \(|\n|$)")
+
+
+def _parse_reset(txt: str):
+    """"Nov 20, 6:19pm" hoặc "6:19pm" (giờ máy, cùng múi giờ Claude báo) -> datetime kế tiếp; không hiểu thì None."""
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    txt = (txt or "").strip()
+    for fmt in ("%b %d, %I:%M%p", "%b %d, %I%p", "%I:%M%p", "%I%p"):
+        try:
+            d = datetime.strptime(txt, fmt)
+        except ValueError:
+            continue
+        if "%b" in fmt:
+            d = d.replace(year=now.year)
+            return d if d > now - timedelta(days=1) else d.replace(year=now.year + 1)
+        d = now.replace(hour=d.hour, minute=d.minute, second=0, microsecond=0)
+        return d if d > now else d + timedelta(days=1)
+    return None
+
+
+def _claude_usage(force: bool = False) -> dict | None:
+    """Hạn mức THẬT của gói Claude: chạy lệnh /usage của Claude Code (cục bộ, không gọi model), cache 60 giây.
+    Phản ánh cả phần dùng ngoài Kuro (Claude Code, app Claude) vì là hạn mức của cả tài khoản."""
+    if not force and _USAGE["v"] and time.time() - _USAGE["t"] < 60:
+        return _USAGE["v"]
+
+    async def go():
+        from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient
+        async with ClaudeSDKClient(ClaudeAgentOptions(setting_sources=[], cwd=str(config.STATE))) as c:
+            await c.query("/usage")
+            async for m in c.receive_response():
+                if isinstance(m, AssistantMessage):
+                    return "".join(getattr(b, "text", "") for b in m.content)
+        return ""
+    try:
+        txt = asyncio.run(asyncio.wait_for(go(), 45))
+    except Exception as e:
+        print(f"[quota] không lấy được /usage: {e}")
+        return _USAGE["v"]
+    found = {m.group(1).split(" ")[0]: (float(m.group(2)), m.group(3) or "") for m in _USAGE_RE.finditer(txt or "")}
+    if "session" not in found:   # gói API key hoặc định dạng đổi: không có hạn mức theo gói
+        return None
+    _USAGE.update(t=time.time(), v=found)
+    return found
+
+
+def _provider_quota_stats(provider: str, now: float, default_provider: str, force: bool = False) -> dict:
+    """Hạn mức một nhà cung cấp. Claude: số THẬT từ /usage. Agy, Codex: hãng không có cách hỏi hạn mức nên chỉ đếm số
+    lượt hỏi trong Kuro, KHÔNG có phần trăm (trước đây chia cho 45 và 350 là số tự đặt, không có thật)."""
     from datetime import datetime
     t_5h_ago = now - 5 * 3600
     t_week_ago = now - 7 * 86400
-    if provider == default_provider:
-        msgs_5h = store._q(
-            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND (provider=? OR provider='' OR provider IS NULL) ORDER BY ts ASC",
-            (t_5h_ago, provider),
-        )
-        msgs_week = store._q(
-            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND (provider=? OR provider='' OR provider IS NULL)",
-            (t_week_ago, provider),
-        )
-    else:
-        msgs_5h = store._q(
-            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND provider=? ORDER BY ts ASC",
-            (t_5h_ago, provider),
-        )
-        msgs_week = store._q(
-            "SELECT ts FROM messages WHERE role='user' AND ts >= ? AND provider=?",
-            (t_week_ago, provider),
-        )
-
+    own = "(provider=? OR provider='' OR provider IS NULL)" if provider == default_provider else "provider=?"
+    msgs_5h = store._q(f"SELECT ts FROM messages WHERE role='user' AND ts >= ? AND {own} ORDER BY ts ASC", (t_5h_ago, provider))
+    count_week = len(store._q(f"SELECT ts FROM messages WHERE role='user' AND ts >= ? AND {own}", (t_week_ago, provider)))
     count_5h = len(msgs_5h)
-    if count_5h > 0:
-        first_ts = msgs_5h[0]["ts"]
-        reset_ts = first_ts + 5 * 3600
-        rem_sec = max(0, int(reset_ts - now))
-        reset_time_str = datetime.fromtimestamp(reset_ts).strftime("%H:%M")
-        hours = rem_sec // 3600
-        mins = (rem_sec % 3600) // 60
-        reset_in_str = f"còn {hours}h {mins:02d}m" if hours > 0 else f"còn {mins}m"
-    else:
-        reset_time_str = "Chưa dùng block 5h"
-        reset_in_str = "sẵn sàng 5h mới"
 
-    max_5h = 45
-    max_week = 350
-    pct_5h = min(100.0, round((count_5h / max_5h) * 100, 1))
-    count_week = len(msgs_week)
-    pct_week = min(100.0, round((count_week / max_week) * 100, 1))
+    real = _claude_usage(force) if provider == "claude" else None
+    if real:
+        def part(key):
+            pct, raw = real[key]
+            d = _parse_reset(raw)
+            if not d:
+                return pct, raw or "không rõ", ""
+            rem = max(0, int((d - datetime.now()).total_seconds()))
+            h, m = rem // 3600, (rem % 3600) // 60
+            return pct, d, (f"còn {h}h {m:02d}m" if h else f"còn {m}m")
+        p5, d5, in5 = part("session")
+        pw, dw, _ = part("week")
+        return {
+            "source": "real",
+            "block_5h": {"percent": p5, "used_count": count_5h, "max_count": None,
+                         "reset_time": d5.strftime("%H:%M") if hasattr(d5, "strftime") else d5, "reset_in": in5},
+            "weekly": {"percent": pw, "used_count": count_week, "max_count": None,
+                       "reset_day": dw.strftime("%a %d/%m %H:%M") if hasattr(dw, "strftime") else dw},
+        }
     return {
-        "block_5h": {
-            "percent": pct_5h,
-            "used_count": count_5h,
-            "max_count": max_5h,
-            "reset_time": reset_time_str,
-            "reset_in": reset_in_str,
-        },
-        "weekly": {
-            "percent": pct_week,
-            "used_count": count_week,
-            "max_count": max_week,
-            "reset_day": "Thứ Hai 07:00",
-        },
+        "source": "local",
+        "block_5h": {"percent": None, "used_count": count_5h, "max_count": None, "reset_time": "", "reset_in": ""},
+        "weekly": {"percent": None, "used_count": count_week, "max_count": None, "reset_day": ""},
     }
 
 
+@app.get("/api/thinking_support")
+async def api_thinking_support(provider: str | None = None, model: str | None = None):
+    """Model này chỉnh được mức suy nghĩ không (giao diện dùng để bật/tắt nút Cao/Tiêu chuẩn/Tắt)."""
+    return await engine.thinking_support(provider or "", model or "")
+
+
 @app.get("/api/quota")
-def get_quota(session_id: str | None = None, provider: str | None = None):
+def get_quota(session_id: str | None = None, provider: str | None = None, refresh: int = 0):
     now = time.time()
     sess = store.get(session_id) if session_id else None
     default_prov = config.PROVIDER or "antigravity"
@@ -520,9 +552,9 @@ def get_quota(session_id: str | None = None, provider: str | None = None):
     provider_name = provider_info.get("ten", active_prov)
     provider_short = provider_info.get("short", active_prov)
 
-    stats = _provider_quota_stats(active_prov, now, default_prov)
-    pct_5h = stats["block_5h"]["percent"]
-    pct_week = stats["weekly"]["percent"]
+    stats = _provider_quota_stats(active_prov, now, default_prov, bool(refresh))
+    pct_5h = stats["block_5h"]["percent"] or 0
+    pct_week = stats["weekly"]["percent"] or 0
 
     model_name = model_id or "Model mặc định"
     for m in (DEFAULT_AGY_MODELS + config.CLAUDE_MODELS):
@@ -530,7 +562,10 @@ def get_quota(session_id: str | None = None, provider: str | None = None):
             model_name = m["ten"]
             break
 
-    if pct_5h >= 90 or pct_week >= 90:
+    if stats["source"] != "real":
+        status_code = "unknown"
+        status_text = "ℹ️ Hãng không cung cấp hạn mức"
+    elif pct_5h >= 90 or pct_week >= 90:
         status_code = "danger"
         status_text = "🔴 Sắp chạm hạn mức"
     elif pct_5h >= 70 or pct_week >= 70:
@@ -543,7 +578,7 @@ def get_quota(session_id: str | None = None, provider: str | None = None):
     by_provider = []
     for p in config.enabled_providers():
         p_info = config.PROVIDERS.get(p, {})
-        p_stats = _provider_quota_stats(p, now, default_prov)
+        p_stats = _provider_quota_stats(p, now, default_prov)   # đã cache 60 giây cho Claude
         by_provider.append({
             "provider": p,
             "short": p_info.get("short", p),
@@ -561,6 +596,7 @@ def get_quota(session_id: str | None = None, provider: str | None = None):
         "provider_short": provider_short,
         "model_id": model_id,
         "model_name": model_name,
+        "source": stats["source"],
         "block_5h": stats["block_5h"],
         "weekly": stats["weekly"],
         "by_provider": by_provider,
@@ -2429,6 +2465,7 @@ async def ws(sock: WebSocket):
                 req_provider = ""
             has_req_model = "model" in req and req.get("model") is not None
             req_model = (req.get("model") or "").strip() if has_req_model else None
+            req_thinking = (req.get("thinking") or "").strip()
 
             # Ưu tiên provider/model gửi lên; nếu đổi provider mà không truyền model thì không mang model hãng cũ sang
             existing_sess = store.get(req.get("session")) if req.get("session") else None
@@ -2483,7 +2520,7 @@ async def ws(sock: WebSocket):
             # Chạy phản hồi trong Task nền riêng biệt cho từng phiên (không làm nghẽn socket!)
             # Cho phép các phiên khác (kể cả khác nhà cung cấp AI: agy vs claude) chạy song song hoàn toàn độc lập!
             async def run_session_turn(session_id: str, prompt_text: str, session_agent: str, session_ws: str,
-                                       session_provider: str, session_model: str | None):
+                                       session_provider: str, session_model: str | None, session_thinking: str = ""):
                 try:
                     async def broadcast_chunk(chunk: dict):
                         payload = dict(chunk)
@@ -2494,7 +2531,8 @@ async def ws(sock: WebSocket):
                         await manager.broadcast(payload)
 
                     answer = await engine.chat(session_id, prompt_text, agent=session_agent, emit=broadcast_chunk,
-                                               workspace=session_ws, model=session_model, provider=session_provider)
+                                               workspace=session_ws, model=session_model, provider=session_provider,
+                                               thinking=session_thinking or None)
 
                     # Broadcast sự kiện hoàn tất lượt với toàn bộ nội dung câu trả lời hoàn chỉnh
                     await manager.broadcast({
@@ -2542,7 +2580,7 @@ async def ws(sock: WebSocket):
                 session_chat_tasks[sid].cancel()
 
             this_turn_task = asyncio.create_task(
-                run_session_turn(sid, text, agent, workspace, effective_provider, effective_model)
+                run_session_turn(sid, text, agent, workspace, effective_provider, effective_model, req_thinking)
             )
             session_chat_tasks[sid] = this_turn_task
     except WebSocketDisconnect:

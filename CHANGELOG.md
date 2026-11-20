@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.6] - 2026-11-20
+- **Hạn mức sử dụng AI lấy số thật, mức suy nghĩ nối thật tới từng model:**
+  - Claude: phần trăm phiên 5 giờ và tuần lấy từ lệnh `/usage` của Claude Code (hạn mức thật của cả tài khoản, chạy cục bộ không gọi model, cache 60 giây, nút Cập nhật ép lấy lại). Trước đó là số lượt hỏi trong Kuro chia cho 45 và 350 do tự đặt (hiện 11.1% khi thật là 98%).
+  - Agy và Codex: hãng không có cách hỏi hạn mức nên bỏ phần trăm, chỉ hiện số lượt hỏi trong Kuro và ghi rõ "Hãng không cung cấp hạn mức".
+  - Mức suy nghĩ Cao / Tiêu chuẩn / Tắt giờ được gửi theo từng tin (trước đây chỉ đổi nhãn nút): Claude dùng `effort` high/medium, Tắt = tắt hẳn suy nghĩ nếu model cho phép (Opus/Sonnet/Haiku 5.5 không tắt hẳn được nên dùng `effort=low`); Agy đổi hậu tố model `-high/-medium/-low` (cờ `--effort` xung đột với model có hậu tố); Codex dùng `model_reasoning_effort`.
+  - Thêm `/api/thinking_support`: hỏi chính Claude Code và danh sách model của agy để làm mờ nút khi model không chỉnh được mức suy nghĩ và đổi mô tả dòng Tắt cho đúng.
+
 ## [1.8.5] - 2026-11-20
 - **Tab Ngữ cảnh lấy số thật từ bộ đếm của Claude Code (cùng nguồn với lệnh `/context`), không còn tự nhẩm bằng hằng số:**
   - Cửa sổ Opus/Sonnet/Haiku 5.5 là `1.000.000` (trước hiện nhầm 200k); buffer tự nén cố định `33k` thay vì 5% cửa sổ.

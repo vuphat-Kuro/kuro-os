@@ -2897,6 +2897,7 @@ function sendChatMessage(displayText, promptToSend) {
     workspace: wsPath,
     provider: chosenProvider,
     model: chosenModel,
+    thinking: currentThinkingMode,
     attachments: sentAttachments
   }));
 
@@ -4121,23 +4122,27 @@ modeItems.forEach(item => {
 // ========================================================
 let lastQuotaData = null;
 
-async function fetchAndRenderQuota() {
+async function fetchAndRenderQuota(force) {
   try {
     const sid = (typeof session !== "undefined") ? session : "";
     const prov = activeSessionProvider || pendingSessionProvider || "";
     const qs = new URLSearchParams();
     if (sid) qs.set("session_id", sid);
     if (prov) qs.set("provider", prov);
+    if (force) qs.set("refresh", "1");
     const res = await fetch(`/api/quota?${qs.toString()}`);
     if (!res.ok) return;
     const data = await res.json();
     lastQuotaData = data;
 
-    const pct5h = data.block_5h.percent;
-    const pctWeek = data.weekly.percent;
+    // source "real": phần trăm thật của gói (Claude /usage). Hãng khác không cung cấp hạn mức: chỉ đếm lượt hỏi trong Kuro.
+    const real = data.source === "real";
+    const pct5h = real ? data.block_5h.percent : 0;
+    const pctWeek = real ? data.weekly.percent : 0;
+    const noLimit = "Hãng không cung cấp hạn mức";
 
     // 1. Cập nhật vòng tròn SVG Quota (Xanh dương khi còn nhiều -> Vàng nhạt khi cao -> Đỏ khi gần hết)
-    const quotaColor = (pct5h >= 90) ? "var(--quota-danger)" : (pct5h >= 70) ? "var(--quota-warn)" : "var(--quota-ok)";
+    const quotaColor = !real ? "var(--muted)" : (pct5h >= 90) ? "var(--quota-danger)" : (pct5h >= 70) ? "var(--quota-warn)" : "var(--quota-ok)";
     const circle = $("quota-circle-bar");
     if (circle) {
       const maxLen = 47.12;
@@ -4155,7 +4160,9 @@ async function fetchAndRenderQuota() {
     const pShort = data.provider_short || getProviderShort(data.provider);
     const btn = $("btn-quota-ring");
     if (btn) {
-      btn.title = `Hạn mức ${pShort || "AI"}: Block 5h ${pct5h}% (${data.block_5h.reset_in}) · Tuần ${pctWeek}% (Bấm để xem chi tiết)`;
+      btn.title = real
+        ? `Hạn mức ${pShort || "AI"}: Block 5h ${pct5h}% (${data.block_5h.reset_in}) · Tuần ${pctWeek}% (Bấm để xem chi tiết)`
+        : `${pShort || "AI"}: ${noLimit}. Đã hỏi ${data.block_5h.used_count} lượt trong 5 giờ qua (Bấm để xem chi tiết)`;
     }
 
     // 2. Cập nhật dữ liệu Popover
@@ -4163,21 +4170,21 @@ async function fetchAndRenderQuota() {
       const mLabel = data.model_name || data.model_id || "Model mặc định";
       $("quota-model-name").textContent = pShort ? `[${pShort}] ${mLabel}` : mLabel;
     }
-    if ($("quota-5h-val")) $("quota-5h-val").textContent = `${pct5h}%`;
+    if ($("quota-5h-val")) $("quota-5h-val").textContent = real ? `${pct5h}%` : "—";
     if ($("quota-5h-bar")) {
       $("quota-5h-bar").style.width = `${Math.min(100, pct5h)}%`;
       $("quota-5h-bar").className = "quota-progress-fill" + (pct5h >= 90 ? " danger" : pct5h >= 70 ? " warn" : "");
     }
-    if ($("quota-5h-reset")) $("quota-5h-reset").textContent = `Làm mới lúc ${data.block_5h.reset_time} (${data.block_5h.reset_in})`;
-    if ($("quota-5h-count")) $("quota-5h-count").textContent = `${data.block_5h.used_count}/${data.block_5h.max_count} lượt hỏi`;
+    if ($("quota-5h-reset")) $("quota-5h-reset").textContent = real ? `Làm mới lúc ${data.block_5h.reset_time} (${data.block_5h.reset_in})` : noLimit;
+    if ($("quota-5h-count")) $("quota-5h-count").textContent = `${data.block_5h.used_count} lượt hỏi trong Kuro`;
 
-    if ($("quota-week-val")) $("quota-week-val").textContent = `${pctWeek}%`;
+    if ($("quota-week-val")) $("quota-week-val").textContent = real ? `${pctWeek}%` : "—";
     if ($("quota-week-bar")) {
       $("quota-week-bar").style.width = `${Math.min(100, pctWeek)}%`;
       $("quota-week-bar").className = "quota-progress-fill week" + (pctWeek >= 90 ? " danger" : pctWeek >= 70 ? " warn" : "");
     }
-    if ($("quota-week-reset")) $("quota-week-reset").textContent = `Làm mới: ${data.weekly.reset_day}`;
-    if ($("quota-week-count")) $("quota-week-count").textContent = `${data.weekly.used_count}/${data.weekly.max_count} lượt tuần này`;
+    if ($("quota-week-reset")) $("quota-week-reset").textContent = real ? `Làm mới: ${data.weekly.reset_day}` : noLimit;
+    if ($("quota-week-count")) $("quota-week-count").textContent = `${data.weekly.used_count} lượt hỏi trong Kuro (7 ngày)`;
 
     if ($("quota-status-badge")) {
       $("quota-status-badge").textContent = data.status_text;
@@ -4192,16 +4199,38 @@ async function fetchAndRenderQuota() {
         byProvEl.innerHTML = list.map(item => `
           <div class="quota-prov-row ${item.provider === data.provider ? "active" : ""}">
             <span>${escapeHtml(item.short)}</span>
-            <span>5h: ${item.used_5h} (${item.pct_5h}%) · Tuần: ${item.used_week}</span>
+            <span>${item.pct_5h == null ? `5h: ${item.used_5h} lượt` : `5h: ${item.pct_5h}%`} · ${item.pct_week == null ? `Tuần: ${item.used_week} lượt` : `Tuần: ${item.pct_week}%`}</span>
           </div>
         `).join("");
       } else {
         byProvEl.style.display = "none";
       }
     }
+    refreshThinkingSupport(data.provider, data.model_id);
   } catch (err) {
     console.warn("Lỗi tải hạn mức quota:", err);
   }
+}
+
+// Nút mức suy nghĩ chỉ có tác dụng khi model hỗ trợ (server hỏi chính Claude Code / danh sách model của agy)
+async function refreshThinkingSupport(prov, model) {
+  const pill = $("btn-thinking-pill");
+  if (!pill) return;
+  try {
+    const res = await fetch(`/api/thinking_support?provider=${encodeURIComponent(prov || "")}&model=${encodeURIComponent(model || "")}`);
+    if (!res.ok) return;
+    const sup = await res.json();
+    pill.classList.toggle("disabled", !sup.supported);
+    pill.title = sup.supported
+      ? "Mức độ suy nghĩ của model: Cao / Tiêu chuẩn / Tắt"
+      : "Model này không cho chỉnh mức suy nghĩ (lựa chọn không có tác dụng)";
+    const offDesc = document.querySelector('#thinking-menu-popover [data-thinking="off"] .mode-item-desc');
+    if (offDesc) {
+      offDesc.textContent = sup.off === "disable" ? "Tắt hẳn suy nghĩ, trả lời trực tiếp"
+        : sup.off === "low" ? "Model không tắt hẳn được: dùng mức suy nghĩ thấp nhất"
+        : "Trả lời trực tiếp ngắn gọn không cần suy nghĩ sâu";
+    }
+  } catch (e) { /* giữ nguyên trạng thái cũ */ }
 }
 
 // Bắt sự kiện click nút Quota Ring
@@ -4223,7 +4252,7 @@ const btnRefreshQuota = $("btn-refresh-quota");
 if (btnRefreshQuota) {
   btnRefreshQuota.onclick = (e) => {
     e.stopPropagation();
-    fetchAndRenderQuota();
+    fetchAndRenderQuota(true);
   };
 }
 
@@ -4355,18 +4384,11 @@ async function checkUpdate(force = false) {
         : `Phiên bản Kuro: ${curText} (Mới nhất)`;
     }
 
-    // Hiển thị hoặc ẩn banner thông báo bản mới
+    // Không tự xổ banner thông báo thả xuống; người dùng nhận biết bản mới qua chấm đỏ trên biểu tượng
     const box = $("update");
     if (box) {
-      if (u.update_available) {
-        $("update-banner-title").textContent = `ĐÃ CÓ PHIÊN BẢN MỚI v${u.latest}`;
-        $("update-banner-text").textContent = `Bạn đang dùng ${curText}. Nhánh GitHub đã có các cập nhật mới.`;
-        box.classList.remove("hidden");
-        box.hidden = false;
-      } else {
-        box.classList.add("hidden");
-        box.hidden = true;
-      }
+      box.classList.add("hidden");
+      box.hidden = true;
     }
     return u;
   } catch (e) {

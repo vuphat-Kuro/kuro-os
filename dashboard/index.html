@@ -1541,6 +1541,7 @@
     cursor: pointer;
     transition: all .16s ease;
   }
+  .thinking-pill-btn.disabled { opacity: 0.55; }
   .thinking-pill-btn:hover {
     background: rgba(168, 85, 247, 0.14);
     border-color: #c084fc;
@@ -3326,11 +3327,62 @@
     border-color: transparent;
     box-shadow: 0 3px 10px var(--accent-glow);
   }
-  body .version-tag.has-update,
-  body .btn-version-tag.has-update {
-    background: var(--amber-bg);
-    color: var(--amber);
-    border-color: var(--amber-border);
+  body .version-tag.has-update {
+    position: relative;
+    background: var(--accent-tint);
+    color: var(--accent);
+    border-color: var(--accent-border);
+    animation: none;
+  }
+  body .version-tag.has-update::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #dc2626;
+    border: 1.5px solid var(--surface);
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.22);
+    pointer-events: none;
+  }
+  body #btn-version-header.btn-version-tag {
+    gap: 0;
+  }
+  body #btn-version-header.btn-version-tag.has-update {
+    background: var(--content-bg);
+    color: var(--text);
+    border-color: var(--line);
+    animation: none;
+    box-shadow: -2px -2px 5px var(--sh-light), 2px 3px 7px var(--sh-dark-soft);
+  }
+  body #btn-version-header.btn-version-tag.has-update:hover {
+    background: var(--content-bg);
+    border-color: var(--accent-border);
+    color: var(--accent);
+    box-shadow: -2px -2px 6px var(--sh-light), 3px 4px 10px var(--accent-glow);
+  }
+  body #btn-version-header.btn-version-tag.has-update::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dc2626;
+    border: 1.5px solid var(--content-bg);
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.28);
+    pointer-events: none;
+  }
+  body.theme-dark .version-tag.has-update::after,
+  body.theme-dark #btn-version-header.btn-version-tag.has-update::after {
+    background: #ef4444;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+  }
+  body #update {
+    display: none !important;
   }
 
   /* === SEGMENTED TABS KIỂU LÚN SOFT UI (CỘT TRÁI & CỘT PHẢI) === */
@@ -6374,6 +6426,6 @@
 <!-- POPOVER TÙY CHỌN MỞ FILE XUẤT RA TRONG TIN NHẮN KURO -->
 <div id="file-action-popover" class="file-action-popover" style="display:none;" role="menu"></div>
 
-<script src="app.js?v=63"></script>
+<script src="app.js?v=64"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ thư mục làm việc, nên không coi sandbox của codex là lớp bảo vệ
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -69,7 +70,22 @@ async def models(kind: str) -> list[dict]:
     return _models[kind]
 
 
-def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True, provider: str | None = None) -> tuple[list[str], bytes | None]:
+_CODEX_EFFORT = {"high": "high", "standard": "medium", "off": "low"}   # codex không có mức tắt hẳn
+_AGY_LEVEL = {"high": "high", "standard": "medium", "off": "low"}
+
+
+async def agy_model_for_thinking(model: str | None, thinking: str | None) -> str | None:
+    """agy: mức suy nghĩ nằm trong hậu tố tên model (-low/-medium/-high). Không có biến thể thì giữ nguyên model."""
+    m = re.match(r"^(.*)-(low|medium|high|xhigh)$", model or "")
+    lvl = _AGY_LEVEL.get(thinking or "")
+    if not m or not lvl:
+        return model
+    cand = f"{m.group(1)}-{lvl}"
+    return cand if cand in {x["id"] for x in await models("agy")} else model
+
+
+def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True, provider: str | None = None,
+         thinking: str | None = None) -> tuple[list[str], bytes | None]:
     """Trả (lệnh, dữ liệu stdin). codex nhận prompt qua stdin nên không vướng giới hạn dòng lệnh Windows."""
     prov = provider or ("antigravity" if kind == "agy" else "chatgpt" if kind == "codex" else None)
     chosen_model = model or config.get_provider_model(prov)
@@ -81,6 +97,8 @@ def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | N
             "-c", f"sandbox_mode=\"{'workspace-write' if (shell or write) else 'read-only'}\""]
         if shell:   # elevated lỗi quyền trên máy thường; unelevated chạy được (xem ghi chú đầu file)
             cmd += ["-c", "windows.sandbox=\"unelevated\""]
+        if thinking in _CODEX_EFFORT:
+            cmd += ["-c", f'model_reasoning_effort="{_CODEX_EFFORT[thinking]}"']
         if chosen_model:
             cmd += ["-m", chosen_model]
         return cmd + ["-"], prompt.encode("utf-8")
@@ -135,7 +153,8 @@ def _agy_event(e: dict, st: dict):
             yield {"type": "text", "text": r["response"]}
 
 
-async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None, model: str | None = None, provider: str | None = None):
+async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None, model: str | None = None, provider: str | None = None,
+              thinking: str | None = None):
     """Sinh sự kiện cùng khuôn với engine.run_turn; final mang mã hội thoại trần, engine gắn tiền tố id AI."""
     if not find(kind):
         yield {"type": "error", "text": f"Chưa cài `{kind}` trên máy này. Xem hướng dẫn ở ⚙ Cài đặt."}
@@ -143,7 +162,7 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
         return
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
-    cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write, provider=provider)
+    cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write, provider=provider, thinking=thinking)
     if kind == "agy":
         go_hook_agy()
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}

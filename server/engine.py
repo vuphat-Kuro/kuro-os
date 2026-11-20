@@ -8,14 +8,16 @@ Luồng sự kiện gửi cho giao diện:
 """
 import asyncio
 import json
+import re
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 
 import httpx
 import yaml
-from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOptions, HookMatcher, ResultMessage,
-                              StreamEvent, ToolUseBlock, query)
+from claude_agent_sdk import (AgentDefinition, AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient, HookMatcher,
+                              ResultMessage, StreamEvent, ToolUseBlock, query)
 
 import calc
 import kho
@@ -304,7 +306,77 @@ SKILL_NGANH = ("\n\n## Skill ngành của Kuro\nViệc chuyên môn: dùng Read 
                "Chỉ mở skill khi việc thật sự liên quan; mô tả của skill nói rõ khi nào dùng.\n{skills}")
 
 
-def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None, provider: str | None = None) -> ClaudeAgentOptions:
+# Mức suy nghĩ trên giao diện (high/standard/off) -> từng AI. Đo thật 2026-11:
+# - Claude Code: effort low..max + thinking disabled, mỗi model hỗ trợ khác nhau (get_server_info báo supportedEffortLevels,
+#   supportsThinkingOff). Haiku và model ngoài họ Claude không có effort: bỏ qua.
+# - Codex: -c model_reasoning_effort (low..ultra), không có "tắt" nên Tắt = low.
+# - Agy: --effort xung đột với model có hậu tố (báo ERROR); mức suy nghĩ nằm trong tên model -low/-medium/-high
+#   (flash-low 230 token suy nghĩ, flash-high 638): đổi hậu tố cho đúng mức, Tắt = low.
+THINK_LEVELS = ("high", "standard", "off")
+_CAPS = {"t": 0.0, "models": []}
+_AGY_SUFFIX = re.compile(r"^(.*)-(low|medium|high|xhigh)$")
+
+
+async def claude_models_caps() -> list[dict]:
+    """Khả năng suy nghĩ từng model do chính Claude Code báo, cache 1 giờ."""
+    if _CAPS["models"] and time.time() - _CAPS["t"] < 3600:
+        return _CAPS["models"]
+    try:
+        async with ClaudeSDKClient(ClaudeAgentOptions(setting_sources=[], cwd=str(config.STATE))) as c:
+            info = await c.get_server_info()
+        _CAPS.update(t=time.time(), models=info.get("models") or [])
+    except Exception as e:
+        print(f"[thinking] không hỏi được Claude Code: {e}")
+    return _CAPS["models"]
+
+
+def claude_cap(models: list[dict], model: str | None) -> dict | None:
+    m = (model or "").lower()
+    if not m:
+        return models[0] if models else None
+    # Ưu tiên khớp chính xác (value, rồi tên model đã giải) để claude-opus-5-5 không bị nhầm sang claude-opus-5
+    for hit in (lambda c: m == c["value"].lower(), lambda c: m == (c.get("resolvedModel") or "").lower(),
+                lambda c: m.startswith(c["value"].lower())):
+        for c in models:
+            if hit(c):
+                return c
+    return None
+
+
+def thinking_options(cap: dict | None, level: str | None) -> dict:
+    """Cao = effort high, Tiêu chuẩn = medium, Tắt = tắt hẳn suy nghĩ (model không tắt được thì effort low)."""
+    if not cap or not cap.get("supportsEffort") or level not in THINK_LEVELS:
+        return {}
+    levels = cap.get("supportedEffortLevels") or []
+    if level == "off":
+        if cap.get("supportsThinkingOff"):
+            return {"thinking": {"type": "disabled"}}
+        return {"effort": "low"} if "low" in levels else {}
+    eff = "high" if level == "high" else "medium"
+    return {"effort": eff} if eff in levels else {}
+
+
+async def thinking_support(provider: str, model: str | None) -> dict:
+    """Model này chỉnh được mức suy nghĩ không, và "Tắt" nghĩa là gì: disable (tắt hẳn) hoặc low (mức thấp nhất)."""
+    prov = provider or config.PROVIDER or "claude"
+    mod = model or config.get_provider_model(prov) or ""
+    if kind := cli_kind(prov):
+        if kind == "agy":
+            m = _AGY_SUFFIX.match(mod)
+            if not m:
+                return {"supported": False, "off": None}
+            ids = {x["id"] for x in await cli_engines.models("agy")}
+            ok = any(f"{m.group(1)}-{lv}" in ids for lv in ("high", "medium"))
+            return {"supported": ok, "off": "low" if ok else None}
+        return {"supported": True, "off": "low"}
+    cap = claude_cap(await claude_models_caps(), mod)
+    if not cap or not cap.get("supportsEffort"):
+        return {"supported": False, "off": None}
+    return {"supported": True, "off": "disable" if cap.get("supportsThinkingOff") else "low"}
+
+
+def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None, provider: str | None = None,
+            think: dict | None = None) -> ClaudeAgentOptions:
     extra = agent_prompt_block(agent)
     ws_path = cwd or str(active_workspace_dir())
     ws_note = workspace_rules.build_workspace_rules_prompt(Path(ws_path), get_workspaces_config()) + f"\n{KHO_MANG_CAM_XOA}"
@@ -330,6 +402,7 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         # Mặc định 1 MB: đọc tệp đính kèm lớn (PDF, Excel, txt) sinh một dòng JSON vượt mức là báo CLIJSONDecodeError.
         # Read của Claude Code tối đa ~20 MB PDF (~27 MB base64): 256 MB dư nhiều, chỉ tốn RAM khi có dòng lớn thật.
         max_buffer_size=256 * 1024 * 1024,
+        **(think or {}),
     )
 
 
@@ -525,7 +598,7 @@ def build_handoff_context(messages: list[dict], max_msgs: int = 8, max_chars: in
 
 async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None,
                    model: str | None = None, provider: str | None = None, conv_ids: dict[str, str] | None = None,
-                   handoff_messages: list[dict] | None = None):
+                   handoff_messages: list[dict] | None = None, thinking: str | None = None):
     """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
     cur = provider or config.PROVIDER or "claude"
     owner, conv = split_conv(claude_id)
@@ -553,7 +626,7 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
             # Giữ nguyên thông báo chuẩn specs/001 FR-007 khi gọi trực tiếp không truyền lịch sử bàn giao
             yield {"type": "text", "text": f"_(Đã đổi sang {prov_name}: AI mới chưa biết các câu trước trong phiên này.)_\n\n"}
 
-    async for ev in _engine_turn(effective_prompt, resume_id, cur, agent=agent, cwd=cwd, model=model):
+    async for ev in _engine_turn(effective_prompt, resume_id, cur, agent=agent, cwd=cwd, model=model, thinking=thinking):
         if ev["type"] == "error":
             ev = {**ev, "text": loi_tieng_viet(ev["text"], provider=cur, model=model)}
         elif ev["type"] == "final" and ev.get("claude_id"):
@@ -561,15 +634,22 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
         yield ev
 
 
-async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None):
+async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None,
+                       thinking: str | None = None):
     ws_path = cwd or str(active_workspace_dir())
     if kind := cli_kind(cur):
+        eff_model = model
+        if kind == "agy" and thinking in THINK_LEVELS:
+            eff_model = await cli_engines.agy_model_for_thinking(model or config.get_provider_model(cur), thinking)
         async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path),
-                                        resume, cwd=ws_path, model=model, provider=cur):
+                                        resume, cwd=ws_path, model=eff_model, provider=cur, thinking=thinking):
             yield ev
         return
     try:
-        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur)):
+        think = {}
+        if thinking in THINK_LEVELS:
+            think = thinking_options(claude_cap(await claude_models_caps(), model or config.get_provider_model(cur)), thinking)
+        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur, think=think)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
@@ -634,7 +714,7 @@ async def _dien_hoa_turn(job: dict, ws_path: str, emit) -> str:
 
 
 async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None,
-               model: str | None = None, provider: str | None = None) -> str:
+               model: str | None = None, provider: str | None = None, thinking: str | None = None) -> str:
     """Một lượt hoàn chỉnh: lưu câu hỏi, chạy theo provider riêng của phiên, đẩy sự kiện qua emit, lưu câu trả lời."""
     ws_path = workspace or str(active_workspace_dir())
     sess = store.get(sid) or {}
@@ -677,6 +757,7 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
         provider=chosen_provider,
         conv_ids=conv_ids,
         handoff_messages=prev_msgs if prev_msgs else None,
+        thinking=thinking,
     ):
         if ev["type"] == "text":
             shown.append(ev["text"])
