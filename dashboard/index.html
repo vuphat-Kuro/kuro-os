@@ -835,7 +835,7 @@
     margin-left:auto; max-width:85%; width:fit-content; padding:10px 16px; white-space:pre-wrap;
     background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.45);
   }
-  .user::before { content:"BẠN (KỸ SƯ)"; color:var(--amber); text-align:right; }
+  .user::before { content:"TÔI:"; color:var(--amber); text-align:right; }
   .bot { position:relative; padding:16px 20px; background:var(--panel); border:1px solid var(--line); backdrop-filter:blur(6px); }
   .bot::before { content:attr(data-sender) ":"; color:var(--cyan); }
   .bot::after {
@@ -2993,7 +2993,11 @@
     --warn-box-bg: #fffbeb;
     --switch-off: #cbd5e1;
     --quota-track-svg: rgba(21, 38, 75, 0.16);
-    --quota-fill: linear-gradient(90deg, #1b3a6b, #2563eb);
+    --quota-ok: #2563eb;
+    --quota-warn: #eab308;
+    --quota-danger: #dc2626;
+    --quota-fill: linear-gradient(90deg, #2563eb, #3b82f6);
+    --ctx-track-bg: #eef3fa;
     --tick-idle: rgba(21, 38, 75, 0.28);
     --blue-border: rgba(27, 58, 107, 0.26);
     --amber-border: rgba(184, 93, 11, 0.36);
@@ -3003,6 +3007,23 @@
     --api-border: rgba(124, 58, 237, 0.28);
     --terminal-bg: #15264b;
     --terminal-text: #e2ecf7;
+
+    /* Hệ màu & kích thước Lucide Icons chuẩn toàn hệ thống */
+    --ic-xs: 14px;
+    --ic-sm: 16px;
+    --ic-md: 18px;
+    --ic-lg: 20px;
+    --ic-xl: 36px;
+    --ic-stroke: 1.85;
+    --ic-folder: #c97a16;
+    --ic-pdf: #b91c1c;
+    --ic-xls: #14845f;
+    --ic-doc: #1d4ed8;
+    --ic-code: #a16207;
+    --ic-web: #0369a1;
+    --ic-cad: #0e7490;
+    --ic-archive: #7e22ce;
+    --ic-image: #2563eb;
 
     --hud: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
     --body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
@@ -3084,7 +3105,11 @@
     --warn-box-bg: rgba(245, 158, 11, 0.11);
     --switch-off: #334155;
     --quota-track-svg: rgba(148, 179, 219, 0.22);
+    --quota-ok: #38bdf8;
+    --quota-warn: #facc15;
+    --quota-danger: #ef4444;
     --quota-fill: linear-gradient(90deg, #38bdf8, #60a5fa);
+    --ctx-track-bg: #0c1422;
     --tick-idle: rgba(148, 179, 219, 0.35);
     --blue-border: rgba(125, 211, 252, 0.28);
     --amber-border: rgba(245, 158, 11, 0.36);
@@ -3095,8 +3120,74 @@
     --terminal-bg: #080f1b;
     --terminal-text: #dbeafe;
 
+    --ic-folder: #f59e0b;
+    --ic-pdf: #f87171;
+    --ic-xls: #34d399;
+    --ic-doc: #60a5fa;
+    --ic-code: #facc15;
+    --ic-web: #38bdf8;
+    --ic-cad: #22d3ee;
+    --ic-archive: #c084fc;
+    --ic-image: #60a5fa;
+
     color-scheme: dark;
   }
+
+  /* === HỆ THỐNG BIỂU TƯỢNG LUCIDE ICONS + SVG CHUYÊN NGÀNH KURO === */
+  .ic {
+    width: var(--ic-sm);
+    height: var(--ic-sm);
+    display: inline-block;
+    vertical-align: middle;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: var(--ic-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.2s ease, color 0.18s ease;
+  }
+  .ic-xs { width: var(--ic-xs); height: var(--ic-xs); }
+  .ic-sm { width: var(--ic-sm); height: var(--ic-sm); }
+  .ic-md { width: var(--ic-md); height: var(--ic-md); }
+  .ic-lg { width: var(--ic-lg); height: var(--ic-lg); }
+  .ic-xl { width: var(--ic-xl); height: var(--ic-xl); }
+  .ic-folder { color: var(--ic-folder); }
+  .ic-pdf { color: var(--ic-pdf); }
+  .ic-xls { color: var(--ic-xls); }
+  .ic-doc { color: var(--ic-doc); }
+  .ic-code { color: var(--ic-code); }
+  .ic-web { color: var(--ic-web); }
+  .ic-cad { color: var(--ic-cad); }
+  .ic-archive { color: var(--ic-archive); }
+  .ic-image { color: var(--ic-image); }
+  .ic-green { color: var(--green); }
+  .ic-amber { color: var(--amber); }
+  .ic-accent { color: var(--accent); }
+  .ic-muted { color: var(--muted); }
+  .btn-icon .ic, .menu-item-icon .ic, .ctx-icon .ic, .ctx-env-icon .ic,
+  .ws-banner-icon .ic, .agent-group-icon .ic, .kfl-ico .ic, .hub-icon .ic {
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .agent-group-icon { display: inline-flex; align-items: center; justify-content: center; }
+  .menu-item-icon, .ctx-icon, .ctx-env-icon, .ws-banner-icon, .fp-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .kuro-file-link:hover .kfl-ico .ic { color: #ffffff; }
+  .bfc-icon { display: flex; align-items: center; justify-content: center; color: var(--accent); }
+  .hero-avatar-box .ic { width: 38px; height: 38px; }
+  .header-avatar .ic { width: 20px; height: 20px; }
+  .agent-avatar .ic { width: 16px; height: 16px; }
+  #gear, .btn-create-agent, .btn-new-chat, .btn-link, .btn-force-update,
+  .btn-compact-now, .btn-browse-native, .btn-update-now, .btn-ws-tag,
+  .quota-refresh-btn, .fp-actions .btn, .wsr-actions .btn-hdr, .wsr-actions .btn-update-now {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  #gear, .btn-new-chat { width: 100%; }
 
   /* Huy hiệu định dạng file sắc nét trên nền tối */
   body.theme-dark .f-badge.md { color: #38bdf8; background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.34); }
@@ -3365,8 +3456,15 @@
     box-shadow: -2px -2px 6px var(--sh-light), 3px 4px 10px var(--sh-dark-soft);
   }
   body .agent-group:hover { border-color: var(--line-strong); }
-  body .agent-group.sys-group { border-color: var(--amber-border); }
-  body .agent-group.is-coordinator { border-color: var(--accent-border); }
+  body .agent-group.sys-group,
+  body .agent-group.is-coordinator {
+    border-color: var(--line);
+  }
+  body .agent-group.sys-group:hover,
+  body .agent-group.is-coordinator:hover {
+    border-color: var(--line-strong);
+  }
+  body .agent-group:has(.agent-card.on),
   body .agent-group.is-active-lead {
     border-color: var(--accent);
     box-shadow: -2px -2px 6px var(--sh-light), 3px 5px 14px var(--accent-glow);
@@ -3388,10 +3486,15 @@
     border: 1px solid var(--line);
   }
   body .agent-group-chat-btn {
+    background: var(--surface);
+    color: var(--text-2);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+  }
+  body .agent-group.is-active-lead .agent-group-chat-btn {
     background: var(--accent-tint);
     color: var(--accent);
-    border: 1px solid var(--accent-border);
-    border-radius: 7px;
+    border-color: var(--accent-border);
   }
   body .agent-group-chat-btn:hover {
     background: linear-gradient(135deg, var(--accent-bright), var(--accent));
@@ -4071,23 +4174,9 @@
       -3px -3px 8px var(--sh-light),
       0 4px 12px var(--sh-dark-soft);
   }
-  body .chat-input-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 20px;
-    right: 20px;
-    height: 2.5px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, transparent, var(--accent-bright), var(--accent), var(--accent-bright), transparent);
-    transform: scaleX(0);
-    opacity: 0;
-    pointer-events: none;
-    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
-  }
-  body .chat-input-card:focus-within::before {
-    transform: scaleX(1);
-    opacity: 1;
+  body .chat-input-card::before,
+  body.busy .chat-input-card::after {
+    display: none !important;
   }
   body .chat-input-card:focus-within {
     border-color: var(--accent-border);
@@ -4095,11 +4184,6 @@
       inset 2px 2px 6px var(--sh-dark-soft),
       inset -2px -2px 6px var(--sh-light),
       0 4px 14px var(--accent-tint);
-  }
-  body.busy .chat-input-card::after {
-    background: linear-gradient(90deg, var(--accent-deep), var(--accent-bright), var(--navy), var(--accent-deep));
-    background-size: 200% 100%;
-    border-radius: 18px 18px 0 0;
   }
   body .chat-prompt-prefix { color: var(--accent); }
   body textarea { color: var(--text); }
@@ -4136,7 +4220,38 @@
     border-color: var(--accent-border);
     color: var(--accent);
   }
-  body .quota-bg { stroke: var(--quota-track-svg); }
+  body .quota-pill-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin-left: 0;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    box-shadow: -2px -2px 5px var(--sh-light), 2px 3px 7px var(--sh-dark-soft);
+    transition: all 0.16s ease;
+  }
+  body .quota-pill-btn:hover {
+    transform: none;
+    background: var(--content-bg);
+    border-color: var(--accent-border);
+  }
+  body .quota-ring-wrap,
+  body .quota-svg {
+    width: 21px;
+    height: 21px;
+  }
+  body .quota-bg { stroke: var(--quota-track-svg); stroke-width: 2.3; }
+  body .quota-progress { stroke: var(--quota-ok); stroke-width: 2.3; }
+  body .quota-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--quota-ok);
+    box-shadow: 0 0 5px var(--quota-ok);
+  }
+  body .quota-progress-fill.warn {
+    background: linear-gradient(90deg, #facc15, #eab308);
+  }
 
   /* Nút gửi tròn Phương Thành Soft UI */
   body .btn-send-round {
@@ -4281,11 +4396,18 @@
     border-radius: 6px;
   }
   body .ctx-stacked-bar {
-    height: 9px;
+    height: 10px;
     border-radius: 999px;
-    background: var(--bg);
-    border: 1px solid var(--line);
+    background: var(--ctx-track-bg);
+    border: 1.5px solid var(--line);
     box-shadow: inset 1px 2px 4px var(--sh-dark-soft);
+  }
+  body .ctx-bar-seg.ctx-bar-free {
+    background: transparent !important;
+  }
+  body .ctx-color-dot.ctx-dot-free {
+    background: var(--ctx-track-bg) !important;
+    border: 1.5px solid var(--line-strong);
   }
   body .ctx-accordion-item { border-bottom: 1px solid var(--line); }
   body .ctx-accordion-header:hover { background: var(--accent-tint); color: var(--accent); }
@@ -4750,6 +4872,83 @@
   } catch (e) {}
 </script>
 
+<!-- INLINE SVG ICON SPRITE: LUCIDE ICONS (MẶC ĐỊNH) + SVG CHUYÊN NGÀNH CẦU ĐƯỜNG KURO (0 KB TÀI NGUYÊN NGOÀI) -->
+<svg id="kuro-icon-sprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <!-- ===== PHẦN 1: LUCIDE ICONS CHUẨN (CHỈ NHÚNG ICON THỰC SỰ DÙNG) ===== -->
+  <symbol id="ic-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="ic-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="ic-folder-tree" viewBox="0 0 24 24"><path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M3 5a2 2 0 0 0 2 2h3"/><path d="M3 3v13a2 2 0 0 0 2 2h3"/></symbol>
+  <symbol id="ic-folder-plus" viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="ic-briefcase" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="ic-rocket" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+  <symbol id="ic-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></symbol>
+  <symbol id="ic-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="ic-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="ic-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="ic-menu" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="ic-layout-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></symbol>
+  <symbol id="ic-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="ic-clipboard-list" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></symbol>
+  <symbol id="ic-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="ic-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+  <symbol id="ic-trash-2" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="ic-fold-vertical" viewBox="0 0 24 24"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3-3-3 3"/><path d="m15 5-3 3-3-3"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="ic-hard-drive" viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></symbol>
+  <symbol id="ic-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="ic-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></symbol>
+  <symbol id="ic-paperclip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+  <symbol id="ic-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+  <symbol id="ic-blocks" viewBox="0 0 24 24"><rect width="7" height="7" x="14" y="3" rx="1"/><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3"/></symbol>
+  <symbol id="ic-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/></symbol>
+  <symbol id="ic-sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
+  <symbol id="ic-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></symbol>
+  <symbol id="ic-git-branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="ic-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol>
+  <symbol id="ic-qr-code" viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></symbol>
+  <symbol id="ic-minimize-2" viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/></symbol>
+  <symbol id="ic-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="ic-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="ic-alert-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="ic-calendar-check" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></symbol>
+  <symbol id="ic-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+  <symbol id="ic-book-open" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="ic-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+  <symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="ic-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="ic-file-spreadsheet" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></symbol>
+  <symbol id="ic-file-code" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></symbol>
+  <symbol id="ic-file-archive" viewBox="0 0 24 24"><path d="M10 12v-1"/><path d="M10 18v-2"/><path d="M10 7V6"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v16a2 2 0 0 0 .274 1.01"/><circle cx="10" cy="20" r="2"/></symbol>
+  <symbol id="ic-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="ic-compass" viewBox="0 0 24 24"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/></symbol>
+  <symbol id="ic-list-tree" viewBox="0 0 24 24"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></symbol>
+  <symbol id="ic-message-square" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="ic-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="ic-wifi" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></symbol>
+  <symbol id="ic-calculator" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></symbol>
+
+  <!-- ===== PHẦN 2: SVG CHUYÊN NGÀNH CẦU ĐƯỜNG & HẠ TẦNG (RIÊNG CỦA KURO OS) ===== -->
+  <symbol id="kuro-ic-bridge" viewBox="0 0 24 24"><path d="M2 16h20"/><path d="M7 5v15"/><path d="M17 5v15"/><path d="M7 7 2.5 16"/><path d="M7 7l5 9"/><path d="M17 7l-5 9"/><path d="M17 7l4.5 9"/><path d="M5 20h4"/><path d="M15 20h4"/></symbol>
+  <symbol id="kuro-ic-hardhat" viewBox="0 0 24 24"><path d="M2 18h20"/><path d="M4 18v-3a8 8 0 0 1 16 0v3"/><path d="M10 6v6"/><path d="M14 6v6"/><path d="M10 6a2 2 0 0 1 4 0"/></symbol>
+  <symbol id="kuro-ic-scaffold" viewBox="0 0 24 24"><path d="M3 5h18"/><path d="M5 5v15"/><path d="M19 5v15"/><path d="M5 12h14"/><path d="M5 5l14 7"/><path d="M19 5L5 12"/><path d="M5 12l14 7"/><path d="M19 12L5 19"/><path d="M3 20h4"/><path d="M17 20h4"/></symbol>
+  <symbol id="kuro-ic-sheetpile" viewBox="0 0 24 24"><path d="M2 7h4v13"/><path d="M22 7h-4v13"/><path d="M6 15h12"/><path d="M6 10h12"/><path d="M10 10v5"/><path d="M14 10v5"/><path d="M8 19h8"/></symbol>
+  <symbol id="kuro-ic-survey" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="7" rx="1.5"/><circle cx="12" cy="6.5" r="1.6"/><path d="M7 12h10"/><path d="M12 10v2"/><path d="M12 12v9"/><path d="M10 12 6 21"/><path d="M14 12l4 9"/></symbol>
+  <symbol id="kuro-ic-qs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M13 13h5"/><path d="M13 17h3"/><path d="M6 6h.01"/><path d="M9 6h.01"/></symbol>
+  <symbol id="kuro-ic-bim" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/><path d="M7.5 4.5 16.5 9.5"/></symbol>
+  <symbol id="kuro-ic-qaqc" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></symbol>
+</svg>
+
 <!-- LỚP MỜ BACKDROP KHI MỞ DRAWER TRÊN MOBILE -->
 <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
@@ -4766,16 +4965,16 @@
       </div>
       <small>Trợ lý kỹ sư hạ tầng</small>
     </div>
-    <button type="button" class="mobile-sidebar-close" id="btn-close-agents-mobile" title="Đóng danh sách">✕</button>
+    <button type="button" class="mobile-sidebar-close" id="btn-close-agents-mobile" title="Đóng danh sách"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-x"/></svg></button>
   </div>
 
   <div class="sidebar-header-tabs">
     <button class="tab-item active" id="tab-btn-agents" type="button">
-      <span>Cộng sự</span>
+      <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-bot"/></svg><span>Cộng sự</span>
       <span class="tab-badge" id="agent-count">7</span>
     </button>
     <button class="tab-item" id="tab-btn-explorer" type="button">
-      <span>📁 Thư mục</span>
+      <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-folder-tree"/></svg><span>Thư mục</span>
     </button>
   </div>
 
@@ -4783,7 +4982,7 @@
   <div id="view-agents" class="sidebar-view">
     <div class="search-wrap">
       <div class="search-box">
-        <span>🔍</span>
+        <svg class="ic ic-xs ic-muted" aria-hidden="true"><use href="#ic-search"/></svg>
         <input id="agent-search" type="search" placeholder="Tìm kiếm cộng sự..." aria-label="Tìm kiếm cộng sự">
       </div>
     </div>
@@ -4816,10 +5015,10 @@
     <div class="sidebar-bottom">
       <div style="display:flex; gap:6px;">
         <button id="btn-create-agent" type="button" class="btn-create-agent" style="flex:1;">
-          <span>+</span> TẠO AGENT
+          <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-plus"/></svg> TẠO AGENT
         </button>
         <button id="btn-upload-agent" type="button" class="btn-create-agent" style="flex:1;" title="Tải bộ Agent có sẵn (.zip, .md, .skill)">
-          <span>📥</span> THÊM AGENT
+          <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-upload"/></svg> THÊM AGENT
         </button>
         <input type="file" id="agent-file-input" accept=".zip,.md,.skill" style="display:none;" multiple>
       </div>
@@ -4827,7 +5026,7 @@
         <div><span class="dot"></span>Kết nối <span class="val" id="net">Đang nối</span></div>
         <div>AI <span class="val" id="core">-</span></div>
       </div>
-      <button id="gear" type="button">⚙ Cài đặt hệ thống</button>
+      <button id="gear" type="button"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-settings"/></svg><span>Cài đặt hệ thống</span></button>
     </div>
   </div>
 
@@ -4836,17 +5035,17 @@
     <div class="explorer-toolbar">
       <span class="explorer-title">CÂY THƯ MỤC</span>
       <div class="explorer-actions">
-        <button id="btn-fs-refresh" class="btn-tool-sm" type="button" title="Làm mới cây thư mục">🔄</button>
-        <button id="btn-fs-collapse" class="btn-tool-sm" type="button" title="Thu gọn tất cả">⊖</button>
-        <button id="btn-fs-hidden" class="btn-tool-sm" type="button" title="Hiện/ẩn tệp ẩn">👁</button>
-        <button id="btn-fs-workspace" class="btn-tool-sm" type="button" title="Mở hộp thoại Windows chọn thư mục làm việc mới">💼</button>
+        <button id="btn-fs-refresh" class="btn-tool-sm" type="button" title="Làm mới cây thư mục"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+        <button id="btn-fs-collapse" class="btn-tool-sm" type="button" title="Thu gọn tất cả"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-fold-vertical"/></svg></button>
+        <button id="btn-fs-hidden" class="btn-tool-sm" type="button" title="Hiện/ẩn tệp ẩn"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-eye"/></svg></button>
+        <button id="btn-fs-workspace" class="btn-tool-sm" type="button" title="Mở hộp thoại Windows chọn thư mục làm việc mới"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-folder-open"/></svg></button>
       </div>
     </div>
 
     <!-- Banner Thư mục làm việc hiện hành -->
     <div class="workspace-current-banner" id="ws-banner" title="Bấm để mở hộp thoại Windows chọn thư mục làm việc">
       <div class="ws-banner-left">
-        <span class="ws-banner-icon">💼</span>
+        <span class="ws-banner-icon"><svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-folder-open"/></svg></span>
         <div class="ws-banner-meta">
           <div class="ws-banner-name" id="ws-active-name">DuAn_KhoiTao</div>
           <div class="ws-banner-path" id="ws-active-path">C:\Kuro-os\Kuro\projects\DuAn_KhoiTao</div>
@@ -4876,7 +5075,7 @@
 
     <div class="search-wrap" style="padding:6px 14px;">
       <div class="search-box">
-        <span>🔍</span>
+        <svg class="ic ic-xs ic-muted" aria-hidden="true"><use href="#ic-search"/></svg>
         <input id="fs-search" type="search" placeholder="Tìm tệp tin & thư mục..." aria-label="Tìm kiếm file">
       </div>
     </div>
@@ -4885,7 +5084,7 @@
     </div>
     <div class="explorer-footer">
       <span id="fs-status">Sẵn sàng</span>
-      <button id="btn-fs-workspace-footer" class="btn-link" type="button" title="Xem lịch sử dự án & Duyệt ổ đĩa">📋 Lịch sử & Duyệt ổ đĩa</button>
+      <button id="btn-fs-workspace-footer" class="btn-link" type="button" title="Xem lịch sử dự án & Duyệt ổ đĩa"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-hard-drive"/></svg><span>Lịch sử &amp; Duyệt ổ đĩa</span></button>
     </div>
   </div>
 </aside>
@@ -4895,7 +5094,7 @@
   <header>
     <div class="header-top-bar">
       <div class="header-agent-zone">
-        <button id="btn-menu-agents" class="btn-hdr" type="button" title="Mở danh sách cộng sự">☰</button>
+        <button id="btn-menu-agents" class="btn-hdr" type="button" title="Mở danh sách cộng sự"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-menu"/></svg></button>
         <div class="header-avatar" id="header-avatar"></div>
         <div class="header-agent-texts">
           <div class="header-agent-title-row">
@@ -4910,42 +5109,42 @@
           <span class="state-dot"></span>
         </span>
         <button id="btn-toggle-history-mobile" class="btn-hdr btn-quick-top" type="button" title="Lịch sử hội thoại & Ngữ cảnh">
-          <span class="btn-icon">📜</span>
+          <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-history"/></svg></span>
         </button>
         <button id="gear-mobile" class="btn-hdr btn-quick-top" type="button" title="Cài đặt hệ thống (AI Model, Key, Telegram)">
-          <span class="btn-icon">⚙️</span>
+          <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-settings"/></svg></span>
         </button>
       </div>
     </div>
 
     <div class="header-controls">
       <button id="btn-workspace-header" class="btn-hdr" type="button" title="Thư mục dự án đang làm việc (Bấm để đổi)">
-        <span class="btn-icon">💼</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-folder-open"/></svg></span>
         <span class="btn-text" id="header-ws-name">DuAn_KhoiTao</span>
       </button>
       <button id="new" class="btn-hdr" type="button" title="Tạo phiên trao đổi mới">
-        <span class="btn-icon">➕</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-plus"/></svg></span>
         <span class="btn-text">Phiên mới</span>
       </button>
       <select id="model-pick" aria-label="Đổi model" hidden></select>
       <button id="btn-version-header" class="btn-hdr btn-version-tag" type="button" title="Phiên bản Kuro OS (Bấm để kiểm tra cập nhật)">
-        <span class="btn-icon">🚀</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-rocket"/></svg></span>
         <span class="btn-text" id="header-version-text">v1.7.8</span>
       </button>
       <button id="btn-remote-header" class="btn-hdr btn-remote-tag" type="button" title="Đồng bộ ĐT & Kết nối từ xa (Tailscale 4G)">
-        <span class="btn-icon">📱</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-smartphone"/></svg></span>
         <span class="btn-text">Đồng bộ ĐT</span>
       </button>
       <button id="btn-toggle-explorer" class="btn-hdr" type="button" title="Cây thư mục dự án">
-        <span class="btn-icon">📂</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-folder-tree"/></svg></span>
         <span class="btn-text">Thư mục</span>
       </button>
       <button id="btn-context-header" class="btn-hdr btn-context-pill" type="button" title="Dung lượng ngữ cảnh AI (Context)" hidden>
-        <span class="btn-icon">📊</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-gauge"/></svg></span>
         <span class="btn-text" id="header-context-text">0%</span>
       </button>
       <button id="btn-theme-toggle" class="btn-hdr" type="button" title="Đổi chế độ Giao diện Sáng / Tối">
-        <span class="btn-icon" id="theme-toggle-icon">🌙</span>
+        <span class="btn-icon" id="theme-toggle-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-moon"/></svg></span>
         <span class="btn-text" id="theme-toggle-text">Bản tối</span>
       </button>
       <span id="state" class="state-indicator" title="Trạng thái hệ thống: Sẵn sàng" hidden>
@@ -4953,7 +5152,7 @@
         <span class="state-text">Sẵn sàng</span>
       </span>
       <button id="gear2" class="btn-hdr" type="button" title="Cài đặt hệ thống (AI Model, Key, Telegram)">
-        <span class="btn-icon">⚙️</span>
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-settings"/></svg></span>
         <span class="btn-text">Cài đặt</span>
       </button>
       <button id="btn-toggle-history" class="btn-hdr" type="button" title="Thu gọn bảng Lịch sử & Ngữ cảnh" aria-label="Đóng/mở bảng Lịch sử & Ngữ cảnh">
@@ -4967,7 +5166,7 @@
 
   <div id="update" role="status" class="hidden">
     <div class="update-banner-content">
-      <span style="font-size:18px;">🚀</span>
+      <svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-rocket"/></svg>
       <div>
         <b id="update-banner-title">Có phiên bản mới</b>
         <span id="update-banner-text">Đã có Kuro bản mới trên GitHub.</span>
@@ -4975,7 +5174,7 @@
     </div>
     <div class="update-banner-actions">
       <button type="button" class="btn-banner-action" id="btn-open-update-modal">Chi tiết & Cập nhật</button>
-      <button type="button" class="btn-banner-close" id="btn-dismiss-update" title="Đóng thông báo">✕</button>
+      <button type="button" class="btn-banner-close" id="btn-dismiss-update" title="Đóng thông báo"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-x"/></svg></button>
     </div>
   </div>
 
@@ -4995,7 +5194,7 @@
   <!-- Thanh mục lục câu hỏi tập trung (Chat Nav Hub) -->
   <div id="chat-nav-rail" class="chat-nav-hub" style="display:none;" title="Mục lục nhật ký câu hỏi trong hội thoại">
     <button type="button" id="chat-nav-hub-btn" class="chat-nav-hub-btn" title="Bấm để mở danh sách mục lục câu hỏi">
-      <span class="hub-icon">📑</span>
+      <span class="hub-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-list-tree"/></svg></span>
       <span id="chat-nav-hub-count" class="hub-count">0</span>
     </button>
     <div id="chat-nav-ticks-container" class="chat-nav-ticks-container">
@@ -5028,16 +5227,16 @@
       <!-- Popover Menu nút cộng (+) -->
       <div id="attach-menu-popover" class="attach-menu-popover" style="display:none;">
         <button type="button" class="attach-menu-item" id="menu-attach-file">
-          <span class="menu-item-icon">📎</span>
+          <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-paperclip"/></svg></span>
           <span class="menu-item-text">Đính kèm tệp hoặc ảnh</span>
           <span class="menu-item-shortcut">Ctrl+U</span>
         </button>
         <button type="button" class="attach-menu-item" id="menu-attach-folder">
-          <span class="menu-item-icon">📁</span>
+          <span class="menu-item-icon"><svg class="ic ic-sm ic-folder" aria-hidden="true"><use href="#ic-folder-open"/></svg></span>
           <span class="menu-item-text">Thêm thư mục</span>
         </button>
         <button type="button" class="attach-menu-item" id="menu-attach-slash">
-          <span class="menu-item-icon">🖊️</span>
+          <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-pencil"/></svg></span>
           <span class="menu-item-text">Lệnh gạch chéo</span>
           <span class="menu-item-shortcut">/</span>
         </button>
@@ -5045,23 +5244,23 @@
         <!-- Menu Trình kết nối (Connectors) có flyout submenu -->
         <div class="menu-item-has-flyout" id="menu-wrap-connectors">
           <button type="button" class="attach-menu-item" id="menu-attach-connectors">
-            <span class="menu-item-icon">🪟</span>
+            <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-plug"/></svg></span>
             <span class="menu-item-text">Trình kết nối</span>
             <span class="menu-item-arrow">›</span>
           </button>
           <div class="menu-flyout-sub" id="flyout-connectors" style="display:none;">
             <button type="button" class="flyout-sub-item" id="btn-conn-browse">
-              <span class="menu-item-icon">📖</span>
+              <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-book-open"/></svg></span>
               <span>Duyệt trình kết nối</span>
             </button>
             <button type="button" class="flyout-sub-item" id="btn-conn-manage">
-              <span class="menu-item-icon">⚙️</span>
+              <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-settings"/></svg></span>
               <span>Quản lý trình kết nối</span>
             </button>
             <div class="attach-menu-divider"></div>
             <div class="flyout-toggle-item">
               <div class="toggle-info">
-                <span class="menu-item-icon">🧮</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-calculator"/></svg></span>
                 <span>Python tính toán (kuro)</span>
               </div>
               <label class="kuro-switch">
@@ -5071,7 +5270,7 @@
             </div>
             <div class="flyout-toggle-item">
               <div class="toggle-info">
-                <span class="menu-item-icon">🌐</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-globe"/></svg></span>
                 <span>Claude in Chrome</span>
               </div>
               <label class="kuro-switch">
@@ -5081,7 +5280,7 @@
             </div>
             <div class="flyout-toggle-item">
               <div class="toggle-info">
-                <span class="menu-item-icon">📑</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-file-text"/></svg></span>
                 <span>project-report-mcp</span>
               </div>
               <label class="kuro-switch">
@@ -5091,7 +5290,7 @@
             </div>
             <div class="flyout-toggle-item">
               <div class="toggle-info">
-                <span class="menu-item-icon">☁️</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-cloud"/></svg></span>
                 <span>Google Drive</span>
               </div>
               <label class="kuro-switch">
@@ -5105,46 +5304,46 @@
         <!-- Menu Plugin & Kỹ năng có flyout submenu -->
         <div class="menu-item-has-flyout" id="menu-wrap-plugins">
           <button type="button" class="attach-menu-item" id="menu-attach-plugins">
-            <span class="menu-item-icon">🔌</span>
+            <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-blocks"/></svg></span>
             <span class="menu-item-text">Plugin</span>
             <span class="menu-item-arrow">›</span>
           </button>
           <div class="menu-flyout-sub" id="flyout-plugins" style="display:none;">
             <div class="flyout-search-wrap">
-              <input type="text" id="plugin-flyout-search" placeholder="🔍 Tìm kiếm plugin...">
+              <input type="text" id="plugin-flyout-search" placeholder="Tìm kiếm plugin...">
             </div>
             <div class="attach-menu-divider"></div>
             <div id="flyout-plugins-list" class="flyout-plugins-list">
               <button type="button" class="flyout-sub-plugin-item" data-skill="kiem-toan-ket-cau-phu-tro">
-                <span class="menu-item-icon">📄</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#kuro-ic-scaffold"/></svg></span>
                 <div class="plugin-item-info">
                   <span class="plugin-item-title">kiem-toan-ket-cau-phu-tro</span>
                   <span class="plugin-item-desc">Quy trình và checklist kiểm toán kết cấu phụ trợ...</span>
                 </div>
               </button>
               <button type="button" class="flyout-sub-plugin-item" data-skill="bien-phap-thi-cong">
-                <span class="menu-item-icon">🏗️</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#kuro-ic-bridge"/></svg></span>
                 <div class="plugin-item-info">
                   <span class="plugin-item-title">bien-phap-thi-cong</span>
                   <span class="plugin-item-desc">Lập và rà soát thuyết minh bản vẽ BPTC...</span>
                 </div>
               </button>
               <button type="button" class="flyout-sub-plugin-item" data-skill="du-toan-qs">
-                <span class="menu-item-icon">📊</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-file-spreadsheet"/></svg></span>
                 <div class="plugin-item-info">
                   <span class="plugin-item-title">du-toan-qs</span>
                   <span class="plugin-item-desc">Bóc tách khối lượng, áp định mức, đơn giá...</span>
                 </div>
               </button>
               <button type="button" class="flyout-sub-plugin-item" data-skill="qa-qc-ho-so">
-                <span class="menu-item-icon">📑</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-file-text"/></svg></span>
                 <div class="plugin-item-info">
                   <span class="plugin-item-title">qa-qc-ho-so</span>
                   <span class="plugin-item-desc">Kiểm soát chất lượng, biên bản nghiệm thu...</span>
                 </div>
               </button>
               <button type="button" class="flyout-sub-plugin-item" data-skill="tra-cuu-hop-dong">
-                <span class="menu-item-icon">📂</span>
+                <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-folder-tree"/></svg></span>
                 <div class="plugin-item-info">
                   <span class="plugin-item-title">tra-cuu-hop-dong</span>
                   <span class="plugin-item-desc">Tra cứu HĐ dự án và thầu phụ Phương Thành...</span>
@@ -5153,11 +5352,11 @@
             </div>
             <div class="attach-menu-divider"></div>
             <button type="button" class="flyout-sub-item" id="btn-plugin-manage">
-              <span class="menu-item-icon">⚙️</span>
+              <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-settings"/></svg></span>
               <span>Quản lý plugin</span>
             </button>
             <button type="button" class="flyout-sub-item" id="btn-plugin-browse">
-              <span class="menu-item-icon">➕</span>
+              <span class="menu-item-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-plus"/></svg></span>
               <span>Duyệt plugin</span>
             </button>
           </div>
@@ -5168,7 +5367,7 @@
       <div id="model-menu-popover" class="model-menu-popover" style="display:none;">
         <div class="model-menu-header">
           <span>MÔ HÌNH AI CHO PHIÊN NÀY</span>
-          <button type="button" class="model-menu-cfg-btn" id="btn-model-menu-settings" title="Bật thêm nhà cung cấp AI trong Cài đặt">⚙ Kết nối</button>
+          <button type="button" class="model-menu-cfg-btn" id="btn-model-menu-settings" title="Bật thêm nhà cung cấp AI trong Cài đặt"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-settings"/></svg> Kết nối</button>
         </div>
         <div id="model-menu-controls" class="model-menu-controls" style="display:none;">
           <div id="model-menu-tabs" class="model-menu-tabs"></div>
@@ -5227,7 +5426,7 @@
       <div id="quota-menu-popover" class="quota-menu-popover" style="display:none;">
         <div class="quota-popover-header">
           <div class="quota-hdr-title">
-            <span class="quota-hdr-icon">⚡</span>
+            <span class="quota-hdr-icon"><svg class="ic ic-xs ic-accent" aria-hidden="true"><use href="#ic-zap"/></svg></span>
             <span>HẠN MỨC SỬ DỤNG AI</span>
           </div>
           <span class="quota-hdr-model" id="quota-model-name">Gemini 3.8 Flash</span>
@@ -5261,7 +5460,7 @@
           </div>
           <div class="quota-status-row">
             <span class="quota-status-badge" id="quota-status-badge">🟢 Hạn mức dồi dào</span>
-            <button type="button" class="quota-refresh-btn" id="btn-refresh-quota" title="Làm mới số liệu">🔄 Cập nhật</button>
+            <button type="button" class="quota-refresh-btn" id="btn-refresh-quota" title="Làm mới số liệu"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-refresh"/></svg><span>Cập nhật</span></button>
           </div>
           <div class="quota-by-provider" id="quota-by-provider" style="display:none;"></div>
         </div>
@@ -5280,7 +5479,7 @@
       <div class="chat-toolbar-bottom">
         <div class="chat-toolbar-left">
           <!-- Nút cộng + thêm tệp/thư mục/plugin/kết nối -->
-          <button type="button" class="btn-plus-attach" id="btn-chat-plus" title="Đính kèm tệp, thư mục, trình kết nối, plugin">+</button>
+          <button type="button" class="btn-plus-attach" id="btn-chat-plus" title="Đính kèm tệp, thư mục, trình kết nối, plugin"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-plus"/></svg></button>
 
           <!-- Nút chọn Model cho phiên hiện tại -->
           <button type="button" class="model-pill-btn" id="btn-model-pill" title="Đổi mô hình AI riêng cho phiên chat này">
@@ -5290,13 +5489,13 @@
 
           <!-- Nút chọn Mức độ suy nghĩ (Thinking) -->
           <button type="button" class="thinking-pill-btn" id="btn-thinking-pill" title="Mức độ suy nghĩ & kiểm chứng: Cao / Tiêu chuẩn">
-            <span id="thinking-pill-label">Cao</span>
+            <svg class="ic ic-xs ic-muted" aria-hidden="true"><use href="#ic-brain"/></svg><span id="thinking-pill-label">Cao</span>
             <span aria-hidden="true" style="font-size:11px; opacity:0.7;">▼</span>
           </button>
 
           <!-- Nút chọn Chế độ thực thi -->
           <button type="button" class="mode-pill-btn" id="btn-mode-pill" title="Chế độ xử lý: Tự động / Kế hoạch / Mục tiêu">
-            <span id="mode-pill-label">Tự động</span>
+            <svg class="ic ic-xs ic-muted" aria-hidden="true"><use href="#ic-sliders"/></svg><span id="mode-pill-label">Tự động</span>
             <span aria-hidden="true" style="font-size:11px; opacity:0.7;">▼</span>
           </button>
 
@@ -5315,7 +5514,7 @@
         <div class="chat-toolbar-right">
           <!-- Nút gửi tin nhắn tròn -->
           <button class="btn-send-round" type="submit" id="btn-send" title="Gửi (Enter)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            <svg class="ic ic-sm" aria-hidden="true"><use href="#ic-send"/></svg>
           </button>
         </div>
       </div>
@@ -5332,21 +5531,21 @@
 <aside id="history-sidebar">
   <div class="inspector-tabs">
     <button class="inspector-tab-item active" id="tab-btn-history" type="button">
-      <span>📋 Lịch sử</span>
+      <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-history"/></svg><span>Lịch sử</span>
     </button>
     <button class="inspector-tab-item" id="tab-btn-context" type="button">
-      <span>📊 Ngữ cảnh</span>
+      <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-gauge"/></svg><span>Ngữ cảnh</span>
       <span class="inspector-badge" id="sidebar-context-badge">0%</span>
     </button>
-    <button class="btn-icon" id="btn-close-history" title="Thu gọn bảng điều khiển" style="margin-left:auto;">✕</button>
+    <button class="btn-icon" id="btn-close-history" title="Thu gọn bảng điều khiển" style="margin-left:auto;"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-x"/></svg></button>
   </div>
 
   <!-- VIEW 1: LỊCH SỬ HỘI THOẠI CỦA CỘNG SỰ -->
   <div id="view-history" class="inspector-view">
     <div class="history-actions">
-      <button id="btn-new-conv" class="btn-new-chat" type="button">+ Phiên mới với cộng sự này</button>
+      <button id="btn-new-conv" class="btn-new-chat" type="button"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-plus"/></svg><span>Phiên mới với cộng sự này</span></button>
       <div class="search-box">
-        <span>🔍</span>
+        <svg class="ic ic-xs ic-muted" aria-hidden="true"><use href="#ic-search"/></svg>
         <input id="session-search" type="search" placeholder="Tìm trong hội thoại của cộng sự này..." aria-label="Tìm kiếm phiên">
       </div>
     </div>
@@ -5363,7 +5562,7 @@
       <div class="ctx-section-title">MÔI TRƯỜNG</div>
       <div class="ctx-env-card">
         <div class="ctx-env-row">
-          <span class="ctx-env-icon">🖥️</span>
+          <span class="ctx-env-icon"><svg class="ic ic-sm ic-muted" aria-hidden="true"><use href="#ic-monitor"/></svg></span>
           <div class="ctx-env-info">
             <span class="ctx-env-label">Máy tính này</span>
             <small class="ctx-env-val">Cục bộ (Localhost)</small>
@@ -5371,33 +5570,33 @@
           <span class="badge-tag">LƯU</span>
         </div>
         <div class="ctx-env-row">
-          <span class="ctx-env-icon">📁</span>
+          <span class="ctx-env-icon"><svg class="ic ic-sm ic-folder" aria-hidden="true"><use href="#ic-folder-open"/></svg></span>
           <div class="ctx-env-info">
             <span class="ctx-env-label" id="ctx-env-proj">Kuro OS</span>
             <small class="ctx-env-val" id="ctx-env-path" title="Đường dẫn Brain">Brain Default</small>
           </div>
         </div>
         <div class="ctx-env-row">
-          <span class="ctx-env-icon">🌿</span>
+          <span class="ctx-env-icon"><svg class="ic ic-sm ic-green" aria-hidden="true"><use href="#ic-git-branch"/></svg></span>
           <div class="ctx-env-info">
             <span class="ctx-env-label">Nhánh Git</span>
             <small class="ctx-env-val" id="ctx-env-branch">main</small>
           </div>
         </div>
         <div class="ctx-env-row">
-          <span class="ctx-env-icon">🤖</span>
+          <span class="ctx-env-icon"><svg class="ic ic-sm ic-accent" aria-hidden="true"><use href="#ic-cpu"/></svg></span>
           <div class="ctx-env-info">
             <span class="ctx-env-label">Model AI</span>
             <small class="ctx-env-val" id="ctx-env-model">Gemini / Claude</small>
           </div>
         </div>
         <div class="ctx-env-row" style="cursor:pointer;" id="ctx-env-remote-row" title="Bấm để xem mã QR kết nối điện thoại">
-          <span class="ctx-env-icon">📱</span>
+          <span class="ctx-env-icon"><svg class="ic ic-sm ic-web" aria-hidden="true"><use href="#ic-qr-code"/></svg></span>
           <div class="ctx-env-info" style="flex:1;">
             <span class="ctx-env-label">Remote Control</span>
             <small class="ctx-env-val" id="ctx-env-remote-val">Đang mở (LAN / Wi-Fi)</small>
           </div>
-          <span class="badge-tag" style="background:rgba(34,211,238,0.18); color:var(--cyan); font-size:11px; padding:2px 6px; border-radius:3px;">Mã QR 📲</span>
+          <span class="badge-tag" style="background:rgba(34,211,238,0.18); color:var(--cyan); font-size:11px; padding:2px 6px; border-radius:3px;">Mã QR</span>
         </div>
       </div>
     </div>
@@ -5478,7 +5677,7 @@
         <div class="ctx-compact-info">
           <span id="ctx-until-compact">Còn ...k đến khi tự động nén</span>
         </div>
-        <button id="btn-trigger-compact" class="btn-compact-now" type="button" title="Thu gọn và tóm tắt ngữ cảnh hội thoại">⚡ Nén phiên</button>
+        <button id="btn-trigger-compact" class="btn-compact-now" type="button" title="Thu gọn và tóm tắt ngữ cảnh hội thoại"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-minimize-2"/></svg><span>Nén phiên</span></button>
       </div>
     </div>
 
@@ -5710,17 +5909,17 @@
   <div class="file-preview-wrap">
     <div class="fp-header">
       <div class="fp-title-zone">
-        <span class="fp-icon" id="fp-icon">📄</span>
+        <span class="fp-icon" id="fp-icon"><svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-file-text"/></svg></span>
         <div>
           <h3 id="fp-title" class="fp-filename">filename.md</h3>
           <small id="fp-path" class="fp-filepath">path/to/file</small>
         </div>
       </div>
       <div class="fp-actions">
-        <button id="btn-fp-open-native" class="btn" type="button" title="Mở bằng phần mềm chuyên dụng trên Windows (Excel, CAD, Word, Notepad...)">🚀 Mở trên Windows</button>
-        <button id="btn-fp-reveal" class="btn" type="button" title="Mở thư mục chứa file trong Windows Explorer">📂 Mở thư mục</button>
-        <button id="btn-fp-chat" class="btn main" type="button">💬 Hỏi Kuro về file này</button>
-        <button id="btn-fp-close" class="btn" type="button">✕ Đóng</button>
+        <button id="btn-fp-open-native" class="btn" type="button" title="Mở bằng phần mềm chuyên dụng trên Windows (Excel, CAD, Word, Notepad...)"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-external-link"/></svg><span>Mở trên Windows</span></button>
+        <button id="btn-fp-reveal" class="btn" type="button" title="Mở thư mục chứa file trong Windows Explorer"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Mở thư mục</span></button>
+        <button id="btn-fp-chat" class="btn main" type="button"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-message-square"/></svg><span>Hỏi Kuro về file này</span></button>
+        <button id="btn-fp-close" class="btn" type="button"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-x"/></svg><span>Đóng</span></button>
       </div>
     </div>
     <div id="fp-body" class="fp-body">
@@ -5734,10 +5933,10 @@
   <div class="version-dialog-wrap">
     <div class="dialog-header-row">
       <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:20px;">🚀</span>
+        <svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-rocket"/></svg>
         <h2 id="vd-title">PHIÊN BẢN & CẬP NHẬT KURO</h2>
       </div>
-      <button type="button" class="btn-icon" id="btn-close-version-dialog" title="Đóng">✕</button>
+      <button type="button" class="btn-icon" id="btn-close-version-dialog" title="Đóng"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-x"/></svg></button>
     </div>
 
     <div class="version-grid">
@@ -5751,7 +5950,7 @@
         <div class="vc-val" id="vd-latest-ver">v1.7.8</div>
         <div class="vc-sub" id="vd-latest-status"><span class="badge-ok">✓ Đang dùng bản mới nhất</span></div>
         <div id="vd-force-update-wrap" style="margin-top:8px;">
-          <button type="button" class="btn-force-update" id="btn-force-update">⚡ Cập nhật lại từ GitHub</button>
+          <button type="button" class="btn-force-update" id="btn-force-update"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-zap"/></svg><span>Cập nhật lại từ GitHub</span></button>
         </div>
       </div>
     </div>
@@ -5759,7 +5958,7 @@
     <!-- KHUNG THÔNG BÁO CÓ BẢN MỚI -->
     <div id="vd-update-alert-box" class="update-alert-box" style="display:none;">
       <div class="uab-header">
-        <span class="uab-icon">🎉</span>
+        <span class="uab-icon"><svg class="ic ic-lg ic-amber" aria-hidden="true"><use href="#ic-rocket"/></svg></span>
         <div>
           <b id="uab-title">Đã có phiên bản mới sẵn sàng cập nhật!</b>
           <p id="uab-desc">Bạn có thể cập nhật trực tiếp tại đây để tải tính năng mới nhất.</p>
@@ -5767,7 +5966,7 @@
       </div>
       <div class="uab-notes" id="uab-notes-list"></div>
       <div class="uab-actions">
-        <button type="button" id="btn-start-update" class="btn-update-now">🚀 Cập nhật ngay lên bản mới</button>
+        <button type="button" id="btn-start-update" class="btn-update-now"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-rocket"/></svg><span>Cập nhật ngay lên bản mới</span></button>
       </div>
     </div>
 
@@ -5807,7 +6006,7 @@
     </div>
 
     <div class="dialog-footer-actions">
-      <button type="button" class="btn-hdr" id="btn-check-update-manual">🔄 Kiểm tra bản mới trên GitHub</button>
+      <button type="button" class="btn-hdr" id="btn-check-update-manual"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-refresh"/></svg><span>Kiểm tra bản mới trên GitHub</span></button>
       <button type="button" class="btn-hdr" id="btn-close-version-dialog2">Đóng</button>
     </div>
   </div>
@@ -5818,10 +6017,10 @@
   <div class="remote-dialog-wrap">
     <div class="dialog-header-row">
       <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:22px;">📱</span>
+        <svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-smartphone"/></svg>
         <h2 id="rd-title">ĐỒNG BỘ MÀN HÌNH & KẾT NỐI ĐIỆN THOẠI</h2>
       </div>
-      <button type="button" class="btn-icon" id="btn-close-remote-dialog" title="Đóng">✕</button>
+      <button type="button" class="btn-icon" id="btn-close-remote-dialog" title="Đóng"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-x"/></svg></button>
     </div>
 
     <!-- Bật/tắt cho điện thoại: mặc định chỉ máy này dùng; điện thoại phải quét QR (có mã ghép) mới vào được -->
@@ -5833,11 +6032,11 @@
     <!-- CHỌN CHẾ ĐỘ KẾT NỐI -->
     <div class="remote-mode-tabs">
       <button type="button" class="remote-tab-btn active" id="tab-remote-tailscale">
-        <span>🔒 Tailscale VPN (4G / Từ xa)</span>
+        <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-lock"/></svg><span>Tailscale VPN (4G / Từ xa)</span>
         <span class="rec-badge">★ Khuyên dùng</span>
       </button>
       <button type="button" class="remote-tab-btn" id="tab-remote-wifi">
-        <span>📶 Wi-Fi / LAN nội bộ</span>
+        <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-wifi"/></svg><span>Wi-Fi / LAN nội bộ</span>
       </button>
     </div>
 
@@ -5861,7 +6060,7 @@
     <!-- KHUNG MÃ QR -->
     <div class="qr-frame">
       <div id="qr-instruction-title" style="margin-bottom:12px; font-weight:600; color:var(--cyan-soft); font-size:13.5px; display:flex; align-items:center; gap:6px;">
-        <span>📷</span> Quét mã QR bằng Camera điện thoại để mở Kuro
+        <svg class="ic ic-sm ic-accent" aria-hidden="true"><use href="#ic-qr-code"/></svg><span>Quét mã QR bằng Camera điện thoại để mở Kuro</span>
       </div>
       <div id="remote-qr-container">
         <img id="remote-qr-img" class="qr-code-img" src="" alt="Mã QR kết nối">
@@ -5875,7 +6074,7 @@
     <div class="remote-surface-box" style="background:rgba(13,29,44,0.6); border:1px solid var(--line); border-radius:6px; padding:12px 14px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <span id="remote-url-label" style="font:700 11.5px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">ĐỊA CHỈ TAILSCALE VPN (DÙNG CHO 4G):</span>
-        <button type="button" id="btn-copy-remote-url" class="btn-tool-sm" style="font-size:11px; padding:3px 8px; cursor:pointer; width:auto;">📋 Sao chép</button>
+        <button type="button" id="btn-copy-remote-url" class="btn-tool-sm" style="font-size:11px; padding:3px 8px; cursor:pointer; width:auto; gap:4px;"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-copy"/></svg><span>Sao chép</span></button>
       </div>
       <div id="remote-primary-url" style="font-family:monospace; font-size:14.5px; color:var(--cyan); word-break:break-all; font-weight:700;">
         http://...:7788
@@ -5921,14 +6120,14 @@
     <div class="dialog-header-row" style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div class="dialog-title-group">
         <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:22px;">💼</span>
+          <svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-folder-open"/></svg>
           <h2 id="wsd-title" style="margin:0; font:700 15px/1.2 var(--hud); letter-spacing:.08em; color:var(--cyan-soft);">THƯ MỤC DỰ ÁN LÀM VIỆC (WORKSPACE)</h2>
         </div>
         <p style="margin:6px 0 0; font-size:12px; color:var(--muted); line-height:1.4;">
           Chọn thư mục dự án trên máy tính để Kuro phân tích hồ sơ, bản vẽ và cô lập lịch sử trao đổi của từng dự án.
         </p>
       </div>
-      <button class="btn-icon" type="button" id="btn-close-ws-dialog" title="Đóng" style="background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button>
+      <button class="btn-icon" type="button" id="btn-close-ws-dialog" title="Đóng" style="background:none; border:none; color:var(--muted); cursor:pointer;"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-x"/></svg></button>
     </div>
 
     <!-- CÁCH 1: NATIVE WINDOWS FOLDER PICKER -->
@@ -5938,7 +6137,7 @@
         <span style="color:var(--muted); font-size:11.5px;">Bật cửa sổ duyệt thư mục của Windows (Explorer) để bấm chọn.</span>
       </div>
       <button id="btn-ws-browse-native" class="btn-browse-native" type="button">
-        <span>📁</span> <span>CHỌN THƯ MỤC TRÊN MÁY</span>
+        <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>CHỌN THƯ MỤC TRÊN MÁY</span>
       </button>
     </div>
 
@@ -5946,7 +6145,7 @@
     <div class="ws-browser-box">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <label style="font:700 11px/1 var(--hud); letter-spacing:.12em; color:var(--amber); text-transform:uppercase;">
-          📂 DUYỆT Ổ ĐĨA & THƯ MỤC TRỰC QUAN:
+          <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-hard-drive"/></svg> DUYỆT Ổ ĐĨA & THƯ MỤC TRỰC QUAN:
         </label>
         <span style="font-size:11px; color:var(--muted);">Bấm chọn ổ đĩa & thư mục con</span>
       </div>
@@ -6008,42 +6207,42 @@
 <!-- CONTEXT MENU CHO CÂY THƯ MỤC -->
 <div id="fs-context-menu" class="fs-context-menu" style="display:none;">
   <div class="fs-ctx-item" id="ctx-fs-open">
-    <span class="ctx-icon">🚀</span>
+    <span class="ctx-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-external-link"/></svg></span>
     <span>Mở bằng phần mềm Windows</span>
     <small class="ctx-shortcut">Double-click</small>
   </div>
   <div class="fs-ctx-item" id="ctx-fs-reveal">
-    <span class="ctx-icon">📂</span>
+    <span class="ctx-icon"><svg class="ic ic-xs ic-folder" aria-hidden="true"><use href="#ic-folder-open"/></svg></span>
     <span>Mở thư mục trong Explorer</span>
   </div>
   <div class="fs-ctx-sep"></div>
   <div class="fs-ctx-item" id="ctx-fs-new-file">
-    <span class="ctx-icon">📄+</span>
+    <span class="ctx-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-file-text"/></svg></span>
     <span>Tạo tệp mới...</span>
   </div>
   <div class="fs-ctx-item" id="ctx-fs-new-folder">
-    <span class="ctx-icon">📁+</span>
+    <span class="ctx-icon"><svg class="ic ic-xs ic-folder" aria-hidden="true"><use href="#ic-folder-plus"/></svg></span>
     <span>Tạo thư mục mới...</span>
   </div>
   <div class="fs-ctx-sep"></div>
   <div class="fs-ctx-item" id="ctx-fs-copy">
-    <span class="ctx-icon">📋</span>
+    <span class="ctx-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-copy"/></svg></span>
     <span>Sao chép (Copy)</span>
     <small class="ctx-shortcut">Ctrl+C</small>
   </div>
   <div class="fs-ctx-item" id="ctx-fs-paste" style="display:none;">
-    <span class="ctx-icon">📥</span>
+    <span class="ctx-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-upload"/></svg></span>
     <span>Dán (Paste vào đây)</span>
     <small class="ctx-shortcut">Ctrl+V</small>
   </div>
   <div class="fs-ctx-sep"></div>
   <div class="fs-ctx-item" id="ctx-fs-rename">
-    <span class="ctx-icon">✏️</span>
+    <span class="ctx-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-pencil"/></svg></span>
     <span>Đổi tên (Rename)</span>
     <small class="ctx-shortcut">F2</small>
   </div>
   <div class="fs-ctx-item danger" id="ctx-fs-delete">
-    <span class="ctx-icon">🗑️</span>
+    <span class="ctx-icon"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-trash-2"/></svg></span>
     <span>Xóa (Delete)</span>
     <small class="ctx-shortcut">Del</small>
   </div>
@@ -6054,10 +6253,10 @@
   <div class="wsr-wrap">
     <div class="dialog-header-row">
       <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:20px;">📐</span>
+        <svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-shield-check"/></svg>
         <h2 id="wsr-title">QUY TẮC THƯ MỤC DỰ ÁN</h2>
       </div>
-      <button type="button" class="btn-icon" id="btn-wsr-close" title="Đóng">✕</button>
+      <button type="button" class="btn-icon" id="btn-wsr-close" title="Đóng"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-x"/></svg></button>
     </div>
 
     <div style="font-size:12.5px; color:var(--muted); line-height:1.45;">
@@ -6097,12 +6296,12 @@
     <div class="wsr-actions">
       <span id="wsr-msg" style="font-size:12px; color:var(--cyan-soft); margin-right:auto;"></span>
       <button type="button" class="btn-hdr" id="btn-wsr-decline">Không áp dụng cho dự án này</button>
-      <button type="button" class="btn-update-now" id="btn-wsr-apply" style="padding:8px 14px; font-size:12px;">✅ Áp dụng Kuro Standard</button>
+      <button type="button" class="btn-update-now" id="btn-wsr-apply" style="padding:8px 14px; font-size:12px;"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-check-circle"/></svg><span>Áp dụng Kuro Standard</span></button>
     </div>
 
     <details class="wsr-custom-box" id="wsr-custom-details">
       <summary style="cursor:pointer; font:700 11.5px/1.2 var(--hud); letter-spacing:.08em; color:var(--cyan-soft); text-transform:uppercase;">
-        📝 Quy tắc làm việc của dự án (QUY_TAC_LAM_VIEC.md)
+        <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-pencil"/></svg> Quy tắc làm việc của dự án (QUY_TAC_LAM_VIEC.md)
       </summary>
       <small style="color:var(--muted); font-size:11.5px;">
         Tệp <code>QUY_TAC_LAM_VIEC.md</code> ở gốc dự án là quy tắc Kuro làm theo ở mỗi lượt chat. Áp dụng Kuro Standard thì tệp được viết sẵn từ mẫu; sau đó sửa ở đây hoặc mở tệp trực tiếp. Xóa trắng nội dung và lưu = bỏ quy tắc.
@@ -6110,7 +6309,7 @@
       <textarea id="wsr-custom-text" placeholder="Nội dung QUY_TAC_LAM_VIEC.md (để trống = dự án không có quy tắc riêng, Kuro làm việc bình thường)..."></textarea>
       <div class="wsr-actions">
         <button type="button" class="btn-hdr" id="btn-wsr-fill-template">Điền mẫu Kuro Standard</button>
-        <button type="button" class="btn-hdr" id="btn-wsr-save-custom" style="border-color:var(--cyan); color:var(--cyan-soft);">💾 Lưu QUY_TAC_LAM_VIEC.md</button>
+        <button type="button" class="btn-hdr" id="btn-wsr-save-custom" style="border-color:var(--cyan); color:var(--cyan-soft);"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-check-circle"/></svg><span>Lưu QUY_TAC_LAM_VIEC.md</span></button>
       </div>
     </details>
   </div>
@@ -6119,6 +6318,6 @@
 <!-- POPOVER TÙY CHỌN MỞ FILE XUẤT RA TRONG TIN NHẮN KURO -->
 <div id="file-action-popover" class="file-action-popover" style="display:none;" role="menu"></div>
 
-<script src="app.js?v=57"></script>
+<script src="app.js?v=61"></script>
 </body>
 </html>

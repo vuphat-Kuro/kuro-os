@@ -1,48 +1,54 @@
 const $ = (id) => document.getElementById(id);
 
+// Helper render biểu tượng Lucide Icons & SVG chuyên ngành KURO từ Inline Sprite (#kuro-icon-sprite)
+function kuroIcon(id, sizeCls = "ic-sm", colorCls = "") {
+  const cls = ["ic", sizeCls, colorCls].filter(Boolean).join(" ");
+  return `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+}
+
 // ========================================================
 // NHẬN DIỆN TỆP XUẤT RA TRONG CÂU TRẢ LỜI KURO & MENU MỞ BẰNG WINDOWS
 // ========================================================
 const KURO_FILE_META = {
-  xlsx: { icon: "📊", app: "Excel (Windows)", text: false },
-  xls:  { icon: "📊", app: "Excel (Windows)", text: false },
-  xlsm: { icon: "📊", app: "Excel (Windows)", text: false },
-  xlsb: { icon: "📊", app: "Excel (Windows)", text: false },
-  csv:  { icon: "📊", app: "Excel / ứng dụng mặc định", text: true },
-  docx: { icon: "📝", app: "Word (Windows)", text: false },
-  doc:  { icon: "📝", app: "Word (Windows)", text: false },
-  rtf:  { icon: "📝", app: "Word (Windows)", text: false },
-  pptx: { icon: "📽️", app: "PowerPoint (Windows)", text: false },
-  ppt:  { icon: "📽️", app: "PowerPoint (Windows)", text: false },
-  pdf:  { icon: "📕", app: "trình đọc PDF (Windows)", text: false },
-  dwg:  { icon: "📐", app: "AutoCAD / CAD mặc định", text: false },
-  dxf:  { icon: "📐", app: "AutoCAD / CAD mặc định", text: false },
-  ifc:  { icon: "🏗️", app: "phần mềm BIM mặc định", text: false },
-  rvt:  { icon: "🏗️", app: "Revit / BIM mặc định", text: false },
-  png:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
-  jpg:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
-  jpeg: { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
-  webp: { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
-  bmp:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
-  gif:  { icon: "🖼️", app: "trình xem ảnh (Windows)", text: false },
-  svg:  { icon: "🖼️", app: "trình duyệt / xem ảnh", text: true },
-  html: { icon: "🌐", app: "trình duyệt (Windows)", text: true },
-  htm:  { icon: "🌐", app: "trình duyệt (Windows)", text: true },
-  py:   { icon: "🐍", app: "phần mềm mặc định Windows", text: true },
-  js:   { icon: "📜", app: "phần mềm mặc định Windows", text: true },
-  ts:   { icon: "📜", app: "phần mềm mặc định Windows", text: true },
-  json: { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  md:   { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  txt:  { icon: "📄", app: "Notepad / mặc định Windows", text: true },
-  log:  { icon: "📄", app: "Notepad / mặc định Windows", text: true },
-  yaml: { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  yml:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  xml:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  sql:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  css:  { icon: "📄", app: "phần mềm mặc định Windows", text: true },
-  zip:  { icon: "📦", app: "trình giải nén (Windows)", text: false },
-  rar:  { icon: "📦", app: "trình giải nén (Windows)", text: false },
-  "7z": { icon: "📦", app: "trình giải nén (Windows)", text: false },
+  xlsx: { icon: "📊", iconId: "ic-file-spreadsheet", colorCls: "ic-xls", app: "Excel (Windows)", text: false },
+  xls:  { icon: "📊", iconId: "ic-file-spreadsheet", colorCls: "ic-xls", app: "Excel (Windows)", text: false },
+  xlsm: { icon: "📊", iconId: "ic-file-spreadsheet", colorCls: "ic-xls", app: "Excel (Windows)", text: false },
+  xlsb: { icon: "📊", iconId: "ic-file-spreadsheet", colorCls: "ic-xls", app: "Excel (Windows)", text: false },
+  csv:  { icon: "📊", iconId: "ic-file-spreadsheet", colorCls: "ic-xls", app: "Excel / ứng dụng mặc định", text: true },
+  docx: { icon: "📝", iconId: "ic-file-text", colorCls: "ic-doc", app: "Word (Windows)", text: false },
+  doc:  { icon: "📝", iconId: "ic-file-text", colorCls: "ic-doc", app: "Word (Windows)", text: false },
+  rtf:  { icon: "📝", iconId: "ic-file-text", colorCls: "ic-doc", app: "Word (Windows)", text: false },
+  pptx: { icon: "📽️", iconId: "ic-file-text", colorCls: "ic-amber", app: "PowerPoint (Windows)", text: false },
+  ppt:  { icon: "📽️", iconId: "ic-file-text", colorCls: "ic-amber", app: "PowerPoint (Windows)", text: false },
+  pdf:  { icon: "📕", iconId: "ic-file-text", colorCls: "ic-pdf", app: "trình đọc PDF (Windows)", text: false },
+  dwg:  { icon: "📐", iconId: "ic-compass", colorCls: "ic-cad", app: "AutoCAD / CAD mặc định", text: false },
+  dxf:  { icon: "📐", iconId: "ic-compass", colorCls: "ic-cad", app: "AutoCAD / CAD mặc định", text: false },
+  ifc:  { icon: "🏗️", iconId: "kuro-ic-bim", colorCls: "ic-cad", app: "phần mềm BIM mặc định", text: false },
+  rvt:  { icon: "🏗️", iconId: "kuro-ic-bim", colorCls: "ic-cad", app: "Revit / BIM mặc định", text: false },
+  png:  { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình xem ảnh (Windows)", text: false },
+  jpg:  { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình xem ảnh (Windows)", text: false },
+  jpeg: { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình xem ảnh (Windows)", text: false },
+  webp: { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình xem ảnh (Windows)", text: false },
+  bmp:  { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình xem ảnh (Windows)", text: false },
+  gif:  { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình xem ảnh (Windows)", text: false },
+  svg:  { icon: "🖼️", iconId: "ic-image", colorCls: "ic-image", app: "trình duyệt / xem ảnh", text: true },
+  html: { icon: "🌐", iconId: "ic-globe", colorCls: "ic-web", app: "trình duyệt (Windows)", text: true },
+  htm:  { icon: "🌐", iconId: "ic-globe", colorCls: "ic-web", app: "trình duyệt (Windows)", text: true },
+  py:   { icon: "🐍", iconId: "ic-file-code", colorCls: "ic-code", app: "phần mềm mặc định Windows", text: true },
+  js:   { icon: "📜", iconId: "ic-file-code", colorCls: "ic-code", app: "phần mềm mặc định Windows", text: true },
+  ts:   { icon: "📜", iconId: "ic-file-code", colorCls: "ic-code", app: "phần mềm mặc định Windows", text: true },
+  json: { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
+  md:   { icon: "📄", iconId: "ic-file-text", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: true },
+  txt:  { icon: "📄", iconId: "ic-file-text", colorCls: "ic-muted", app: "Notepad / mặc định Windows", text: true },
+  log:  { icon: "📄", iconId: "ic-file-text", colorCls: "ic-muted", app: "Notepad / mặc định Windows", text: true },
+  yaml: { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
+  yml:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
+  xml:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
+  sql:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: true },
+  css:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: true },
+  zip:  { icon: "📦", iconId: "ic-file-archive", colorCls: "ic-archive", app: "trình giải nén (Windows)", text: false },
+  rar:  { icon: "📦", iconId: "ic-file-archive", colorCls: "ic-archive", app: "trình giải nén (Windows)", text: false },
+  "7z": { icon: "📦", iconId: "ic-file-archive", colorCls: "ic-archive", app: "trình giải nén (Windows)", text: false },
 };
 const _KNOWN_EXT_PATTERN = Object.keys(KURO_FILE_META).join("|");
 const _WIN_ABS_PATH_RE = /^[A-Za-z]:[\\/][^\r\n<>|"*?]+$/;
@@ -58,7 +64,7 @@ function getFileExt(pathStr) {
 
 function getFileMeta(pathStr) {
   const ext = getFileExt(pathStr);
-  return KURO_FILE_META[ext] || { icon: "📄", app: "phần mềm mặc định Windows", text: false };
+  return KURO_FILE_META[ext] || { icon: "📄", iconId: "ic-file-text", colorCls: "ic-muted", app: "phần mềm mặc định Windows", text: false };
 }
 
 function getFileBaseName(pathStr) {
@@ -109,12 +115,12 @@ function makeFileLinkEl(doc, filePath, displayText) {
 
   const ico = doc.createElement("span");
   ico.className = "kfl-ico";
-  ico.textContent = meta.icon;
+  ico.innerHTML = kuroIcon(meta.iconId || "ic-file-text", "ic-xs", meta.colorCls || "");
   const txt = doc.createElement("span");
   txt.textContent = displayText || filePath;
   const arr = doc.createElement("span");
   arr.className = "kfl-arrow";
-  arr.textContent = "▾";
+  arr.innerHTML = kuroIcon("ic-external-link", "ic-xs");
   btn.append(ico, txt, arr);
   return btn;
 }
@@ -230,47 +236,39 @@ const MASCOT_SVG = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
 
 const MASCOT_IMG = `<img src="/kuro_logo_256.png" alt="Kuro Core" style="width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 3px 6px rgba(21,38,75,0.22));" />`;
 
-// Icon chuyên môn theo từng Agent
+// Icon chuyên môn theo từng Agent:
+// - Logo nhận diện KURO cho kuro-core
+// - SVG chuyên ngành cầu đường thiết kế riêng cho các kỹ sư hạ tầng (đồng bộ nét 1.85px với Lucide)
+// - Lucide Icons chuẩn cho các tác vụ chung
 const AGENT_ICONS = {
   "kuro-core": MASCOT_IMG,
-  "ky-su-bien-phap": `<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M2 18h20"></path><path d="M4 18v-4a8 8 0 0 1 16 0v4"></path><path d="M12 4v2"></path><path d="M12 10h.01"></path>
-  </svg>`,
-  "ky-su-kiem-toan-phu-tro": `<svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-    <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-  </svg>`,
-  "ky-su-kiem-toan-ho-mong-cvt": `<svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v11"></path><path d="M15 10v11"></path>
-  </svg>`,
-  "ky-su-qs": `<svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line>
-    <line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line>
-    <line x1="16" y1="18" x2="16" y2="18.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="8" y1="18" x2="8" y2="18.01"></line>
-  </svg>`,
-  "xac-nhan-thanh-quyet-toan": `<svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
-  </svg>`,
-  "ky-su-qaqc": `<svg viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-    <rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="m9 14 2 2 4-4"></path>
-  </svg>`,
-  "ky-su-ke-hoach": `<svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line>
-    <line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
-    <path d="m8 14 2 2 4-4"></path>
-  </svg>`,
-  "dieu-phoi-bim": `<svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="m21 16-9 5-9-5V8l9-5 9 5v8Z"></path><path d="M3.27 6.96 12 12.01l8.73-5.05"></path><path d="M12 22.08V12"></path>
-  </svg>`,
+  "ky-su-bien-phap": kuroIcon("kuro-ic-hardhat", "ic-sm"),
+  "ky-su-an-toan-lao-dong-hse": kuroIcon("kuro-ic-hardhat", "ic-sm"),
+  "ky-su-kiem-toan-phu-tro": kuroIcon("kuro-ic-scaffold", "ic-sm"),
+  "ky-su-kiem-toan-ho-mong-cvt": kuroIcon("kuro-ic-sheetpile", "ic-sm"),
+  "ky-su-trac-dia": kuroIcon("kuro-ic-survey", "ic-sm"),
+  "ky-su-trac-dia-hien-truong": kuroIcon("kuro-ic-survey", "ic-sm"),
+  "ky-su-qs": kuroIcon("kuro-ic-qs", "ic-sm"),
+  "xac-nhan-thanh-quyet-toan": kuroIcon("kuro-ic-qs", "ic-sm"),
+  "ky-su-qaqc": kuroIcon("kuro-ic-qaqc", "ic-sm"),
+  "ky-su-thi-nghiem-vat-lieu": kuroIcon("kuro-ic-qaqc", "ic-sm"),
+  "ky-su-ke-hoach": kuroIcon("ic-calendar-check", "ic-sm"),
+  "dieu-phoi-bim": kuroIcon("kuro-ic-bim", "ic-sm"),
 };
 
 function getAgentIcon(slug) {
-  return AGENT_ICONS[slug] || `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`;
+  if (AGENT_ICONS[slug]) return AGENT_ICONS[slug];
+  const s = String(slug || "").toLowerCase();
+  if (s.includes("hse") || s.includes("an-toan") || s.includes("bien-phap")) return kuroIcon("kuro-ic-hardhat", "ic-sm");
+  if (s.includes("trac-dia") || s.includes("quan-trac")) return kuroIcon("kuro-ic-survey", "ic-sm");
+  if (s.includes("ho-mong") || s.includes("cvt") || s.includes("cu-van")) return kuroIcon("kuro-ic-sheetpile", "ic-sm");
+  if (s.includes("phu-tro") || s.includes("da-giao") || s.includes("kiem-toan")) return kuroIcon("kuro-ic-scaffold", "ic-sm");
+  if (s.includes("bim") || s.includes("so-hoa")) return kuroIcon("kuro-ic-bim", "ic-sm");
+  if (s.includes("qs") || s.includes("khoi-luong") || s.includes("hop-dong") || s.includes("thanh-quyet-toan")) return kuroIcon("kuro-ic-qs", "ic-sm");
+  if (s.includes("qa") || s.includes("qc") || s.includes("thi-nghiem")) return kuroIcon("kuro-ic-qaqc", "ic-sm");
+  if (s.includes("ke-hoach") || s.includes("tien-do")) return kuroIcon("ic-calendar-check", "ic-sm");
+  if (s.includes("cong-van") || s.includes("van-ban") || s.includes("hanh-chinh")) return kuroIcon("ic-file-text", "ic-sm");
+  return kuroIcon("ic-bot", "ic-sm");
 }
 
 // Gợi ý câu hỏi nhanh (Quick Prompts) riêng cho từng Agent
@@ -499,18 +497,22 @@ function currentAgent() {
   return agents.find((a) => a.slug === selectedAgent) || agents[0] || { slug: "kuro-core", name: "Kuro Core", role: "" };
 }
 
-// Icon và quản lý nhóm cho từng Agent
+// Icon và quản lý nhóm cho từng Agent (Lucide Icons + SVG chuyên ngành KURO)
 const GROUP_ICONS = {
-  "Hệ thống": "🛡️",
-  "Kỹ thuật & Thi công": "🏗️",
-  "Quản lý & Hồ sơ": "📋",
-  "BIM & Số hóa": "🌐",
-  "Tổ đội & Quy trình": "👥",
-  "Chuyên môn": "⚙️",
+  "Hệ thống": kuroIcon("ic-shield-check", "ic-xs", "ic-accent"),
+  "Kỹ thuật & Thi công": kuroIcon("kuro-ic-bridge", "ic-xs", "ic-amber"),
+  "Quản lý & Hồ sơ": kuroIcon("ic-clipboard-list", "ic-xs", "ic-green"),
+  "BIM & Số hóa": kuroIcon("kuro-ic-bim", "ic-xs", "ic-web"),
+  "Tổ đội & Quy trình": kuroIcon("ic-users", "ic-xs"),
+  "Chuyên môn": kuroIcon("ic-settings", "ic-xs"),
+  "Vận hành - Hành chính kỹ thuật": kuroIcon("ic-briefcase", "ic-xs", "ic-folder"),
 };
 
 function getGroupIcon(groupName) {
-  return GROUP_ICONS[groupName] || "📁";
+  if (GROUP_ICONS[groupName]) return GROUP_ICONS[groupName];
+  const g = String(groupName || "").toLowerCase();
+  if (g.includes("vận hành") || g.includes("hành chính")) return kuroIcon("ic-briefcase", "ic-xs", "ic-folder");
+  return kuroIcon("ic-folder", "ic-xs", "ic-folder");
 }
 
 let currentGroupFilter = "all";
@@ -571,7 +573,7 @@ function renderGroupFilterChips() {
   allChip.type = "button";
   allChip.className = "filter-chip" + (isAllActive ? " active" : "");
   allChip.title = `Tất cả cộng sự (${agents.length})`;
-  allChip.innerHTML = `<span class="chip-icon">❖</span><span class="chip-label">Tất cả</span><span class="chip-count">(${agents.length})</span>`;
+  allChip.innerHTML = `<span class="chip-icon">${kuroIcon("ic-layout-grid", "ic-xs")}</span><span class="chip-label">Tất cả</span><span class="chip-count">(${agents.length})</span>`;
   allChip.onclick = () => {
     currentGroupFilter = "all";
     renderGroupFilterChips();
@@ -599,7 +601,7 @@ function renderGroupFilterChips() {
     dropMenu.innerHTML = "";
     const allItem = document.createElement("div");
     allItem.className = "filter-dropdown-item" + (isAllActive ? " active" : "");
-    allItem.innerHTML = `<span>❖ Tất cả</span><span style="opacity:0.6;font-size:11px;">${agents.length}</span>`;
+    allItem.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${kuroIcon("ic-layout-grid", "ic-xs")} Tất cả</span><span style="opacity:0.6;font-size:11px;">${agents.length}</span>`;
     allItem.onclick = () => {
       currentGroupFilter = "all";
       dropMenu.style.display = "none";
@@ -611,7 +613,7 @@ function renderGroupFilterChips() {
     sortedGroups.forEach((grp) => {
       const item = document.createElement("div");
       item.className = "filter-dropdown-item" + (currentGroupFilter === grp ? " active" : "");
-      item.innerHTML = `<span>${getGroupIcon(grp)} ${escapeHtml(grp)}</span><span style="opacity:0.6;font-size:11px;">${groupCounts[grp]}</span>`;
+      item.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${getGroupIcon(grp)} ${escapeHtml(grp)}</span><span style="opacity:0.6;font-size:11px;">${groupCounts[grp]}</span>`;
       item.onclick = () => {
         currentGroupFilter = (currentGroupFilter === grp) ? "all" : grp;
         dropMenu.style.display = "none";
@@ -823,16 +825,16 @@ function renderAgentList() {
       <div class="agent-group-title">
         <span class="agent-group-icon">${getGroupIcon(grpName)}</span>
         <span class="agent-group-name">${DOMPurify.sanitize(grpName)}</span>
-        ${!isSys ? `<button class="agent-group-btn" title="Cấu hình nhóm & Workflow Agent Tổng" type="button" data-config-grp="${encodeURIComponent(grpName)}">✏️</button>` : ""}
+        ${!isSys ? `<button class="agent-group-btn" title="Cấu hình nhóm & Workflow Agent Tổng" type="button" data-config-grp="${encodeURIComponent(grpName)}">${kuroIcon("ic-pencil", "ic-xs")}</button>` : ""}
       </div>
       <div class="agent-group-meta">
         ${hasWorkflow ? `
           <button type="button" class="agent-group-chat-btn" data-chat-grp="${encodeURIComponent(grpName)}" title="Giao việc và chat trực tiếp với Agent Điều phối Tổng của nhóm này">
-            ⚡ AGENT TỔNG
+            ${kuroIcon("ic-zap", "ic-xs")} AGENT TỔNG
           </button>
         ` : ""}
         <span class="agent-group-count">${groupAgents.length}</span>
-        <span class="agent-group-chevron">▼</span>
+        <span class="agent-group-chevron">${kuroIcon("ic-chevron-down", "ic-xs")}</span>
       </div>
     `;
 
@@ -921,7 +923,7 @@ function createAgentCard(agent) {
 
   let html = `
     <div class="agent-row-main">
-      <div class="agent-avatar">${isTeam ? '👥' : getAgentIcon(agent.slug)}</div>
+      <div class="agent-avatar">${isTeam ? kuroIcon("ic-users", "ic-sm") : getAgentIcon(agent.slug)}</div>
       <span class="agent-name" title="${DOMPurify.sanitize(agent.name)}">
         ${DOMPurify.sanitize(agent.name)}
         ${isTeam ? `<small style="font-size:10px; color:var(--cyan); margin-left:4px; opacity:.85;">[ĐIỀU PHỐI: ${agent.members.length}]</small>` : ''}
@@ -939,8 +941,8 @@ function createAgentCard(agent) {
         return found ? found.name : mSlug;
       }).join(", ");
       teamMembersHtml = `
-        <div style="font-size:11px; padding:4px 6px; background:rgba(34,211,238,.08); border:1px solid rgba(34,211,238,.2); border-radius:3px; color:var(--cyan-soft); margin-bottom:4px;">
-          👥 <b>Điều phối ${agent.members.length} Agent:</b> ${DOMPurify.sanitize(memberNames)}
+        <div style="font-size:11px; padding:4px 6px; background:var(--blue-bg); border:1px solid var(--blue-border); border-radius:6px; color:var(--text); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+          ${kuroIcon("ic-users", "ic-xs")} <span><b>Điều phối ${agent.members.length} Agent:</b> ${DOMPurify.sanitize(memberNames)}</span>
         </div>
       `;
     }
@@ -951,8 +953,8 @@ function createAgentCard(agent) {
         <p class="agent-desc">${DOMPurify.sanitize(agent.role || 'Trợ lý kỹ sư hạ tầng chuyên trách.')}</p>
         <div class="agent-card-actions">
           ${!agent.is_core ? `
-            <button type="button" class="btn-agent-act" data-edit-agent="${agent.slug}" title="Chỉnh sửa thông tin, đổi nhóm hoặc chọn Agent điều phối">✏️ Sửa / Điều phối</button>
-            <button type="button" class="btn-agent-act danger" data-delete-agent="${agent.slug}" title="Xóa cộng sự này">🗑️ Xóa</button>
+            <button type="button" class="btn-agent-act" data-edit-agent="${agent.slug}" title="Chỉnh sửa thông tin, đổi nhóm hoặc chọn Agent điều phối">${kuroIcon("ic-pencil", "ic-xs")} Sửa / Điều phối</button>
+            <button type="button" class="btn-agent-act danger" data-delete-agent="${agent.slug}" title="Xóa cộng sự này">${kuroIcon("ic-trash-2", "ic-xs")} Xóa</button>
           ` : `
             <span style="font-size:10px; color:var(--amber); letter-spacing:.05em;">LÕI HỆ THỐNG</span>
           `}
@@ -1320,7 +1322,7 @@ function createSessionItem(s) {
       ${modelBadge}
       ${runningBadge}
     </div>
-    <button class="btn-del-session" type="button" title="Xóa phiên này">🗑</button>
+    <button class="btn-del-session" type="button" title="Xóa phiên này">${kuroIcon("ic-trash-2", "ic-xs")}</button>
   `;
 
   el.querySelector(".btn-del-session").onclick = async (e) => {
@@ -1654,9 +1656,10 @@ async function loadSessionContext(sid) {
       const seg = breakdown[key];
       if (!seg || seg.percent <= 0) return;
       const el = document.createElement("div");
-      el.className = "ctx-bar-seg";
+      const isFree = key === "free_space";
+      el.className = "ctx-bar-seg" + (isFree ? " ctx-bar-free" : "");
       el.style.width = Math.max(1, seg.percent) + "%";
-      el.style.backgroundColor = seg.color || "#475569";
+      el.style.backgroundColor = isFree ? "transparent" : (seg.color || "#475569");
       el.title = `${seg.name}: ${formatTokens(seg.tokens)} (${seg.percent}%)`;
       bar.appendChild(el);
     });
@@ -1667,11 +1670,12 @@ async function loadSessionContext(sid) {
     barSegments.forEach(key => {
       const seg = breakdown[key];
       if (!seg) return;
+      const isFree = key === "free_space";
       const row = document.createElement("div");
       row.className = "ctx-break-row";
       row.innerHTML = `
         <div class="ctx-break-left">
-          <span class="ctx-color-dot" style="background:${esc(seg.color)};"></span>
+          <span class="ctx-color-dot${isFree ? " ctx-dot-free" : ""}" style="${isFree ? "" : `background:${esc(seg.color)};`}"></span>
           <span class="ctx-break-name">${esc(seg.name)}</span>
         </div>
         <div class="ctx-break-right">
@@ -1701,7 +1705,7 @@ async function loadSessionContext(sid) {
           row.title = t.desc || t.name;
           row.innerHTML = `
             <div class="ctx-sub-left">
-              <span>🔧</span>
+              ${kuroIcon("ic-wrench", "ic-xs", "ic-muted")}
               <span class="ctx-sub-name">${esc(t.name)}</span>
             </div>
             <span class="ctx-sub-tok">${formatTokens(t.tokens)}</span>
@@ -1729,7 +1733,7 @@ async function loadSessionContext(sid) {
           row.title = `Nhấp để xem tệp: ${filePath}`;
           row.innerHTML = `
             <div class="ctx-sub-left">
-              <span>📝</span>
+              ${kuroIcon("ic-file-text", "ic-xs", "ic-doc")}
               <span class="ctx-sub-name">${esc(filePath)}</span>
             </div>
             <span class="ctx-sub-tok">${formatTokens(f.tokens)}</span>
@@ -1756,7 +1760,7 @@ async function loadSessionContext(sid) {
           const skillPath = `.claude/skills/${s.slug}/SKILL.md`;
           row.innerHTML = `
             <div class="ctx-sub-left">
-              <span>⚡</span>
+              ${kuroIcon("ic-zap", "ic-xs", "ic-amber")}
               <span class="ctx-sub-name">${esc(s.name)}</span>
             </div>
             <span class="ctx-sub-tok">${formatTokens(s.tokens)}</span>
@@ -1783,7 +1787,7 @@ async function loadSessionContext(sid) {
           const agentPath = `agents/${a.slug}.md`;
           row.innerHTML = `
             <div class="ctx-sub-left">
-              <span>🤖</span>
+              ${kuroIcon("ic-bot", "ic-xs", "ic-accent")}
               <span class="ctx-sub-name">${esc(a.name)}</span>
             </div>
             <span class="ctx-sub-tok">${formatTokens(a.tokens)}</span>
@@ -1817,9 +1821,10 @@ async function loadSessionContext(sid) {
         item.title = `Xem tệp: ${art.path}`;
         const rawExt = art.name.split(".").pop() || "";
         const ext = "." + rawExt.toLowerCase();
+        const artMeta = getFileMeta(art.name);
         item.innerHTML = `
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span>📄</span>
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            ${kuroIcon(artMeta.iconId || "ic-file-text", "ic-xs", artMeta.colorCls || "")}
             <span class="ctx-art-name">${esc(art.name)}</span>
           </div>
           <span class="ctx-art-ext">${esc(rawExt.toUpperCase())}</span>
@@ -2082,10 +2087,35 @@ function connect() {
         return;
       }
 
+      // 4b. Các sự kiện hệ thống KHÔNG phải luồng streaming AI (tránh gắn nhầm trạng thái "Đang xử lý")
+      if (m.type === "fs_changed") {
+        scheduleFsAutoRefresh();
+        return;
+      }
+      if (m.type === "session_saved") {
+        loadSessions(selectedAgent);
+        return;
+      }
+      if (m.type === "workspace_changed") {
+        if (m.active && (!currentWorkspace.path || m.active.toLowerCase() !== currentWorkspace.path.toLowerCase())) {
+          currentWorkspace.path = m.active;
+          currentWorkspace.name = m.name;
+          recentWorkspaces = m.recent || [];
+          updateWorkspaceUI();
+          refreshFsTree();
+          loadSessions(selectedAgent);
+        }
+        return;
+      }
+      if (m.type === "final") {
+        return;
+      }
+
       // 5. Luồng sinh câu trả lời Streaming từ AI (cô lập độc lập theo session)
       const targetSid = m.session || session;
-      if (targetSid && !runningSessions.has(targetSid)) {
+      if ((m.type === "text" || m.type === "tool") && targetSid && !runningSessions.has(targetSid)) {
         runningSessions.set(targetSid, { text: "", agent: m.agent || selectedAgent, botEl: null });
+        updateSendButtonState();
       }
       const sessData = targetSid ? runningSessions.get(targetSid) : null;
 
@@ -2112,6 +2142,20 @@ function connect() {
           sessData.botEl.innerHTML = md(sessData.text);
           mood("err");
         }
+      } else if (m.type === "turn_error") {
+        renderPending = false;
+        const errMsg = m.error || m.text || "Lỗi không xác định khi xử lý phản hồi.";
+        if (targetSid === session) {
+          const targetEl = (sessData && sessData.botEl) || addMessage("bot", "", (m.agent || currentAgent().name).toUpperCase());
+          targetEl.insertAdjacentHTML("beforeend", `<div style="margin-top:8px; color:var(--accent); font-size:13px;"><b>Lỗi:</b> ${DOMPurify.sanitize(errMsg)}</div>`);
+          mood("err");
+          bot = null;
+          botText = "";
+        }
+        if (targetSid) runningSessions.delete(targetSid);
+        updateSendButtonState();
+        if (autoSyncTimer) clearInterval(autoSyncTimer);
+        loadSessions(selectedAgent);
       } else if (m.type === "turn_stopped") {
         renderPending = false;
         if (targetSid === session) {
@@ -2150,21 +2194,8 @@ function connect() {
         loadSessions(selectedAgent);
         if (targetSid === session) loadSessionContext(session);
         scheduleFsAutoRefresh();
-      } else if (m.type === "fs_changed") {
-        scheduleFsAutoRefresh();
-      } else if (m.type === "session_saved") {
-        loadSessions(selectedAgent);
-      } else if (m.type === "workspace_changed") {
-        if (m.active && (!currentWorkspace.path || m.active.toLowerCase() !== currentWorkspace.path.toLowerCase())) {
-          currentWorkspace.path = m.active;
-          currentWorkspace.name = m.name;
-          recentWorkspaces = m.recent || [];
-          updateWorkspaceUI();
-          refreshFsTree();
-          loadSessions(selectedAgent);
-        }
       }
-      if (targetSid === session) {
+      if ((m.type === "text" || m.type === "tool" || m.type === "error") && targetSid === session) {
         $("log").scrollTop = $("log").scrollHeight;
       }
     } catch (err) {
@@ -4032,25 +4063,20 @@ async function fetchAndRenderQuota() {
     const pct5h = data.block_5h.percent;
     const pctWeek = data.weekly.percent;
 
-    // 1. Cập nhật vòng tròn SVG Quota
+    // 1. Cập nhật vòng tròn SVG Quota (Xanh dương khi còn nhiều -> Vàng nhạt khi cao -> Đỏ khi gần hết)
+    const quotaColor = (pct5h >= 90) ? "var(--quota-danger)" : (pct5h >= 70) ? "var(--quota-warn)" : "var(--quota-ok)";
     const circle = $("quota-circle-bar");
     if (circle) {
       const maxLen = 47.12;
       const offset = maxLen * (1 - Math.min(100, pct5h) / 100);
       circle.style.strokeDashoffset = offset;
-      if (pct5h >= 90) {
-        circle.style.stroke = "#ef4444";
-      } else if (pct5h >= 70) {
-        circle.style.stroke = "#f59e0b";
-      } else {
-        circle.style.stroke = "var(--cyan)";
-      }
+      circle.style.stroke = quotaColor;
     }
 
     const dot = $("quota-center-dot");
     if (dot) {
-      dot.style.background = (pct5h >= 90) ? "#ef4444" : (pct5h >= 70) ? "#f59e0b" : "var(--cyan)";
-      dot.style.boxShadow = `0 0 4px ${dot.style.background}`;
+      dot.style.background = quotaColor;
+      dot.style.boxShadow = `0 0 5px ${quotaColor}`;
     }
 
     const pShort = data.provider_short || getProviderShort(data.provider);
@@ -4511,8 +4537,8 @@ function getFileBadge(ext) {
   if (ext === ".zip" || ext === ".rar" || ext === ".7z" || ext === ".tar" || ext === ".gz") return `<span class="f-badge zip">ZIP</span>`;
   if (ext === ".bat" || ext === ".ps1" || ext === ".sh" || ext === ".vbs" || ext === ".cmd") return `<span class="f-badge sh">&gt;_</span>`;
   if (ext === ".json" || ext === ".yaml" || ext === ".yml" || ext === ".toml") return `<span class="f-badge json">{}</span>`;
-  if ([".png", ".jpg", ".jpeg", ".ico", ".svg"].includes(ext)) return `🖼️`;
-  return `📄`;
+  if ([".png", ".jpg", ".jpeg", ".ico", ".svg", ".webp"].includes(ext)) return kuroIcon("ic-image", "ic-xs", "ic-image");
+  return kuroIcon("ic-file-text", "ic-xs", "ic-muted");
 }
 
 function formatBytes(bytes) {
@@ -4536,19 +4562,19 @@ function updateWorkspaceRulesBadge(rules) {
   if (!pill || !txt) return;
   if (!rules) {
     pill.className = "ws-rules-pill";
-    txt.textContent = "⚙ Quy tắc dự án";
+    txt.innerHTML = `${kuroIcon("ic-settings", "ic-xs")} <span>Quy tắc dự án</span>`;
     return;
   }
   const mode = rules.mode || "unset";
   if (mode === "rules") {
     pill.className = "ws-rules-pill ok";
-    txt.textContent = "✓ Theo QUY_TAC_LAM_VIEC.md";
+    txt.innerHTML = `${kuroIcon("ic-check-circle", "ic-xs", "ic-green")} <span>Theo QUY_TAC_LAM_VIEC.md</span>`;
   } else if (mode === "none") {
     pill.className = "ws-rules-pill";
-    txt.textContent = "• Không áp dụng quy tắc mặc định";
+    txt.textContent = "Không áp dụng quy tắc mặc định";
   } else {
     pill.className = "ws-rules-pill warn";
-    txt.textContent = "⚠ Chưa thiết lập quy tắc dự án";
+    txt.innerHTML = `${kuroIcon("ic-alert-triangle", "ic-xs", "ic-amber")} <span>Chưa thiết lập quy tắc dự án</span>`;
   }
 }
 
@@ -4706,7 +4732,7 @@ function renderRecentWorkspaces() {
         const timeText = ws.last_opened ? `<span style="color:var(--cyan-soft); font-size:10.5px; margin-left:6px;">(${formatWsTime(ws.last_opened)})</span>` : "";
         item.innerHTML = `
           <div class="ws-recent-left">
-            <span style="font-size:18px;">${isAct ? "💼" : "📂"}</span>
+            <span style="display:inline-flex;align-items:center;">${isAct ? kuroIcon("ic-folder-open", "ic-md", "ic-accent") : kuroIcon("ic-folder", "ic-md", "ic-folder")}</span>
             <div class="ws-recent-meta">
               <div class="ws-recent-name">${DOMPurify.sanitize(ws.name || ws.path)} ${timeText}</div>
               <div class="ws-recent-path">${DOMPurify.sanitize(ws.path)}</div>
@@ -4744,7 +4770,7 @@ function renderRecentWorkspaces() {
         item.title = `${ws.path}\nBấm để chuyển sang dự án này`;
         const timeStr = ws.last_opened ? formatWsTime(ws.last_opened) : "";
         item.innerHTML = `
-          <span style="font-size:13px; flex:none;">${isAct ? "💼" : "📁"}</span>
+          <span style="display:inline-flex;align-items:center;flex:none;">${isAct ? kuroIcon("ic-folder-open", "ic-xs", "ic-accent") : kuroIcon("ic-folder", "ic-xs", "ic-folder")}</span>
           <div class="recent-ws-meta">
             <span class="recent-ws-name">${DOMPurify.sanitize(ws.name || ws.path)}</span>
             <span class="recent-ws-path">${DOMPurify.sanitize(ws.path)}</span>
@@ -5153,8 +5179,8 @@ function renderFsRoot() {
   rootItem.className = "tree-item";
   rootItem.title = `Thư mục làm việc: ${wsPath}\nBấm chuột phải để thao tác tệp/thư mục`;
   rootItem.innerHTML = `
-    <span class="tree-caret open">▶</span>
-    <span class="tree-icon">💼</span>
+    <span class="tree-caret open">${kuroIcon("ic-chevron-right", "ic-xs")}</span>
+    <span class="tree-icon">${kuroIcon("ic-folder-open", "ic-xs", "ic-accent")}</span>
     <strong class="tree-name" style="color:var(--amber); text-transform:uppercase;">${DOMPurify.sanitize(wsName)} (DỰ ÁN)</strong>
   `;
 
@@ -5207,8 +5233,8 @@ function renderFsItems(items, containerEl) {
     if (it.is_dir) {
       const isExpanded = fsExpanded.has(it.path);
       itemEl.innerHTML = `
-        <span class="tree-caret ${isExpanded ? 'open' : ''}">▶</span>
-        <span class="tree-icon">${isExpanded ? '📂' : '📁'}</span>
+        <span class="tree-caret ${isExpanded ? 'open' : ''}">${kuroIcon("ic-chevron-right", "ic-xs")}</span>
+        <span class="tree-icon">${isExpanded ? kuroIcon("ic-folder-open", "ic-xs", "ic-folder") : kuroIcon("ic-folder", "ic-xs", "ic-folder")}</span>
         <span class="tree-name">${DOMPurify.sanitize(it.name)}</span>
       `;
 
@@ -5226,12 +5252,12 @@ function renderFsItems(items, containerEl) {
           fsExpanded.delete(it.path);
           childrenEl.style.display = "none";
           itemEl.querySelector(".tree-caret").className = "tree-caret";
-          itemEl.querySelector(".tree-icon").textContent = "📁";
+          itemEl.querySelector(".tree-icon").innerHTML = kuroIcon("ic-folder", "ic-xs", "ic-folder");
         } else {
           fsExpanded.add(it.path);
           childrenEl.style.display = "flex";
           itemEl.querySelector(".tree-caret").className = "tree-caret open";
-          itemEl.querySelector(".tree-icon").textContent = "📂";
+          itemEl.querySelector(".tree-icon").innerHTML = kuroIcon("ic-folder-open", "ic-xs", "ic-folder");
 
           if (!childrenEl.hasChildNodes()) {
             childrenEl.innerHTML = `<span style="padding:4px 8px; font-size:11px; color:var(--muted);">Đang mở...</span>`;
@@ -5646,7 +5672,7 @@ function showFileActionPopover(filePath, anchorEl) {
   hdr.className = "fap-header";
   const nameEl = document.createElement("div");
   nameEl.className = "fap-name";
-  nameEl.textContent = `${meta.icon} ${name}`;
+  nameEl.innerHTML = `${kuroIcon(meta.iconId || "ic-file-text", "ic-sm", meta.colorCls || "")}<span>${escapeHtml(name)}</span>`;
   const pathEl = document.createElement("div");
   pathEl.className = "fap-path";
   pathEl.textContent = filePath;
@@ -5654,11 +5680,11 @@ function showFileActionPopover(filePath, anchorEl) {
   hdr.append(nameEl, pathEl);
   pop.appendChild(hdr);
 
-  const addItem = (label, onClick, isPrimary = false) => {
+  const addItem = (iconHtml, label, onClick, isPrimary = false) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "fap-item" + (isPrimary ? " primary" : "");
-    btn.textContent = label;
+    btn.innerHTML = `${iconHtml}<span>${escapeHtml(label)}</span>`;
     btn.onclick = async (ev) => {
       ev.stopPropagation();
       hideFileActionPopover();
@@ -5667,21 +5693,21 @@ function showFileActionPopover(filePath, anchorEl) {
     pop.appendChild(btn);
   };
 
-  addItem(`${meta.icon} Mở bằng ${meta.app}`, () => openFileNative(filePath, false), true);
-  addItem("🔧 Chọn phần mềm mở khác (Open With...)", () => openFileNative(filePath, true));
-  addItem("📂 Mở thư mục chứa tệp (Explorer)", () => revealFileNative(filePath));
+  addItem(kuroIcon("ic-external-link", "ic-xs"), `Mở bằng ${meta.app}`, () => openFileNative(filePath, false), true);
+  addItem(kuroIcon("ic-wrench", "ic-xs"), "Chọn phần mềm mở khác (Open With...)", () => openFileNative(filePath, true));
+  addItem(kuroIcon("ic-folder-open", "ic-xs", "ic-folder"), "Mở thư mục chứa tệp (Explorer)", () => revealFileNative(filePath));
 
   if (meta.text && typeof openFilePreview === "function") {
     const sep1 = document.createElement("div");
     sep1.className = "fap-sep";
     pop.appendChild(sep1);
-    addItem("👁️ Xem nhanh nội dung trong Kuro", () => openFilePreview(filePath, name));
+    addItem(kuroIcon("ic-eye", "ic-xs"), "Xem nhanh nội dung trong Kuro", () => openFilePreview(filePath, name));
   }
 
   const sep2 = document.createElement("div");
   sep2.className = "fap-sep";
   pop.appendChild(sep2);
-  addItem("📋 Sao chép đường dẫn", async () => {
+  addItem(kuroIcon("ic-copy", "ic-xs"), "Sao chép đường dẫn", async () => {
     try {
       await navigator.clipboard.writeText(filePath);
       if ($("state") && !busy) {
@@ -5896,27 +5922,35 @@ async function openFilePreview(filePath, fileName, ext) {
 
 function renderBinaryFilePreview(filePath, fileName, ext, size) {
   let appHint = "phần mềm chuyên dụng";
-  let icon = "📄";
+  let iconId = "ic-file-text";
+  let colorCls = "ic-muted";
   const e = (ext || "").toLowerCase();
   if (e.includes("xls")) {
     appHint = "Microsoft Excel";
-    icon = "📊";
+    iconId = "ic-file-spreadsheet";
+    colorCls = "ic-xls";
   } else if (e.includes("doc")) {
     appHint = "Microsoft Word";
-    icon = "📝";
+    iconId = "ic-file-text";
+    colorCls = "ic-doc";
   } else if (e.includes("ppt")) {
     appHint = "Microsoft PowerPoint";
-    icon = "📑";
+    iconId = "ic-file-text";
+    colorCls = "ic-amber";
   } else if (e === ".pdf") {
     appHint = "Trình đọc PDF / Adobe Acrobat";
-    icon = "📕";
+    iconId = "ic-file-text";
+    colorCls = "ic-pdf";
   } else if (e === ".dwg" || e === ".dxf") {
     appHint = "AutoCAD";
-    icon = "📐";
+    iconId = "ic-compass";
+    colorCls = "ic-cad";
   } else if (e === ".zip" || e === ".rar" || e === ".7z") {
     appHint = "WinRAR / 7-Zip";
-    icon = "📦";
+    iconId = "ic-file-archive";
+    colorCls = "ic-archive";
   }
+  const icon = kuroIcon(iconId, "ic-xl", colorCls);
 
   $("fp-body").innerHTML = `
     <div class="binary-file-card">
@@ -6335,13 +6369,13 @@ window.addEventListener("resize", () => {
   }
 });
 
-// Chuyển đổi giao diện Sáng nổi khối Soft UI (mặc định) <-> Tối Kuro HUD
+// Chuyển đổi giao diện Sáng nổi khối Soft UI (mặc định) <-> Tối Navy Đêm đồng bộ
 function syncThemeUI() {
   const isDark = document.body.classList.contains("theme-dark");
   const iconEl = $("theme-toggle-icon");
   const textEl = $("theme-toggle-text");
   const metaEl = document.getElementById("meta-theme-color");
-  if (iconEl) iconEl.textContent = isDark ? "☀️" : "🌙";
+  if (iconEl) iconEl.innerHTML = kuroIcon(isDark ? "ic-sun" : "ic-moon", "ic-sm");
   if (textEl) textEl.textContent = isDark ? "Bản sáng" : "Bản tối";
   if (metaEl) metaEl.setAttribute("content", isDark ? "#09101c" : "#dfe6f0");
 }

@@ -1,5 +1,15 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.4] - 2026-11-20
+- **Đồng bộ hệ thống biểu tượng Lucide Icons mặc định & SVG chuyên ngành cầu đường KURO:**
+  - Nhúng Inline SVG Symbol Sprite (`#kuro-icon-sprite`, 0 KB tài nguyên ngoài, chỉ gồm đúng các biểu tượng thực sự sử dụng) thống nhất nét `1.85px` bo đầu `round`, tự động thích ứng màu theo cả Bản Sáng và Bản Tối.
+  - Kết hợp bộ 8 SVG chuyên ngành cầu đường & hạ tầng thiết kế riêng của KURO (`kuro-ic-bridge`, `kuro-ic-hardhat`, `kuro-ic-scaffold`, `kuro-ic-sheetpile`, `kuro-ic-survey`, `kuro-ic-qs`, `kuro-ic-bim`, `kuro-ic-qaqc`) cùng logo nhận diện KURO.
+  - Cập nhật biểu tượng tab Thư mục (`folder-tree`) và toàn bộ vị trí Thư mục dự án / Workspace sang `folder-open`.
+- **Tinh chỉnh UI/UX & sửa lỗi trạng thái đang xử lý:**
+  - Sửa triệt để lỗi kẹt trạng thái `"Đang xử lý"` giả do sự kiện nền WebSocket (`session_saved`, `fs_changed`, `workspace_changed`, `final`) tự gắn lại phiên vào `runningSessions`; bổ sung xử lý sự kiện `turn_error`.
+  - Nâng nút hạn mức sử dụng AI lên kích thước `32x32px` đồng bộ với thanh công cụ, hiển thị 3 ngưỡng màu: xanh dương (`< 70%`), vàng nhạt (`70% - 89%`) và đỏ (`>= 90%`).
+  - Thanh Ngữ cảnh để rỗng sạch phần còn lại (`Free space`) thay vì tô đen; đổi nhãn bóng chat người dùng thành `TÔI:`; bỏ dải đỏ đậm trên đỉnh khung nhập chat; chỉ làm nổi viền đỏ đúng nhóm và cộng sự đang chọn làm việc.
+
 ## [1.8.3] - 2026-11-20
 - **Nâng cấp giao diện Soft UI nổi khối đồng bộ Sáng / Tối (giữ nguyên toàn bộ kiến trúc & nghiệp vụ):**
   - Áp dụng phong cách Soft UI nổi khối 3 cột bo góc, viền rõ và đổ bóng 3D theo tông màu Phương Thành (Xanh Navy & Đỏ nhấn), đồng bộ hoàn toàn cấu trúc giữa chế độ **Sáng (mặc định)** và **Tối (Navy Đêm)** bằng nút chuyển nhanh trên thanh tiêu đề (chuyển màu đồng loạt tức thì, tự lưu lựa chọn).
