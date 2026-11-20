@@ -1,0 +1,22 @@
+﻿KURO OS - READ BEFORE INSTALLING
+
+What this setup does
+- Checks this computer and installs what is missing: Git, Python 3.13, Node.js, Edge WebView2, Claude Code, Antigravity, Codex (the last ones are optional on a later page).
+- Downloads the Kuro source from GitHub (github.com/vuphat-Kuro/kuro-os) into the folder you pick, default C:\Kuro-os\Kuro.
+- Creates the Kuro OS shortcut. No admin rights needed; Windows may ask for permission (click Yes) when installing Git or Node.js.
+
+Where your data lives
+- Memory, chat history, keys and settings (.env) stay in the Kuro folder on your computer. The setup does not send them anywhere.
+- Kuro runs locally at 127.0.0.1, port 7788.
+- When you ask a question, its text goes to the AI vendor you sign in with yourself (Claude, Antigravity/Google, Codex/OpenAI) under that vendor's terms. The setup does not sign in for you.
+- Kuro only reaches out to check for updates (GitHub) and to Telegram if you turn that on yourself.
+
+Download sources
+- Official sources only: GitHub, winget (Microsoft), nodejs.org, python.org, npm, antigravity.google.
+- Third-party AI tools are covered by each vendor's copyright and terms.
+
+Uninstall
+- Remove it in Windows Settings > Apps > Kuro OS. The Kuro folder (memory, history, .env) is KEPT; delete that folder by hand to remove everything.
+
+If setup fails
+- Run KuroOS-Setup.exe again; steps already done are skipped. The log is at %LOCALAPPDATA%\Programs\Kuro OS\install.log.

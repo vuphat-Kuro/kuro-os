@@ -1,5 +1,13 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.7] - 2026-11-20
+- **Bộ cài `KuroOS-Setup.exe` (Inno Setup, thư mục `installer/`), cùng kiểu bộ cài mỏng như Javis OS:**
+  - Bộ cài chỉ mang `bootstrap.ps1` và biểu tượng; chạy ẩn, tự cài Git, `git clone` Kuro về `C:\Kuro-os\Kuro` (để nút Cập nhật bằng git vẫn chạy), rồi gọi `cai-dat-tu-dong.ps1` cài Python, Node.js, WebView2, Claude Code, Antigravity, Codex, `.venv`, thư viện. Không cần quyền quản trị.
+  - Wizard có khung log trực tiếp, tiến độ 5 bước, ảnh logo theo 7 mức DPI, trang điều khoản trước khi cài, ba ô tùy chọn (biểu tượng Desktop, tự chạy cùng Windows, công cụ AI), cài im lặng `/VERYSILENT /KURODIR=`. Cài lỗi thì có ô mở nhật ký; chạy lại thì bước đã xong được bỏ qua.
+  - Gỡ cài đặt tắt Kuro đang chạy và GIỮ thư mục Kuro (ký ức, lịch sử, `.env`). Cài xong giải phóng cổng 7788 nếu chính bản Kuro đó đang chạy.
+  - Build bằng `installer\build-installer.bat` (cần Inno Setup 6). Chưa ký số nên SmartScreen sẽ cảnh báo; chưa thử wizard trên máy sạch.
+- `cai-dat-tu-dong.ps1` thêm cờ `-BoQuaCli` (không cài Claude Code, Antigravity) và `-KhongTaoIcon`; `HUONG-DAN-CAI-DAT.md` thêm hướng dẫn dùng bộ cài.
+
 ## [1.8.6] - 2026-11-20
 - **Hạn mức sử dụng AI lấy số thật, mức suy nghĩ nối thật tới từng model:**
   - Claude: phần trăm phiên 5 giờ và tuần lấy từ lệnh `/usage` của Claude Code (hạn mức thật của cả tài khoản, chạy cục bộ không gọi model, cache 60 giây, nút Cập nhật ép lấy lại). Trước đó là số lượt hỏi trong Kuro chia cho 45 và 350 do tự đặt (hiện 11.1% khi thật là 98%).

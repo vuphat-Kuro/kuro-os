@@ -1,0 +1,22 @@
+﻿KURO OS - ĐỌC TRƯỚC KHI CÀI
+
+Bộ cài này làm gì
+- Kiểm tra máy, cài những gì còn thiếu: Git, Python 3.13, Node.js, Edge WebView2, Claude Code, Antigravity, Codex (hai ô sau cùng tùy chọn ở bước kế tiếp).
+- Tải mã nguồn Kuro từ GitHub (github.com/vuphat-Kuro/kuro-os) về thư mục bạn chọn, mặc định C:\Kuro-os\Kuro.
+- Tạo biểu tượng Kuro OS. Không cần quyền quản trị; Windows có thể hỏi quyền (bấm Yes) khi cài Git hoặc Node.js.
+
+Dữ liệu của bạn nằm ở đâu
+- Ký ức, lịch sử trò chuyện, khóa và cấu hình (.env) nằm trong thư mục Kuro trên máy bạn. Bộ cài không gửi chúng đi đâu.
+- Kuro chạy cục bộ tại 127.0.0.1, cổng 7788.
+- Khi bạn hỏi, nội dung câu hỏi được gửi tới hãng AI mà bạn tự đăng nhập (Claude, Antigravity/Google, Codex/OpenAI) theo điều khoản của hãng đó. Bộ cài không đăng nhập thay bạn.
+- Kuro chỉ gọi ra ngoài để cập nhật (GitHub) và Telegram nếu bạn tự bật.
+
+Nguồn tải
+- Chỉ từ các nơi chính thức: GitHub, winget (Microsoft), nodejs.org, python.org, npm, antigravity.google.
+- Công cụ AI của bên thứ ba thuộc bản quyền và điều khoản của từng hãng.
+
+Gỡ cài đặt
+- Gỡ trong Cài đặt Windows > Ứng dụng > Kuro OS. Thư mục Kuro (ký ức, lịch sử, .env) được GIỮ NGUYÊN; muốn xóa sạch thì tự xóa thư mục đó.
+
+Nếu cài lỗi
+- Chạy lại KuroOS-Setup.exe, bước nào xong rồi sẽ được bỏ qua. Nhật ký nằm ở %LOCALAPPDATA%\Programs\Kuro OS\install.log.

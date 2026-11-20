@@ -4,6 +4,8 @@ Tài liệu này hướng dẫn chi tiết từng bước dành riêng cho các 
 
 ---
 
+> **Cách nhanh nhất: dùng bộ cài `KuroOS-Setup.exe`.** Tạo bằng `installer\build-installer.bat` (cần Inno Setup 6: `winget install -e --id JRSoftware.InnoSetup`), gửi cho nhân viên, họ nhấp đúp và chờ. Bộ cài tự cài Git, tải Kuro về `C:\Kuro-os\Kuro`, cài Python, Node.js, WebView2, Claude Code, Antigravity, thư viện, tạo biểu tượng Desktop/Start. Chạy lại bộ cài thì bước nào xong rồi sẽ được bỏ qua. Gỡ cài đặt giữ nguyên thư mục Kuro (ký ức, lịch sử, `.env`). Các bước tay bên dưới chỉ cần khi không dùng bộ cài.
+
 ## BƯỚC 1: PHẦN MỀM NỀN TẢNG (TỰ ĐỘNG TỪ BẢN NÀY)
 
 **Không cần cài tay nữa.** `setup.bat` (Bước 3) tự kiểm tra và cài Python 3.13, Git, Node.js, Edge WebView2, Claude Code CLI và Antigravity CLI (`agy`) nếu máy còn thiếu. Điều kiện: Windows 10 1809 trở lên có `winget` (mục "App Installer" trên Microsoft Store). Git và Node.js sẽ hiện hộp hỏi quyền quản trị, bấm **Yes**.

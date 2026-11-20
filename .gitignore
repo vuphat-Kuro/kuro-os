@@ -12,3 +12,6 @@ projects/*
 !projects/DuAn_KhoiTao/
 !projects/DuAn_KhoiTao/**
 .archify/
+
+# Bo cai build ra (tao lai bang installer/build-installer.bat)
+installer/Output/

@@ -4,7 +4,9 @@
 #   -ChiKiemTra : chi bao thanh phan nao co/thieu, khong cai gi, khong dong toi may.
 #   -Codex      : cai them Codex CLI (ChatGPT). Mac dinh khong cai.
 # Can Windows 10 1809 tro len co winget (App Installer). Git va Node.js se hien hop xin quyen quan tri (UAC).
-param([switch]$ChiKiemTra, [switch]$Codex)
+#   -BoQuaCli   : khong cai Claude Code CLI va Antigravity CLI (bo cai KuroOS-Setup.exe dung khi nguoi dung bo tick).
+#   -KhongTaoIcon : khong tao bieu tuong Desktop/Start (bo cai KuroOS-Setup.exe tu tao bang Inno Setup).
+param([switch]$ChiKiemTra, [switch]$Codex, [switch]$BoQuaCli, [switch]$KhongTaoIcon)
 
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -80,6 +82,7 @@ $ThanhPhan = @(
      Kiem = { Co-Agy }
      Cai  = { & powershell -NoProfile -ExecutionPolicy Bypass -Command 'irm https://antigravity.google/cli/install.ps1 | iex' } }
 )
+if ($BoQuaCli) { $ThanhPhan = @($ThanhPhan | Where-Object { $_.Ten -notmatch 'CLI' }) }
 if ($Codex) {
   $ThanhPhan += @{ Ten = 'Codex CLI (ChatGPT)'; BatBuoc = $false; Link = 'mở PowerShell gõ: npm install -g @openai/codex'
                    Kiem = { Co-Lenh 'codex' }
@@ -148,7 +151,7 @@ if (-not (Test-Path (Join-Path $dir '.env')) -and (Test-Path (Join-Path $dir 'en
 }
 
 Write-Host '[3/3] Tạo biểu tượng Kuro OS trên màn hình chính...'
-& (Join-Path $dir 'tao-loi-tat.ps1')
+if (-not $KhongTaoIcon) { & (Join-Path $dir 'tao-loi-tat.ps1') }
 
 Write-Host ''
 Write-Host '====================================================================='
