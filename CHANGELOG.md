@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.3] - 2026-11-20
+- **Nâng cấp giao diện Soft UI nổi khối đồng bộ Sáng / Tối (giữ nguyên toàn bộ kiến trúc & nghiệp vụ):**
+  - Áp dụng phong cách Soft UI nổi khối 3 cột bo góc, viền rõ và đổ bóng 3D theo tông màu Phương Thành (Xanh Navy & Đỏ nhấn), đồng bộ hoàn toàn cấu trúc giữa chế độ **Sáng (mặc định)** và **Tối (Navy Đêm)** bằng nút chuyển nhanh trên thanh tiêu đề (chuyển màu đồng loạt tức thì, tự lưu lựa chọn).
+  - Căn chuẩn bong bóng người dùng bên phải, Kuro trả lời bên trái; tự mở rộng vùng hội thoại và khung nhập chat theo kích thước cửa sổ khi phóng to.
+  - Tinh gọn thanh tiêu đề: bỏ nổi màu đỏ cố định trên nút Phiên mới, ẩn badge trạng thái `Sẵn sàng`, gom nút Ngữ cảnh & Lịch sử thành nút mũi tên `>` / `<` ở sau cùng kèm hiệu ứng trượt thu gọn / mở rộng mượt mà cho panel phải, sửa lỗi cắt đỉnh dấu tiếng Việt (`Bản tối`).
+
 ## [1.8.2] - 2026-11-19
 - **Quy tắc làm việc nằm trong chính thư mục dự án (`QUY_TAC_LAM_VIEC.md`):**
   - Mỗi lượt chat Kuro đọc lại tệp `QUY_TAC_LAM_VIEC.md` ở gốc dự án: có tệp thì làm đúng theo nội dung hiện tại (kể cả khi người dùng đã tự sửa), không có tệp thì làm việc bình thường. Kuro không giữ quy tắc trong nội bộ; mẫu Kuro Standard chỉ dùng để viết tệp lần đầu khi chọn **Áp dụng Kuro Standard** (tạo 3 thư mục + tệp quy tắc, không ghi đè tệp đã có).

@@ -228,7 +228,7 @@ const MASCOT_SVG = `<svg viewBox="-100 -100 200 200" aria-hidden="true">
   <circle class="m-lamp-ring" cy="-64" r="10"/><circle class="m-lamp" cy="-64" r="6"/>
 </svg>`;
 
-const MASCOT_IMG = `<img src="/kuro_logo_256.png" alt="Kuro Core" style="width:100%; height:100%; object-fit:contain; border-radius:50%; display:block;" />`;
+const MASCOT_IMG = `<img src="/kuro_logo_256.png" alt="Kuro Core" style="width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 3px 6px rgba(21,38,75,0.22));" />`;
 
 // Icon chuyên môn theo từng Agent
 const AGENT_ICONS = {
@@ -1504,6 +1504,17 @@ function closeAgentsSidebar() {
   }
 }
 
+function syncHistoryToggleBtn() {
+  const hs = $("history-sidebar");
+  const btn = $("btn-toggle-history");
+  if (!hs || !btn) return;
+  const isClosed = hs.classList.contains("collapsed") || (window.innerWidth <= 768 && !hs.classList.contains("open"));
+  btn.classList.toggle("is-collapsed", isClosed);
+  btn.title = isClosed ? "Mở rộng bảng Lịch sử & Ngữ cảnh" : "Thu gọn bảng Lịch sử & Ngữ cảnh";
+  const label = $("history-toggle-text");
+  if (label) label.textContent = isClosed ? "Mở rộng" : "Thu gọn";
+}
+
 function openHistorySidebar() {
   const hs = $("history-sidebar");
   if (!hs) return;
@@ -1514,6 +1525,7 @@ function openHistorySidebar() {
     const backdrop = $("sidebar-backdrop");
     if (backdrop) backdrop.classList.add("active");
   }
+  syncHistoryToggleBtn();
   if (currentInspectorTab === "context") {
     loadSessionContext(session);
   }
@@ -1528,6 +1540,7 @@ function closeHistorySidebar() {
     const backdrop = $("sidebar-backdrop");
     if (backdrop) backdrop.classList.remove("active");
   }
+  syncHistoryToggleBtn();
 }
 
 function closeAllDrawers() {
@@ -1548,6 +1561,7 @@ function toggleHistorySidebar() {
   }
 }
 $("btn-toggle-history").onclick = toggleHistorySidebar;
+syncHistoryToggleBtn();
 if ($("btn-toggle-history-mobile")) $("btn-toggle-history-mobile").onclick = toggleHistorySidebar;
 if ($("gear-mobile")) $("gear-mobile").onclick = () => $("gear").click();
 $("btn-close-history").onclick = closeHistorySidebar;
@@ -2641,6 +2655,7 @@ $("f").onsubmit = async (e) => {
       $("q").value = "";
       addMessage("user", "").textContent = text;
       $("history-sidebar").classList.remove("collapsed");
+      syncHistoryToggleBtn();
       switchInspectorTab("context");
       loadSessionContext(session);
       if (!session) {
@@ -3662,7 +3677,7 @@ function renderModelMenuPopover(activeVal, activeProv = "") {
       : items;
     if (!filtered.length) continue;
 
-    const cliWarn = (g.cli_installed === false) ? `<span style="color:#fcd34d; font-size:9.5px;">chưa cài CLI</span>` : "";
+    const cliWarn = (g.cli_installed === false) ? `<span style="color:var(--amber); font-size:9.5px;">chưa cài CLI</span>` : "";
     html += `
       <div class="model-menu-group-hdr">
         <span style="display:inline-flex; align-items:center; gap:6px;">
@@ -3906,6 +3921,7 @@ const openPluginsHandler = () => {
   hideBottomPopovers();
   switchInspectorTab("context");
   $("history-sidebar").classList.remove("collapsed");
+  syncHistoryToggleBtn();
 };
 if ($("btn-plugin-manage")) $("btn-plugin-manage").onclick = openPluginsHandler;
 if ($("btn-plugin-browse")) $("btn-plugin-browse").onclick = openPluginsHandler;
@@ -4555,7 +4571,7 @@ async function openWorkspaceRulesDialog(isNewProjectPrompt = false) {
         noteEl.style.display = "block";
       } else if (data.has_rules) {
         noteEl.textContent = "Kuro làm việc theo tệp QUY_TAC_LAM_VIEC.md trong thư mục dự án. Sửa tệp (bên dưới hoặc mở trực tiếp) là đổi quy tắc.";
-        noteEl.style.color = "#6ee7b7";
+        noteEl.style.color = "var(--green)";
         noteEl.style.display = "block";
       } else {
         noteEl.style.display = "none";
@@ -6318,6 +6334,31 @@ window.addEventListener("resize", () => {
     updateChatNavTicks();
   }
 });
+
+// Chuyển đổi giao diện Sáng nổi khối Soft UI (mặc định) <-> Tối Kuro HUD
+function syncThemeUI() {
+  const isDark = document.body.classList.contains("theme-dark");
+  const iconEl = $("theme-toggle-icon");
+  const textEl = $("theme-toggle-text");
+  const metaEl = document.getElementById("meta-theme-color");
+  if (iconEl) iconEl.textContent = isDark ? "☀️" : "🌙";
+  if (textEl) textEl.textContent = isDark ? "Bản sáng" : "Bản tối";
+  if (metaEl) metaEl.setAttribute("content", isDark ? "#09101c" : "#dfe6f0");
+}
+const btnThemeToggle = $("btn-theme-toggle");
+if (btnThemeToggle) {
+  syncThemeUI();
+  btnThemeToggle.addEventListener("click", () => {
+    document.body.classList.add("theme-switching");
+    const nowDark = document.body.classList.toggle("theme-dark");
+    try {
+      localStorage.setItem("kuro_ui_theme", nowDark ? "dark" : "light");
+    } catch (_) {}
+    syncThemeUI();
+    void document.body.offsetWidth;
+    requestAnimationFrame(() => document.body.classList.remove("theme-switching"));
+  });
+}
 
 // Khởi chạy
 updateSendButtonState();
