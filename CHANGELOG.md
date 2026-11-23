@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.8] - 2026-11-23
+- **Thêm Distilly vào kho skill (`kho/distilly`, MIT, ghim commit `0afc45c`):** chưng cất tài liệu thành hồ sơ người (Person Profile) cho agent. Tìm bằng `tim_skill`, đọc bằng `doc_skill`; mã `tools/*.py` chỉ chạy qua `chay_ma_kho` sau khi chủ máy duyệt ở Cài đặt > Kho skill (chưa duyệt, bị chặn).
+  - Bỏ bộ cài npm, `tests/`, `docs/` và `install_distilly.py`. Bộ thu thập Feishu/DingTalk/Slack cần khoá API do người dùng tự nhập ở terminal riêng.
+  - `tools/dong_bo_kho.py` đồng bộ riêng từng nguồn (`dong_bo_kho.py distilly`), nguồn còn lại giữ nguyên, khỏi tải lại repo lớn.
+  - Thêm `requests` vào `requirements.txt` (Distilly cần).
+
 ## [1.8.7] - 2026-11-20
 - **Bộ cài `KuroOS-Setup.exe` (Inno Setup, thư mục `installer/`), cùng kiểu bộ cài mỏng như Javis OS:**
   - Bộ cài chỉ mang `bootstrap.ps1` và biểu tượng; chạy ẩn, tự cài Git, `git clone` Kuro về `C:\Kuro-os\Kuro` (để nút Cập nhật bằng git vẫn chạy), rồi gọi `cai-dat-tu-dong.ps1` cài Python, Node.js, WebView2, Claude Code, Antigravity, Codex, `.venv`, thư viện. Không cần quyền quản trị.

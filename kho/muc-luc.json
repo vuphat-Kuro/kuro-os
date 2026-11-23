@@ -49,6 +49,16 @@
    "ghi_chu": "Hướng dẫn tiếng Việt của người dùng cho quy trình Spec Kit; repo gốc chỉ là nơi tham chiếu.",
    "can_bash": "Cần lệnh specify (uv tool install specify-cli) và bật Bash ở Cài đặt.",
    "so_skill": 1
+  },
+  {
+   "id": "distilly",
+   "ten": "Distilly - chưng cất tài liệu thành hồ sơ người (Person Profile) cho agent",
+   "url": "https://github.com/titanwings/distilly",
+   "commit": "0afc45c29c360ba7bc8260f1bb0bf34e9155f4fa",
+   "giay_phep": "MIT",
+   "ghi_chu": "Bỏ bin/ (bộ cài npm), tests/, docs/, install_distilly.py (tự cài vào host khác). Hồ sơ sinh ra lưu ở ./skills/<loại>/<slug>/ trong thư mục dự án đang mở.",
+   "can_bash": "Chạy tools/*.py qua chay_ma_kho sau khi chủ máy duyệt mã. Cần thư viện requests (requirements.txt). Bộ thu thập Feishu/DingTalk/Slack cần khoá API do người dùng tự nhập ở terminal riêng, không đưa vào hội thoại.",
+   "so_skill": 1
   }
  ],
  "skill": [
@@ -2581,6 +2591,17 @@
    "giay_phep": "MIT",
    "co_ma": false,
    "can_bash": "Cần lệnh specify (uv tool install specify-cli) và bật Bash ở Cài đặt."
+  },
+  {
+   "id": "distilly",
+   "ten": "distilly",
+   "mo_ta": "Set up the owner profile so a personal agent knows who it works for (first-run setup, \\\"get to know me\\\"), or distill colleague, relationship, or celebrity source material into reusable Person Profiles for agents.",
+   "repo": "distilly",
+   "nhom": "",
+   "duong_dan": "kho/distilly",
+   "giay_phep": "MIT",
+   "co_ma": true,
+   "can_bash": "Chạy tools/*.py qua chay_ma_kho sau khi chủ máy duyệt mã. Cần thư viện requests (requirements.txt). Bộ thu thập Feishu/DingTalk/Slack cần khoá API do người dùng tự nhập ở terminal riêng, không đưa vào hội thoại."
   }
  ]
 }

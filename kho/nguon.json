@@ -56,6 +56,18 @@
       "skill_don": {"id": "spec-kit-tu-dong", "tu": "SKILL.md"},
       "can_bash": "Cần lệnh specify (uv tool install specify-cli) và bật Bash ở Cài đặt.",
       "ghi_chu": "Hướng dẫn tiếng Việt của người dùng cho quy trình Spec Kit; repo gốc chỉ là nơi tham chiếu."
+    },
+    {
+      "id": "distilly",
+      "ten": "Distilly - chưng cất tài liệu thành hồ sơ người (Person Profile) cho agent",
+      "url": "https://github.com/titanwings/distilly",
+      "commit": "0afc45c29c360ba7bc8260f1bb0bf34e9155f4fa",
+      "giay_phep": "MIT",
+      "clone": "",
+      "chon": ["SKILL.md", "prompts", "tools", "requirements.txt", "requirements-optional.txt", "LICENSE"],
+      "bo_tep": ["tools/install_distilly.py"],
+      "can_bash": "Chạy tools/*.py qua chay_ma_kho sau khi chủ máy duyệt mã. Cần thư viện requests (requirements.txt). Bộ thu thập Feishu/DingTalk/Slack cần khoá API do người dùng tự nhập ở terminal riêng, không đưa vào hội thoại.",
+      "ghi_chu": "Bỏ bin/ (bộ cài npm), tests/, docs/, install_distilly.py (tự cài vào host khác). Hồ sơ sinh ra lưu ở ./skills/<loại>/<slug>/ trong thư mục dự án đang mở."
     }
   ]
 }

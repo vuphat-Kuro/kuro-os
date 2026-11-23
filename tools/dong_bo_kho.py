@@ -85,12 +85,18 @@ def giu_ma_da_duyet(n_id: str, moi: Path, cu: Path, so: dict) -> list[str]:
     return giu
 
 
-def dong_bo() -> dict:
+def dong_bo(chi: set | None = None) -> dict:
+    """chi: tập id nguồn cần đồng bộ; nguồn còn lại giữ nguyên thư mục và mục lục cũ (khỏi tải lại repo lớn)."""
     cfg = json.loads((kho.KHO / "nguon.json").read_text(encoding="utf-8"))
     bo_duoi = set(cfg.get("bo_duoi", []))
     so = kho.so_duyet()
+    cu = kho.muc_luc()
     nguon_ml, skill_ml, bao = [], [], []
     for n in cfg["nguon"]:
+        if chi and n["id"] not in chi:
+            nguon_ml += [x for x in cu["nguon"] if x["id"] == n["id"]]
+            skill_ml += [x for x in cu["skill"] if x["repo"] == n["id"]]
+            continue
         src = lay_nguon(n)
         dst = kho.KHO / n["id"]
         with tempfile.TemporaryDirectory(dir=kho.KHO) as tmp:
@@ -130,7 +136,7 @@ def dong_bo() -> dict:
 
 
 if __name__ == "__main__":
-    kq = dong_bo()
+    kq = dong_bo(set(sys.argv[1:]))   # vd: dong_bo_kho.py distilly
     print(f"Kho có {kq['so_skill']} skill.")
     for b in kq["bao"]:
         print(" -", b)
