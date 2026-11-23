@@ -1,0 +1,9 @@
+{
+  "ten": "Đổi chữ TCVN3/VNI sang Unicode trong AutoCAD (PKTTC TextHub)",
+  "mo_ta": "Quét, lập kế hoạch và đổi chữ cũ (TCVN3, VNI) sang Unicode trong bản vẽ DWG đang mở trong AutoCAD, quản lý font và style chữ, kèm bảng PKTEXTUI và menu KTTC. Chỉ nạp khi việc liên quan đến chữ tiếng Việt trong bản vẽ AutoCAD (đổi bảng mã, lỗi font, font thiếu, style chữ). Cần cài plugin vào AutoCAD trước (skill hướng dẫn).",
+  "skill": "texthub-cad",
+  "pip": [],
+  "import": [],
+  "phien_ban": "0.9.0",
+  "kiem_tra": "scripts/texthub_setup.py status"
+}

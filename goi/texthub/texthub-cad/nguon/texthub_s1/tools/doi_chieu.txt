@@ -1,0 +1,28 @@
+Chu cai Viet sinh tu quy tac: 134 (ky vong 134)
+Nguon A (LISP): TCVN3_MAP=74, TCVN3_UPPER_MAP=74, VNI_MAP=127
+Nguon B (BVC) cot unicode: 134 muc
+Nguon B (BVC) cot tcvn: 134 muc
+Nguon B (BVC) cot vni: 134 muc
+BVC unicode: duy nhat=134, khop quy tac=True
+  thieu so voi quy tac: [] | thua: []
+BVC tcvn do dai: {1: 134, 2: 0, 3: 0}
+BVC vni do dai: {1: 18, 2: 116, 3: 0}
+TCVN3 thuong (LISP vs BVC): chung=74, khac=0
+VNI (LISP vs BVC): chung=117, khac=17
+   'Ã'  A=b'A\xc3'  B=b'A\xd5'
+   'ì'  A=b'i\xf8'  B=b'\xec'
+   'í'  A=b'i\xf9'  B=b'\xed'
+   'ĩ'  A=b'i\xf5'  B=b'\xf3'
+   'Ẳ'  A=b'E\xc1'  B=b'A\xda'
+   'ẳ'  A=b'e\xe1'  B=b'a\xfa'
+   'Ẵ'  A=b'E\xc0'  B=b'A\xdc'
+   'ẵ'  A=b'e\xe0'  B=b'a\xfc'
+   'Ặ'  A=b'E\xc5'  B=b'A\xcb'
+   'ặ'  A=b'e\xe5'  B=b'a\xeb'
+   'ỉ'  A=b'i\xfb'  B=b'\xe6'
+   'ị'  A=b'i\xef'  B=b'\xf2'
+   'Ớ'  A=b'\xd4\xd8'  B=b'\xd4\xd9'
+   'ớ'  A=b'\xf4\xf8'  B=b'\xf4\xf9'
+   'Ờ'  A=b'\xd4\xd9'  B=b'\xd4\xd8'
+   'ờ'  A=b'\xf4\xf9'  B=b'\xf4\xf8'
+   'ỵ'  A=b'y\xef'  B=b'\xee'

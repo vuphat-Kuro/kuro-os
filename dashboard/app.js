@@ -3426,10 +3426,564 @@ async function openSettings() {
   renderProvidersSettings(r);
   showCore(r);
   if (!$("settings").open) {
+    setPluginStatus("");
+    switchSettingsTab("general");
     $("settings").showModal();
   }
   loadKhoLich().catch(() => {});
+  loadPlugins().catch(() => {});
 }
+
+// ========================================================
+// QUẢN LÝ PLUGINS (TÍCH HỢP SẴN & GÓI BÊN NGOÀI)
+// ========================================================
+let selectedPluginZipFile = null;
+let pluginOpBusy = false;
+
+function switchSettingsTab(tabName) {
+  const target = tabName === "plugins" ? "plugins" : "general";
+  document.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((btn) => {
+    const active = btn.dataset.settingsTab === target;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  const genPanel = $("s-tab-general");
+  const plgPanel = $("s-tab-plugins");
+  if (genPanel) genPanel.hidden = target !== "general";
+  if (plgPanel) plgPanel.hidden = target !== "plugins";
+  if (target === "plugins") {
+    loadPlugins().catch(() => {});
+  }
+}
+
+function setPluginStatus(text, type = "") {
+  const bar = $("s-plugin-status");
+  if (!bar) return;
+  if (!text) {
+    bar.hidden = true;
+    bar.textContent = "";
+    bar.className = "plugin-status-bar";
+    return;
+  }
+  bar.hidden = false;
+  bar.textContent = text;
+  bar.className = "plugin-status-bar" + (type ? " " + type : "");
+}
+
+function _formatBytesShort(bytes) {
+  if (!bytes || bytes < 1024) return `${bytes || 0} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function _createPluginChip(text, tone = "") {
+  const sp = document.createElement("span");
+  sp.className = "plugin-chip" + (tone === true ? " warn" : tone ? " " + tone : "");
+  sp.textContent = text;
+  return sp;
+}
+
+const _MACHINE_STATUS_META = {
+  da_cai: { label: "Đã cài trên máy", cls: "prov-pill-ok" },
+  co_ban_moi: { label: "Có bản mới", cls: "prov-pill-warn" },
+  chua_cai: { label: "Chưa cài vào phần mềm", cls: "prov-pill-warn" },
+  da_cai_ban_moi_hon: { label: "Máy đang có bản mới hơn", cls: "prov-pill-def" },
+  khong_co_autocad: { label: "Chưa thấy AutoCAD", cls: "plugin-id-tag" },
+  khong_ho_tro: { label: "Phiên bản chưa hỗ trợ", cls: "prov-pill-warn" },
+  loi: { label: "Lỗi kiểm tra", cls: "prov-pill-warn" },
+};
+
+function _buildMachineSetupBox(p) {
+  const st = p.trang_thai_may;
+  if (!p.co_cai_dat_may || !st) return null;
+
+  const box = document.createElement("div");
+  box.className = "plugin-machine-box";
+
+  const head = document.createElement("div");
+  head.className = "plugin-machine-head";
+
+  const ttl = document.createElement("div");
+  ttl.className = "plugin-machine-title";
+  const icWrap = document.createElement("span");
+  icWrap.innerHTML = kuroIcon("ic-monitor", "ic-xs");
+  const ttlTxt = document.createElement("span");
+  ttlTxt.textContent = "Cài đặt trên máy tính";
+  ttl.append(icWrap, ttlTxt);
+
+  const code = st.trang_thai || "loi";
+  const meta = _MACHINE_STATUS_META[code] || _MACHINE_STATUS_META.loi;
+  const pill = document.createElement("span");
+  pill.className = meta.cls;
+  const verInstalled = st.cai_dat && st.cai_dat.phien_ban;
+  pill.textContent = (code === "da_cai" && verInstalled) ? `Đã cài v${verInstalled}`
+    : (code === "co_ban_moi" && verInstalled) ? `v${verInstalled} -> v${st.phien_ban_goi || p.phien_ban}`
+    : meta.label;
+
+  head.append(ttl, pill);
+  box.append(head);
+
+  if (st.thong_bao) {
+    const msg = document.createElement("div");
+    msg.className = "plugin-machine-msg";
+    msg.textContent = st.thong_bao;
+    box.append(msg);
+  }
+
+  // Thông tin AutoCAD / kho font phát hiện trên máy
+  const details = document.createElement("div");
+  details.style.display = "flex";
+  details.style.flexWrap = "wrap";
+  details.style.gap = "5px";
+  if (Array.isArray(st.autocad)) {
+    for (const c of st.autocad) {
+      const label = `${c.ten || c.series} (${c.series}): ${c.ho_tro ? "Hỗ trợ" : "Chưa hỗ trợ"}`;
+      details.append(_createPluginChip(label, c.ho_tro ? "ok" : ""));
+    }
+  }
+  if (st.kho_font_goi && st.kho_font_goi.co) {
+    const daChep = st.kho_font_da_cai && st.kho_font_da_cai.da_cai;
+    details.append(_createPluginChip(
+      `Kho font: ${st.kho_font_goi.so_tep} tệp (${st.kho_font_goi.mb} MB)${daChep ? " - đã chép" : ""}`,
+      daChep ? "ok" : ""
+    ));
+  }
+  if (Array.isArray(st.font_can_thiet)) {
+    for (const f of st.font_can_thiet) {
+      if (!f.da_cai) {
+        details.append(_createPluginChip(`Thiếu font: ${f.ten}`, "warn"));
+      }
+    }
+  }
+  if (details.childElementCount > 0) {
+    box.append(details);
+  }
+
+  // Các nút thao tác cài / cập nhật / cài font / gỡ trực tiếp trên máy
+  const goiY = Array.isArray(st.goi_y) ? st.goi_y : [];
+  const actions = document.createElement("div");
+  actions.className = "plugin-machine-actions";
+
+  const runSetup = async (action, btn, busyLabel, confirmMsg = "") => {
+    if (pluginOpBusy) return;
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    pluginOpBusy = true;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = busyLabel;
+    setPluginStatus(`Đang thực hiện "${orig}" cho "${p.ten || p.id}" trên máy tính...`, "busy");
+    try {
+      const resp = await fetch("/api/plugins/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: p.id, action })
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j.detail || "Thao tác thất bại");
+      setPluginStatus(j.message || (j.ok ? "Hoàn tất." : "Chưa hoàn tất."), j.ok ? "ok" : "err");
+      if (j.plugins) renderPlugins(j);
+      loadAgents().catch(() => {});
+    } catch (err) {
+      setPluginStatus(`Lỗi: ${err.message}`, "err");
+      btn.disabled = false;
+      btn.textContent = orig;
+    } finally {
+      pluginOpBusy = false;
+    }
+  };
+
+  if (code === "chua_cai" || code === "co_ban_moi" || goiY.includes("install")) {
+    const btnInst = document.createElement("button");
+    btnInst.type = "button";
+    btnInst.className = "btn main";
+    btnInst.textContent = code === "co_ban_moi"
+      ? `Cập nhật lên v${st.phien_ban_goi || p.phien_ban}`
+      : code === "da_cai"
+        ? "Cài bổ sung kho font"
+        : "Cài vào AutoCAD";
+    btnInst.disabled = pluginOpBusy;
+    btnInst.onclick = () => runSetup("install", btnInst, "Đang cài...");
+    actions.append(btnInst);
+  }
+
+  if (goiY.includes("fonts-install")) {
+    const btnFont = document.createElement("button");
+    btnFont.type = "button";
+    btnFont.className = "btn";
+    btnFont.textContent = "Cài font đích thiếu";
+    btnFont.disabled = pluginOpBusy;
+    btnFont.onclick = () => runSetup("fonts-install", btnFont, "Đang cài font...");
+    actions.append(btnFont);
+  }
+
+  if (code === "da_cai" || code === "co_ban_moi" || code === "da_cai_ban_moi_hon") {
+    const btnUn = document.createElement("button");
+    btnUn.type = "button";
+    btnUn.className = "btn";
+    btnUn.textContent = "Gỡ khỏi AutoCAD";
+    btnUn.disabled = pluginOpBusy;
+    btnUn.onclick = () => runSetup(
+      "uninstall",
+      btnUn,
+      "Đang gỡ...",
+      `Gỡ plugin "${p.ten || p.id}" khỏi AutoCAD trên máy tính này? (Kho font và bản sao lưu bản vẽ được giữ lại)`
+    );
+    actions.append(btnUn);
+  }
+
+  if (actions.childElementCount > 0) {
+    box.append(actions);
+  }
+  return box;
+}
+
+function buildPluginCard(p) {
+  const card = document.createElement("div");
+  card.className = "plugin-card" + (p.da_cai ? " installed" : "");
+  card.dataset.pluginId = p.id;
+
+  const head = document.createElement("div");
+  head.className = "plugin-card-head";
+
+  const main = document.createElement("div");
+  main.className = "plugin-card-main";
+
+  const iconBox = document.createElement("div");
+  iconBox.className = "plugin-icon-box";
+  iconBox.innerHTML = kuroIcon(p.nguon === "external" ? "ic-plug" : "ic-blocks", "ic-sm");
+
+  const info = document.createElement("div");
+  info.className = "plugin-card-info";
+
+  const title = document.createElement("div");
+  title.className = "plugin-card-title";
+  const nameSpan = document.createElement("span");
+  nameSpan.textContent = p.ten || p.id;
+  const idTag = document.createElement("span");
+  idTag.className = "plugin-id-tag";
+  idTag.textContent = p.id;
+  const verTag = document.createElement("span");
+  verTag.className = "plugin-id-tag";
+  verTag.textContent = `v${p.phien_ban || "1.0.0"}`;
+  const statePill = document.createElement("span");
+  statePill.className = p.da_cai ? "prov-pill-ok" : "plugin-id-tag";
+  statePill.textContent = p.da_cai ? "Đã cài" : "Chưa cài";
+  title.append(nameSpan, idTag, verTag, statePill);
+
+  if (p.nguon === "external") {
+    const extPill = document.createElement("span");
+    extPill.className = "prov-pill-def";
+    extPill.textContent = "Gói ngoài";
+    title.append(extPill);
+  }
+
+  const desc = document.createElement("p");
+  desc.className = "plugin-card-desc";
+  desc.textContent = p.mo_ta || "Không có mô tả.";
+
+  info.append(title, desc);
+  main.append(iconBox, info);
+
+  const actions = document.createElement("div");
+  actions.className = "plugin-card-actions";
+  const actBtn = document.createElement("button");
+  actBtn.type = "button";
+  actBtn.className = p.da_cai ? "btn" : (p.co_cai_dat_may ? "btn" : "btn main");
+  actBtn.textContent = p.co_cai_dat_may
+    ? (p.da_cai ? "Tắt trong Kuro" : "Bật trong Kuro")
+    : (p.da_cai ? "Gỡ cài đặt" : "Cài đặt");
+  actBtn.disabled = pluginOpBusy;
+  actBtn.onclick = async () => {
+    if (pluginOpBusy) return;
+    if (p.da_cai && p.nguon === "external") {
+      const ok = window.confirm(`Gỡ và xóa gói plugin ngoài "${p.ten || p.id}" khỏi máy tính này?`);
+      if (!ok) return;
+    }
+    pluginOpBusy = true;
+    const origText = actBtn.textContent;
+    actBtn.disabled = true;
+    actBtn.textContent = p.da_cai ? "Đang gỡ..." : "Đang cài...";
+    setPluginStatus(
+      p.da_cai
+        ? `Đang gỡ plugin "${p.ten || p.id}"...`
+        : `Đang cài plugin "${p.ten || p.id}" trên máy tính (nếu thiếu thư viện Python có thể mất 10-60 giây)...`,
+      "busy"
+    );
+    try {
+      const url = p.da_cai ? "/api/plugins/uninstall" : "/api/plugins/install";
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: p.id })
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(j.detail || "Thao tác thất bại");
+      }
+      setPluginStatus(j.message || (p.da_cai ? `Đã gỡ "${p.id}".` : `Đã cài "${p.id}".`), "ok");
+      renderPlugins(j);
+      loadAgents().catch(() => {});
+    } catch (err) {
+      setPluginStatus(`Lỗi: ${err.message}`, "err");
+      actBtn.disabled = false;
+      actBtn.textContent = origText;
+    } finally {
+      pluginOpBusy = false;
+    }
+  };
+  actions.append(actBtn);
+  head.append(main, actions);
+  card.append(head);
+
+  const machineBox = _buildMachineSetupBox(p);
+  if (machineBox) {
+    card.append(machineBox);
+  }
+
+  // Dòng thành phần đi kèm (skills, agents, mcp, pip, nguồn gói ngoài)
+  const chips = document.createElement("div");
+  chips.className = "plugin-chips";
+  if (p.skills && p.skills.length) {
+    chips.append(_createPluginChip(`Skill: ${p.skills.join(", ")}`));
+  }
+  if (p.agents && p.agents.length) {
+    chips.append(_createPluginChip(`Cộng sự: ${p.agents.join(", ")}`));
+  }
+  if (p.mcp && p.mcp.length) {
+    chips.append(_createPluginChip(`MCP: ${p.mcp.join(", ")}`));
+  }
+  if (p.pip && p.pip.length) {
+    const missing = p.thieu_pip && p.thieu_pip.length > 0;
+    chips.append(_createPluginChip(
+      `Thư viện Python: ${p.pip.join(", ")} (${missing ? "sẽ tự cài qua pip" : "đã có sẵn"})`,
+      missing && !p.da_cai
+    ));
+  }
+  if (p.nguon === "external" && p.nguon_tep) {
+    chips.append(_createPluginChip(`Nguồn: ${p.nguon_tep}`));
+  }
+  if (p.da_cai && p.cai_luc) {
+    chips.append(_createPluginChip(`Cài lúc: ${p.cai_luc.replace("T", " ")}`));
+  }
+  if (chips.childElementCount > 0) {
+    card.append(chips);
+  }
+  return card;
+}
+
+function renderPlugins(data) {
+  const list = (data && data.plugins) ? data.plugins : [];
+  const builtin = list.filter((p) => p.nguon !== "external");
+  const external = list.filter((p) => p.nguon === "external");
+  const installedCount = list.filter((p) => p.da_cai).length;
+
+  const badge = $("s-plugins-tab-badge");
+  if (badge) {
+    badge.textContent = list.length ? `${installedCount}/${list.length}` : "0";
+  }
+
+  const builtinBox = $("s-plugins-builtin");
+  if (builtinBox) {
+    if (!builtin.length) {
+      const empty = document.createElement("div");
+      empty.className = "plugin-empty";
+      empty.textContent = "Chưa có plugin tích hợp sẵn nào trong thư mục goi/.";
+      builtinBox.replaceChildren(empty);
+    } else {
+      builtinBox.replaceChildren(...builtin.map(buildPluginCard));
+    }
+  }
+
+  const extBox = $("s-plugins-external");
+  if (extBox) {
+    if (!external.length) {
+      const empty = document.createElement("div");
+      empty.className = "plugin-empty";
+      empty.textContent = "Chưa có plugin bên ngoài nào được cài. Bạn có thể cài từ tệp .zip / .kuro-plugin hoặc thư mục trên máy ở bên dưới.";
+      extBox.replaceChildren(empty);
+    } else {
+      extBox.replaceChildren(...external.map(buildPluginCard));
+    }
+  }
+}
+
+async function loadPlugins() {
+  const resp = await fetch("/api/plugins");
+  if (!resp.ok) {
+    const j = await resp.json().catch(() => ({}));
+    setPluginStatus(j.detail || "Không tải được danh sách plugin.", "err");
+    return;
+  }
+  const data = await resp.json();
+  renderPlugins(data);
+}
+
+function setSelectedPluginZip(file) {
+  selectedPluginZipFile = file || null;
+  const wrap = $("s-plugin-selected-file");
+  const nameEl = $("s-plugin-selected-name");
+  const input = $("s-plugin-zip-input");
+  if (!file) {
+    if (wrap) wrap.hidden = true;
+    if (nameEl) nameEl.textContent = "";
+    if (input) input.value = "";
+    return;
+  }
+  const low = (file.name || "").toLowerCase();
+  if (!low.endsWith(".zip") && !low.endsWith(".kuro-plugin")) {
+    setPluginStatus("Chỉ hỗ trợ tệp nén .zip hoặc .kuro-plugin.", "err");
+    selectedPluginZipFile = null;
+    if (wrap) wrap.hidden = true;
+    return;
+  }
+  if (nameEl) nameEl.textContent = `${file.name} (${_formatBytesShort(file.size)})`;
+  if (wrap) wrap.hidden = false;
+  setPluginStatus("");
+}
+
+async function installExternalPluginZip() {
+  if (pluginOpBusy || !selectedPluginZipFile) return;
+  const btn = $("btn-plugin-install-zip");
+  pluginOpBusy = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Đang cài..."; }
+  setPluginStatus(`Đang giải nén và cài gói "${selectedPluginZipFile.name}"...`, "busy");
+  try {
+    const fd = new FormData();
+    fd.append("file", selectedPluginZipFile, selectedPluginZipFile.name);
+    const resp = await fetch("/api/plugins/install-external-upload", { method: "POST", body: fd });
+    const j = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(j.detail || "Cài gói plugin ngoài thất bại");
+    setPluginStatus(j.message || `Đã cài plugin ngoài "${j.id}".`, "ok");
+    setSelectedPluginZip(null);
+    renderPlugins(j);
+    loadAgents().catch(() => {});
+  } catch (err) {
+    setPluginStatus(`Lỗi cài gói ngoài: ${err.message}`, "err");
+  } finally {
+    pluginOpBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Cài gói nén"; }
+  }
+}
+
+async function installExternalPluginByPath() {
+  if (pluginOpBusy) return;
+  const inp = $("s-plugin-path-input");
+  const btn = $("btn-plugin-install-path");
+  const p = (inp ? inp.value : "").trim();
+  if (!p) {
+    setPluginStatus("Vui lòng nhập hoặc chọn đường dẫn thư mục / tệp .zip plugin.", "err");
+    if (inp) inp.focus();
+    return;
+  }
+  pluginOpBusy = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Đang cài..."; }
+  setPluginStatus(`Đang đọc và cài gói plugin từ "${p}"...`, "busy");
+  try {
+    const resp = await fetch("/api/plugins/install-external-path", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: p })
+    });
+    const j = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(j.detail || "Cài gói plugin từ đường dẫn thất bại");
+    setPluginStatus(j.message || `Đã cài plugin ngoài "${j.id}".`, "ok");
+    if (inp) inp.value = "";
+    renderPlugins(j);
+    loadAgents().catch(() => {});
+  } catch (err) {
+    setPluginStatus(`Lỗi cài gói ngoài: ${err.message}`, "err");
+  } finally {
+    pluginOpBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Cài đặt"; }
+  }
+}
+
+function initPluginsSettingsUI() {
+  document.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => switchSettingsTab(btn.dataset.settingsTab));
+  });
+
+  const refreshBtn = $("btn-plugins-refresh");
+  if (refreshBtn) {
+    refreshBtn.onclick = async () => {
+      refreshBtn.disabled = true;
+      try {
+        await loadPlugins();
+        setPluginStatus("Đã làm mới danh sách plugin.", "ok");
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    };
+  }
+
+  const dropzone = $("s-plugin-dropzone");
+  const zipInput = $("s-plugin-zip-input");
+  if (dropzone && zipInput) {
+    dropzone.addEventListener("click", () => zipInput.click());
+    dropzone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        zipInput.click();
+      }
+    });
+    zipInput.addEventListener("change", () => {
+      if (zipInput.files && zipInput.files[0]) {
+        setSelectedPluginZip(zipInput.files[0]);
+      }
+    });
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) setSelectedPluginZip(file);
+    });
+  }
+
+  const clearZipBtn = $("btn-plugin-clear-zip");
+  if (clearZipBtn) clearZipBtn.onclick = () => setSelectedPluginZip(null);
+
+  const installZipBtn = $("btn-plugin-install-zip");
+  if (installZipBtn) installZipBtn.onclick = installExternalPluginZip;
+
+  const pickFolderBtn = $("btn-plugin-pick-folder");
+  if (pickFolderBtn) {
+    pickFolderBtn.onclick = async () => {
+      pickFolderBtn.disabled = true;
+      try {
+        const resp = await fetch("/api/plugins/pick-folder", { method: "POST" });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(j.detail || "Không mở được hộp thoại chọn thư mục");
+        if (j.ok && j.path && $("s-plugin-path-input")) {
+          $("s-plugin-path-input").value = j.path;
+          setPluginStatus("");
+        }
+      } catch (err) {
+        setPluginStatus(err.message, "err");
+      } finally {
+        pickFolderBtn.disabled = false;
+      }
+    };
+  }
+
+  const installPathBtn = $("btn-plugin-install-path");
+  if (installPathBtn) installPathBtn.onclick = installExternalPluginByPath;
+
+  const pathInput = $("s-plugin-path-input");
+  if (pathInput) {
+    pathInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        installExternalPluginByPath();
+      }
+    });
+  }
+}
+initPluginsSettingsUI();
 
 // Việc theo lịch và kho skill (specs/002). Chữ từ repo gán bằng textContent, không qua innerHTML.
 function khoRow(ten, meta, btnText, onClick) {
@@ -4126,27 +4680,32 @@ async function fetchAndRenderQuota(force) {
   try {
     const sid = (typeof session !== "undefined") ? session : "";
     const prov = activeSessionProvider || pendingSessionProvider || "";
+    const mod = activeSessionModel || pendingSessionModel || "";
     const qs = new URLSearchParams();
     if (sid) qs.set("session_id", sid);
     if (prov) qs.set("provider", prov);
+    if (mod) qs.set("model", mod);
     if (force) qs.set("refresh", "1");
     const res = await fetch(`/api/quota?${qs.toString()}`);
     if (!res.ok) return;
     const data = await res.json();
     lastQuotaData = data;
 
-    // source "real": phần trăm thật của gói (Claude /usage). Hãng khác không cung cấp hạn mức: chỉ đếm lượt hỏi trong Kuro.
+    // source "real": phần trăm thật của gói (Claude & AGY /usage). Hãng khác không cung cấp hạn mức: chỉ đếm lượt hỏi trong Kuro.
     const real = data.source === "real";
-    const pct5h = real ? data.block_5h.percent : 0;
-    const pctWeek = real ? data.weekly.percent : 0;
+    const has5h = real && data.block_5h && data.block_5h.percent != null;
+    const hasWeek = real && data.weekly && data.weekly.percent != null;
+    const pct5h = has5h ? data.block_5h.percent : 0;
+    const pctWeek = hasWeek ? data.weekly.percent : 0;
+    const ringPct = has5h ? pct5h : pctWeek;
     const noLimit = "Hãng không cung cấp hạn mức";
 
     // 1. Cập nhật vòng tròn SVG Quota (Xanh dương khi còn nhiều -> Vàng nhạt khi cao -> Đỏ khi gần hết)
-    const quotaColor = !real ? "var(--muted)" : (pct5h >= 90) ? "var(--quota-danger)" : (pct5h >= 70) ? "var(--quota-warn)" : "var(--quota-ok)";
+    const quotaColor = !real ? "var(--muted)" : (ringPct >= 90) ? "var(--quota-danger)" : (ringPct >= 70) ? "var(--quota-warn)" : "var(--quota-ok)";
     const circle = $("quota-circle-bar");
     if (circle) {
       const maxLen = 47.12;
-      const offset = maxLen * (1 - Math.min(100, pct5h) / 100);
+      const offset = maxLen * (1 - Math.min(100, ringPct) / 100);
       circle.style.strokeDashoffset = offset;
       circle.style.stroke = quotaColor;
     }
@@ -4161,7 +4720,7 @@ async function fetchAndRenderQuota(force) {
     const btn = $("btn-quota-ring");
     if (btn) {
       btn.title = real
-        ? `Hạn mức ${pShort || "AI"}: Block 5h ${pct5h}% (${data.block_5h.reset_in}) · Tuần ${pctWeek}% (Bấm để xem chi tiết)`
+        ? `Hạn mức ${pShort || "AI"}: Block 5h ${has5h ? `${pct5h}% (${data.block_5h.reset_in})` : "—"} · Tuần ${hasWeek ? `${pctWeek}%` : "—"} (Bấm để xem chi tiết)`
         : `${pShort || "AI"}: ${noLimit}. Đã hỏi ${data.block_5h.used_count} lượt trong 5 giờ qua (Bấm để xem chi tiết)`;
     }
 
@@ -4170,20 +4729,20 @@ async function fetchAndRenderQuota(force) {
       const mLabel = data.model_name || data.model_id || "Model mặc định";
       $("quota-model-name").textContent = pShort ? `[${pShort}] ${mLabel}` : mLabel;
     }
-    if ($("quota-5h-val")) $("quota-5h-val").textContent = real ? `${pct5h}%` : "—";
+    if ($("quota-5h-val")) $("quota-5h-val").textContent = has5h ? `${pct5h}%` : "—";
     if ($("quota-5h-bar")) {
-      $("quota-5h-bar").style.width = `${Math.min(100, pct5h)}%`;
-      $("quota-5h-bar").className = "quota-progress-fill" + (pct5h >= 90 ? " danger" : pct5h >= 70 ? " warn" : "");
+      $("quota-5h-bar").style.width = `${has5h ? Math.min(100, pct5h) : 0}%`;
+      $("quota-5h-bar").className = "quota-progress-fill" + (has5h && pct5h >= 90 ? " danger" : has5h && pct5h >= 70 ? " warn" : "");
     }
-    if ($("quota-5h-reset")) $("quota-5h-reset").textContent = real ? `Làm mới lúc ${data.block_5h.reset_time} (${data.block_5h.reset_in})` : noLimit;
+    if ($("quota-5h-reset")) $("quota-5h-reset").textContent = has5h ? `Làm mới lúc ${data.block_5h.reset_time} (${data.block_5h.reset_in})` : noLimit;
     if ($("quota-5h-count")) $("quota-5h-count").textContent = `${data.block_5h.used_count} lượt hỏi trong Kuro`;
 
-    if ($("quota-week-val")) $("quota-week-val").textContent = real ? `${pctWeek}%` : "—";
+    if ($("quota-week-val")) $("quota-week-val").textContent = hasWeek ? `${pctWeek}%` : "—";
     if ($("quota-week-bar")) {
-      $("quota-week-bar").style.width = `${Math.min(100, pctWeek)}%`;
-      $("quota-week-bar").className = "quota-progress-fill week" + (pctWeek >= 90 ? " danger" : pctWeek >= 70 ? " warn" : "");
+      $("quota-week-bar").style.width = `${hasWeek ? Math.min(100, pctWeek) : 0}%`;
+      $("quota-week-bar").className = "quota-progress-fill week" + (hasWeek && pctWeek >= 90 ? " danger" : hasWeek && pctWeek >= 70 ? " warn" : "");
     }
-    if ($("quota-week-reset")) $("quota-week-reset").textContent = real ? `Làm mới: ${data.weekly.reset_day}` : noLimit;
+    if ($("quota-week-reset")) $("quota-week-reset").textContent = hasWeek ? `Làm mới: ${data.weekly.reset_day}` : noLimit;
     if ($("quota-week-count")) $("quota-week-count").textContent = `${data.weekly.used_count} lượt hỏi trong Kuro (7 ngày)`;
 
     if ($("quota-status-badge")) {

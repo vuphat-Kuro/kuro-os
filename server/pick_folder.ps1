@@ -1,8 +1,11 @@
-﻿[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+﻿param(
+    [string]$Description = "Chọn thư mục dự án làm việc cho Kuro OS"
+)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Windows.Forms
 
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = "Chọn thư mục dự án làm việc cho Kuro OS"
+$dialog.Description = $Description
 $dialog.ShowNewFolderButton = $true
 
 $form = New-Object System.Windows.Forms.Form

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pkttc-text": {
+      "command": "python",
+      "args": ["-X", "utf8", "C:/duong-dan/toi/goi/texthub/texthub-cad/scripts/pkttc_mcp.py"],
+      "env": {"PKTTC_CLIENT_NAME": "Kuro"}
+    }
+  }
+}

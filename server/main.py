@@ -40,6 +40,7 @@ from tra_cuu_hop_dong import tra_cuu_hop_dong
 import scheduler
 import store
 import telegram
+import goi
 import kho
 import update
 import winproc
@@ -372,6 +373,10 @@ async def save_settings(body: dict[str, str]):
 
 
 DEFAULT_AGY_MODELS = [
+    {"id": "gemini-4-neon-high", "ten": "Gemini 4 Neon (High)"},
+    {"id": "gemini-4-neon-xhigh", "ten": "Gemini 4 Neon (XHigh)"},
+    {"id": "gemini-4-neon-medium", "ten": "Gemini 4 Neon (Medium)"},
+    {"id": "gemini-4-neon-low", "ten": "Gemini 4 Neon (Low)"},
     {"id": "gemini-3.8-flash-medium", "ten": "Gemini 3.8 Flash (Medium - Khuyên dùng)"},
     {"id": "gemini-3.8-flash-high", "ten": "Gemini 3.8 Flash (High)"},
     {"id": "gemini-3.8-flash-low", "ten": "Gemini 3.8 Flash (Low)"},
@@ -381,9 +386,12 @@ DEFAULT_AGY_MODELS = [
     {"id": "gemini-4-hydrogen-high", "ten": "Gemini 4 Hydrogen (High)"},
     {"id": "gemini-4-hydrogen-medium", "ten": "Gemini 4 Hydrogen (Medium)"},
     {"id": "gemini-4-hydrogen-low", "ten": "Gemini 4 Hydrogen (Low)"},
+    {"id": "claude-opus-5-5-high", "ten": "Claude Opus 5.5 (High)"},
+    {"id": "claude-opus-5-5-medium", "ten": "Claude Opus 5.5 (Medium)"},
+    {"id": "claude-opus-5-5-low", "ten": "Claude Opus 5.5 (Low)"},
     {"id": "claude-sonnet-5-5-high", "ten": "Claude Sonnet 5.5 (High)"},
     {"id": "claude-sonnet-5-5-medium", "ten": "Claude Sonnet 5.5 (Medium)"},
-    {"id": "claude-opus-5-5-medium", "ten": "Claude Opus 5.5 (Medium)"},
+    {"id": "claude-sonnet-5-5-low", "ten": "Claude Sonnet 5.5 (Low)"},
 ]
 
 
@@ -451,14 +459,28 @@ async def get_models(provider: str | None = None, scope: str | None = None):
 
 
 _USAGE = {"t": 0.0, "v": None}
+_AGY_USAGE = {"t": 0.0, "v": None}
+_AGY_USAGE_LOCK = threading.Lock()
 _USAGE_RE = re.compile(r"Current (session|week \(all models\)): (\d+(?:\.\d+)?)% used(?: · resets ([^\n(]+?))?(?: \(|\n|$)")
+_AGY_PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*%")
 
 
 def _parse_reset(txt: str):
-    """"Nov 20, 6:19pm" hoặc "6:19pm" (giờ máy, cùng múi giờ Claude báo) -> datetime kế tiếp; không hiểu thì None."""
+    """"Nov 20, 6:19pm", "6:19pm", hoặc ISO UTC "2026-11-20T11:06:15Z" -> datetime cục bộ (naive); không hiểu thì None."""
     from datetime import datetime, timedelta
     now = datetime.now()
     txt = (txt or "").strip()
+    if not txt:
+        return None
+    if "T" in txt and ("Z" in txt or "+" in txt or txt.count("-") >= 2):
+        try:
+            iso = txt[:-1] + "+00:00" if txt.endswith("Z") else txt
+            d = datetime.fromisoformat(iso)
+            if d.tzinfo is not None:
+                d = d.astimezone().replace(tzinfo=None)
+            return d
+        except ValueError:
+            pass
     for fmt in ("%b %d, %I:%M%p", "%b %d, %I%p", "%I:%M%p", "%I%p"):
         try:
             d = datetime.strptime(txt, fmt)
@@ -498,9 +520,95 @@ def _claude_usage(force: bool = False) -> dict | None:
     return found
 
 
-def _provider_quota_stats(provider: str, now: float, default_provider: str, force: bool = False) -> dict:
-    """Hạn mức một nhà cung cấp. Claude: số THẬT từ /usage. Agy, Codex: hãng không có cách hỏi hạn mức nên chỉ đếm số
-    lượt hỏi trong Kuro, KHÔNG có phần trăm (trước đây chia cho 45 và 350 là số tự đặt, không có thật)."""
+def _agy_usage(force: bool = False) -> dict | None:
+    """Hạn mức THẬT của Google Antigravity: chạy lệnh chính thức `agy -p /usage`, cache 60 giây."""
+    if not force and _AGY_USAGE["v"] and time.time() - _AGY_USAGE["t"] < 60:
+        return _AGY_USAGE["v"]
+    agy_bin = cli_engines.find("agy")
+    if not agy_bin:
+        return None
+    with _AGY_USAGE_LOCK:
+        if not force and _AGY_USAGE["v"] and time.time() - _AGY_USAGE["t"] < 60:
+            return _AGY_USAGE["v"]
+        try:
+            proc = subprocess.run(
+                [agy_bin, "-p", "/usage", "--print-timeout", "15s", "--output-format", "text"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                timeout=22,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            txt = (proc.stdout or b"").decode("utf-8", "replace")
+        except Exception as e:
+            print(f"[quota] không lấy được agy /usage: {e}")
+            return _AGY_USAGE["v"]
+
+        groups: dict[str, dict] = {}
+        for raw_line in txt.splitlines():
+            if "\t" not in raw_line:
+                continue
+            parts = [p.strip() for p in raw_line.split("\t")]
+            if len(parts) < 3:
+                continue
+            grp, label, pct_str = parts[0], parts[1], parts[2]
+            reset_raw = parts[3] if len(parts) >= 4 else ""
+            m_pct = _AGY_PCT_RE.search(pct_str)
+            if not m_pct:
+                continue
+            raw_pct = float(m_pct.group(1))
+            lbl_low = label.lower()
+            # AGY trả về tỷ lệ CÒN LẠI (Remaining %), quy đổi về % ĐÃ DÙNG để đồng bộ với Claude & thanh tiến trình Kuro
+            used_val = raw_pct if "used" in lbl_low else max(0.0, min(100.0, 100.0 - raw_pct))
+            used_pct = int(round(used_val)) if abs(used_val - round(used_val)) < 0.05 else round(used_val, 1)
+
+            if any(k in lbl_low for k in ("five hour", "5 hour", "5-hour", "5h", "session")):
+                win_key = "session"
+            elif "week" in lbl_low:
+                win_key = "week"
+            else:
+                continue
+            groups.setdefault(grp, {})[win_key] = (used_pct, reset_raw)
+
+        if not groups:
+            return _AGY_USAGE["v"]
+        _AGY_USAGE.update(t=time.time(), v=groups)
+        return groups
+
+
+def _select_agy_usage_group(groups: dict | None, model_id: str = "") -> dict | None:
+    """Chọn đúng nhóm hạn mức AGY ứng với model đang dùng (Gemini Models / Claude & GPT / Gemini 4 Argon)."""
+    if not groups:
+        return None
+    mid = (model_id or "").lower()
+    gemini_grp = None
+    claude_gpt_grp = None
+    argon_grp = None
+    for name, data in groups.items():
+        nlow = name.lower()
+        if "claude" in nlow or "gpt" in nlow:
+            claude_gpt_grp = data
+        elif "argon" in nlow:
+            argon_grp = data
+        elif "gemini" in nlow:
+            gemini_grp = data
+
+    chosen = None
+    if ("claude" in mid or "gpt" in mid) and claude_gpt_grp:
+        chosen = dict(claude_gpt_grp)
+    elif ("argon" in mid or "g1-pro" in mid) and argon_grp:
+        chosen = dict(argon_grp)
+        if "session" not in chosen and gemini_grp and "session" in gemini_grp:
+            chosen["session"] = gemini_grp["session"]
+    elif gemini_grp:
+        chosen = dict(gemini_grp)
+    else:
+        chosen = dict(next(iter(groups.values())))
+    return chosen if ("session" in chosen or "week" in chosen) else None
+
+
+def _provider_quota_stats(provider: str, now: float, default_provider: str, force: bool = False, model_id: str = "") -> dict:
+    """Hạn mức một nhà cung cấp. Claude & AGY: số THẬT từ /usage. Codex / API khác: đếm lượt hỏi cục bộ trong Kuro."""
     from datetime import datetime
     t_5h_ago = now - 5 * 3600
     t_week_ago = now - 7 * 86400
@@ -509,9 +617,16 @@ def _provider_quota_stats(provider: str, now: float, default_provider: str, forc
     count_week = len(store._q(f"SELECT ts FROM messages WHERE role='user' AND ts >= ? AND {own}", (t_week_ago, provider)))
     count_5h = len(msgs_5h)
 
-    real = _claude_usage(force) if provider == "claude" else None
+    real = None
+    if provider == "claude":
+        real = _claude_usage(force)
+    elif provider == "antigravity":
+        real = _select_agy_usage_group(_agy_usage(force), model_id)
+
     if real:
         def part(key):
+            if key not in real:
+                return None, "", ""
             pct, raw = real[key]
             d = _parse_reset(raw)
             if not d:
@@ -542,24 +657,25 @@ async def api_thinking_support(provider: str | None = None, model: str | None = 
 
 
 @app.get("/api/quota")
-def get_quota(session_id: str | None = None, provider: str | None = None, refresh: int = 0):
+def get_quota(session_id: str | None = None, provider: str | None = None, model: str | None = None, refresh: int = 0):
     now = time.time()
     sess = store.get(session_id) if session_id else None
     default_prov = config.PROVIDER or "antigravity"
     active_prov = (provider or "").strip() or store.session_provider(sess) or default_prov
-    model_id = (sess.get("model") if sess else None) or config.get_provider_model(active_prov) or ""
+    model_id = (model or "").strip() or (sess.get("model") if sess else None) or config.get_provider_model(active_prov) or ""
     provider_info = config.PROVIDERS.get(active_prov, {})
     provider_name = provider_info.get("ten", active_prov)
     provider_short = provider_info.get("short", active_prov)
 
-    stats = _provider_quota_stats(active_prov, now, default_prov, bool(refresh))
+    stats = _provider_quota_stats(active_prov, now, default_prov, bool(refresh), model_id=model_id)
     pct_5h = stats["block_5h"]["percent"] or 0
     pct_week = stats["weekly"]["percent"] or 0
 
     model_name = model_id or "Model mặc định"
-    for m in (DEFAULT_AGY_MODELS + config.CLAUDE_MODELS):
-        if m["id"] and m["id"] == model_id:
-            model_name = m["ten"]
+    known_models = list(cli_engines._models.get("agy", [])) + DEFAULT_AGY_MODELS + config.CLAUDE_MODELS
+    for m in known_models:
+        if m.get("id") and m["id"] == model_id:
+            model_name = m.get("ten") or model_id
             break
 
     if stats["source"] != "real":
@@ -578,7 +694,8 @@ def get_quota(session_id: str | None = None, provider: str | None = None, refres
     by_provider = []
     for p in config.enabled_providers():
         p_info = config.PROVIDERS.get(p, {})
-        p_stats = _provider_quota_stats(p, now, default_prov)   # đã cache 60 giây cho Claude
+        p_mid = model_id if p == active_prov else (config.get_provider_model(p) or "")
+        p_stats = _provider_quota_stats(p, now, default_prov, force=bool(refresh) and p == active_prov, model_id=p_mid)
         by_provider.append({
             "provider": p,
             "short": p_info.get("short", p),
@@ -652,6 +769,117 @@ def claude_login():
         raise HTTPException(400, "Mở terminal và gõ: claude auth login")
     subprocess.Popen(["cmd", "/k", exe, "auth", "login"], creationflags=subprocess.CREATE_NEW_CONSOLE)
     return {"ok": True}
+
+
+# Plugins (Gói tiện ích tùy chọn tích hợp sẵn & cài từ bên ngoài)
+@app.get("/api/plugins", dependencies=[Depends(local_only)])
+async def get_plugins():
+    return await asyncio.to_thread(goi.danh_sach, True)
+
+
+@app.post("/api/plugins/install", dependencies=[Depends(local_only)])
+async def install_plugin(body: dict):
+    gid = str(body.get("id") or "").strip()
+    if not gid:
+        raise HTTPException(400, "Thiếu mã plugin cần cài.")
+    try:
+        msg = await asyncio.to_thread(goi.cai, gid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi cài plugin: {e}")
+    return {"ok": True, "id": gid, "message": msg, **(await asyncio.to_thread(goi.danh_sach, True))}
+
+
+@app.post("/api/plugins/uninstall", dependencies=[Depends(local_only)])
+async def uninstall_plugin(body: dict):
+    gid = str(body.get("id") or "").strip()
+    if not gid:
+        raise HTTPException(400, "Thiếu mã plugin cần gỡ.")
+    try:
+        msg = await asyncio.to_thread(goi.go, gid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi gỡ plugin: {e}")
+    return {"ok": True, "id": gid, "message": msg, **(await asyncio.to_thread(goi.danh_sach, True))}
+
+
+@app.post("/api/plugins/setup", dependencies=[Depends(local_only)])
+async def setup_plugin_machine(body: dict):
+    gid = str(body.get("id") or "").strip()
+    action = str(body.get("action") or "").strip()
+    if not gid or not action:
+        raise HTTPException(400, "Thiếu mã plugin hoặc hành động cài đặt trên máy.")
+    try:
+        res = await asyncio.to_thread(goi.cai_dat_may, gid, action)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi cài đặt trên máy: {e}")
+    return {**res, **(await asyncio.to_thread(goi.danh_sach, True))}
+
+
+@app.post("/api/plugins/install-external-upload", dependencies=[Depends(local_only)])
+async def install_external_plugin_upload(file: UploadFile = File(...)):
+    filename = file.filename or "plugin.zip"
+    if Path(filename).suffix.lower() not in (".zip", ".kuro-plugin"):
+        raise HTTPException(400, "Chỉ hỗ trợ tệp nén .zip hoặc .kuro-plugin.")
+    data = await file.read(goi.MAX_ZIP_BYTES + 1)
+    if len(data) > goi.MAX_ZIP_BYTES:
+        raise HTTPException(400, f"Tệp gói plugin vượt quá giới hạn {goi.MAX_ZIP_BYTES // (1024 * 1024)} MB.")
+    try:
+        res = await asyncio.to_thread(goi.cai_tu_zip, data, filename)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi cài gói plugin ngoài: {e}")
+    return {**res, **(await asyncio.to_thread(goi.danh_sach, True))}
+
+
+@app.post("/api/plugins/install-external-path", dependencies=[Depends(local_only)])
+async def install_external_plugin_path(body: dict):
+    path_str = str(body.get("path") or "").strip()
+    if not path_str:
+        raise HTTPException(400, "Vui lòng nhập hoặc chọn đường dẫn gói plugin.")
+    try:
+        res = await asyncio.to_thread(goi.cai_tu_duong_dan, path_str)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi cài gói plugin ngoài: {e}")
+    return {**res, **(await asyncio.to_thread(goi.danh_sach, True))}
+
+
+@app.post("/api/plugins/pick-folder", dependencies=[Depends(local_only)])
+async def pick_plugin_folder():
+    if sys.platform != "win32":
+        raise HTTPException(400, "Hộp thoại chọn thư mục chỉ hỗ trợ trên Windows; vui lòng dán đường dẫn hoặc tải tệp .zip.")
+    ps_script = Path(__file__).parent / "pick_folder.ps1"
+    def _run():
+        cmd = [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-STA",
+            "-File", str(ps_script),
+            "-Description", "Chọn thư mục chứa gói plugin cho Kuro OS",
+        ]
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=300,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    try:
+        proc = await asyncio.to_thread(_run)
+        lines = [line.strip() for line in proc.stdout.decode("utf-8", errors="ignore").splitlines() if line.strip()]
+        selected = lines[-1] if lines else ""
+        if selected and Path(selected).is_dir():
+            return {"ok": True, "path": str(Path(selected).resolve())}
+        return {"ok": False, "cancelled": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 # Kho skill và việc theo lịch (specs/002)

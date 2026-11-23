@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pkttc-text": {
+      "command": "python",
+      "args": ["-X", "utf8", "C:\\Users\\KTTC CAU - NGHIA\\javis-os\\brains\\Brain Default\\QLDA\\99-Temp\\texthub_s5\\bridge\\pkttc_mcp.py"],
+      "env": { "PKTTC_CLIENT_NAME": "Kuro" }
+    }
+  }
+}

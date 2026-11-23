@@ -4796,6 +4796,368 @@
     color: var(--accent);
     border-color: var(--accent-border);
   }
+
+  /* === TAB & GIAO DIỆN QUẢN LÝ PLUGINS TRONG CÀI ĐẶT === */
+  body #settings {
+    width: min(680px, calc(100vw - 32px));
+  }
+  .settings-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 5px;
+    margin: 12px 0 4px;
+    border-radius: 13px;
+    background: var(--content-bg);
+    border: 1.5px solid var(--line);
+    box-shadow: inset 2px 2px 5px var(--sh-dark-soft), inset -2px -2px 5px var(--sh-light);
+  }
+  .settings-tab-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font: 600 12.5px/1.2 var(--body);
+    cursor: pointer;
+    transition: all .18s ease;
+  }
+  .settings-tab-btn:hover {
+    color: var(--text);
+  }
+  .settings-tab-btn.active {
+    background: var(--surface);
+    color: var(--accent);
+    border-color: var(--accent-border);
+    box-shadow: -2px -2px 5px var(--sh-light), 2px 3px 7px var(--sh-dark-soft);
+    font-weight: 700;
+  }
+  .settings-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font: 700 10.5px/1 var(--hud);
+    background: var(--accent-tint);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+  }
+  .settings-tab-panel[hidden] {
+    display: none !important;
+  }
+  .plugin-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .plugin-section-head legend {
+    margin-bottom: 0;
+  }
+  .plugin-status-bar {
+    margin-top: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    border: 1px solid var(--line);
+    background: var(--content-bg);
+    color: var(--text);
+  }
+  .plugin-status-bar[hidden] {
+    display: none !important;
+  }
+  .plugin-status-bar.ok {
+    background: var(--green-bg);
+    border-color: var(--green-border);
+    color: var(--green);
+  }
+  .plugin-status-bar.err {
+    background: var(--amber-bg);
+    border-color: var(--amber-border);
+    color: var(--amber);
+  }
+  .plugin-status-bar.busy {
+    background: var(--accent-tint);
+    border-color: var(--accent-border);
+    color: var(--accent);
+  }
+  .plugin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .plugin-empty {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px dashed var(--line-strong);
+    background: var(--content-bg);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .plugin-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--content-bg);
+    border: 1.5px solid var(--line);
+    box-shadow: -2px -2px 6px var(--sh-light), 3px 4px 10px var(--sh-dark-soft);
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  .plugin-card.installed {
+    border-color: var(--green-border);
+  }
+  .plugin-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .plugin-card-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+  .plugin-icon-box {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-tint);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+  }
+  .plugin-card.installed .plugin-icon-box {
+    background: var(--green-bg);
+    color: var(--green);
+    border-color: var(--green-border);
+  }
+  .plugin-card-info {
+    min-width: 0;
+    flex: 1;
+  }
+  .plugin-card-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .plugin-id-tag {
+    font: 600 10.5px/1 "JetBrains Mono", Consolas, monospace;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--line);
+  }
+  .plugin-card-desc {
+    margin: 4px 0 0;
+    font-size: 12.5px;
+    line-height: 1.48;
+    color: var(--muted);
+  }
+  .plugin-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+  .plugin-card-actions .btn {
+    padding: 6px 12px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+  .plugin-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .plugin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--line);
+  }
+  .plugin-chip.warn {
+    background: var(--amber-bg);
+    color: var(--amber);
+    border-color: var(--amber-border);
+  }
+  .plugin-chip.ok {
+    background: var(--green-bg);
+    color: var(--green);
+    border-color: var(--green-border);
+  }
+  .plugin-machine-box {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .plugin-machine-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .plugin-machine-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .plugin-machine-msg {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .plugin-machine-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-top: 2px;
+  }
+  .plugin-machine-actions .btn {
+    padding: 5px 11px;
+    font-size: 11.5px;
+  }
+  .plugin-ext-box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--content-bg);
+    border: 1.5px solid var(--line);
+    box-shadow: -2px -2px 6px var(--sh-light), 3px 4px 10px var(--sh-dark-soft);
+  }
+  .plugin-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 18px 14px;
+    border-radius: 12px;
+    border: 1.5px dashed var(--accent-border);
+    background: var(--surface);
+    text-align: center;
+    cursor: pointer;
+    transition: all .18s ease;
+  }
+  .plugin-dropzone:hover,
+  .plugin-dropzone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+  }
+  .plugin-dropzone-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .plugin-dropzone-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .plugin-selected-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--accent-border);
+    font-size: 12.5px;
+  }
+  .plugin-selected-file[hidden] {
+    display: none !important;
+  }
+  .plugin-selected-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .plugin-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .plugin-divider::before,
+  .plugin-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  .plugin-guide {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 11px;
+  }
+  .plugin-guide summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--accent);
+    user-select: none;
+  }
+  .plugin-guide ul {
+    margin: 8px 0 2px 18px;
+    padding: 0;
+    line-height: 1.5;
+  }
+  .plugin-guide code {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 11.5px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--content-bg);
+    color: var(--text);
+  }
   body .agent-members-table th {
     background: var(--th-bg);
     color: var(--text);
@@ -5963,51 +6325,119 @@
     <h2 id="s-title">CÀI ĐẶT HỆ THỐNG</h2>
     <p class="sub" id="s-status"></p>
 
-    <fieldset>
-      <legend>Lõi AI &amp; Kết nối song song</legend>
-      <label for="s-KURO_PROVIDER">AI mặc định hệ thống</label>
-      <select id="s-KURO_PROVIDER" name="KURO_PROVIDER"><option value="">- Chưa chọn -</option></select>
-      <small id="s-hint">Dùng mặc định cho phiên chat mới chưa chọn riêng, Telegram, việc theo lịch và diễn họa. Bên dưới bạn có thể bật nhiều hãng AI cùng lúc để chọn nhanh và chạy song song giữa các phiên.</small>
+    <div class="settings-tabs" role="tablist" aria-label="Phân mục cài đặt">
+      <button type="button" class="settings-tab-btn active" role="tab" aria-selected="true" data-settings-tab="general">
+        <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-sliders"/></svg>
+        <span>Lõi AI &amp; Hệ thống</span>
+      </button>
+      <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-settings-tab="plugins">
+        <svg class="ic ic-xs" aria-hidden="true"><use href="#ic-plug"/></svg>
+        <span>Plugins</span>
+        <span id="s-plugins-tab-badge" class="settings-tab-badge">0</span>
+      </button>
+    </div>
 
-      <div id="s-providers-list" style="margin-top:10px;">Đang tải danh sách kết nối AI...</div>
-    </fieldset>
+    <div id="s-tab-general" class="settings-tab-panel" role="tabpanel">
+      <fieldset>
+        <legend>Lõi AI &amp; Kết nối song song</legend>
+        <label for="s-KURO_PROVIDER">AI mặc định hệ thống</label>
+        <select id="s-KURO_PROVIDER" name="KURO_PROVIDER"><option value="">- Chưa chọn -</option></select>
+        <small id="s-hint">Dùng mặc định cho phiên chat mới chưa chọn riêng, Telegram, việc theo lịch và diễn họa. Bên dưới bạn có thể bật nhiều hãng AI cùng lúc để chọn nhanh và chạy song song giữa các phiên.</small>
 
-    <fieldset>
-      <legend>Telegram</legend>
-      <label for="s-TELEGRAM_BOT_TOKEN">Bot token</label>
-      <div class="row">
-        <input id="s-TELEGRAM_BOT_TOKEN" name="TELEGRAM_BOT_TOKEN" type="password" autocomplete="off" data-secret="1" spellcheck="false">
-        <button class="btn" type="button" data-clear="TELEGRAM_BOT_TOKEN">Xóa</button>
-      </div>
-      <small>Lấy ở @BotFather. Đổi token cần khởi động lại Kuro.</small>
-      <label for="s-TELEGRAM_OWNER_IDS">ID chủ (cách nhau bằng dấu phẩy)</label>
-      <input id="s-TELEGRAM_OWNER_IDS" name="TELEGRAM_OWNER_IDS" inputmode="numeric" spellcheck="false">
-      <small>Lấy ở @userinfobot. Kuro chỉ trả lời các ID này.</small>
-    </fieldset>
+        <div id="s-providers-list" style="margin-top:10px;">Đang tải danh sách kết nối AI...</div>
+      </fieldset>
 
-    <fieldset>
-      <legend>Việc theo lịch</legend>
-      <div id="s-lich" class="kho-list">Đang tải...</div>
-      <small>Kuro tự chạy khi máy bật. Soát hồ sơ chỉ gọi AI khi có tệp mới. Kết quả nằm trong phiên "nhac-..." ở danh sách chat.</small>
-    </fieldset>
+      <fieldset>
+        <legend>Telegram</legend>
+        <label for="s-TELEGRAM_BOT_TOKEN">Bot token</label>
+        <div class="row">
+          <input id="s-TELEGRAM_BOT_TOKEN" name="TELEGRAM_BOT_TOKEN" type="password" autocomplete="off" data-secret="1" spellcheck="false">
+          <button class="btn" type="button" data-clear="TELEGRAM_BOT_TOKEN">Xóa</button>
+        </div>
+        <small>Lấy ở @BotFather. Đổi token cần khởi động lại Kuro.</small>
+        <label for="s-TELEGRAM_OWNER_IDS">ID chủ (cách nhau bằng dấu phẩy)</label>
+        <input id="s-TELEGRAM_OWNER_IDS" name="TELEGRAM_OWNER_IDS" inputmode="numeric" spellcheck="false">
+        <small>Lấy ở @userinfobot. Kuro chỉ trả lời các ID này.</small>
+      </fieldset>
 
-    <fieldset>
-      <legend>Kho skill</legend>
-      <div id="s-kho" class="kho-list">Đang tải...</div>
-      <small>Kuro tự tìm skill trong kho khi cần. Chữ hướng dẫn dùng ngay; mã chạy được chỉ chạy sau khi duyệt.</small>
-    </fieldset>
+      <fieldset>
+        <legend>Việc theo lịch</legend>
+        <div id="s-lich" class="kho-list">Đang tải...</div>
+        <small>Kuro tự chạy khi máy bật. Soát hồ sơ chỉ gọi AI khi có tệp mới. Kết quả nằm trong phiên "nhac-..." ở danh sách chat.</small>
+      </fieldset>
 
-    <fieldset>
-      <legend>Nâng cao</legend>
-      <label for="s-KURO_ALLOWED_TOOLS">Tool được phép</label>
-      <input id="s-KURO_ALLOWED_TOOLS" name="KURO_ALLOWED_TOOLS" spellcheck="false">
-      <small>Thêm <code>Bash</code> để chạy script của skill, <code>mcp__revit-mcp</code> để mở một MCP. Tool ngoài danh sách bị chặn.</small>
-    </fieldset>
+      <fieldset>
+        <legend>Kho skill</legend>
+        <div id="s-kho" class="kho-list">Đang tải...</div>
+        <small>Kuro tự tìm skill trong kho khi cần. Chữ hướng dẫn dùng ngay; mã chạy được chỉ chạy sau khi duyệt.</small>
+      </fieldset>
+
+      <fieldset>
+        <legend>Nâng cao</legend>
+        <label for="s-KURO_ALLOWED_TOOLS">Tool được phép</label>
+        <input id="s-KURO_ALLOWED_TOOLS" name="KURO_ALLOWED_TOOLS" spellcheck="false">
+        <small>Thêm <code>Bash</code> để chạy script của skill, <code>mcp__revit-mcp</code> để mở một MCP. Tool ngoài danh sách bị chặn.</small>
+      </fieldset>
+    </div>
+
+    <div id="s-tab-plugins" class="settings-tab-panel" role="tabpanel" hidden>
+      <div id="s-plugin-status" class="plugin-status-bar" role="status" hidden></div>
+
+      <fieldset>
+        <div class="plugin-section-head">
+          <legend>Plugin tích hợp sẵn trong Kuro</legend>
+          <button type="button" class="btn" id="btn-plugins-refresh" style="padding:4px 10px; font-size:11px;">Làm mới</button>
+        </div>
+        <div id="s-plugins-builtin" class="plugin-list">Đang tải danh sách plugin...</div>
+        <small>Các plugin nằm sẵn trong hệ thống Kuro nhưng chỉ được cài vào máy và nạp vào Brain khi bạn nhấn <b>Cài đặt</b>. Bản cài tự cập nhật theo mã nguồn Kuro.</small>
+      </fieldset>
+
+      <fieldset id="s-plugins-ext-section">
+        <legend>Plugin đã cài từ bên ngoài</legend>
+        <div id="s-plugins-external" class="plugin-list"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cài từ gói plugin bên ngoài Kuro</legend>
+        <div class="plugin-ext-box">
+          <input type="file" id="s-plugin-zip-input" accept=".zip,.kuro-plugin" hidden>
+          <div id="s-plugin-dropzone" class="plugin-dropzone" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả tệp gói plugin .zip hoặc .kuro-plugin">
+            <svg class="ic ic-md ic-accent" aria-hidden="true"><use href="#ic-upload"/></svg>
+            <div class="plugin-dropzone-title">Chọn hoặc kéo thả tệp <code>.zip</code> / <code>.kuro-plugin</code> vào đây</div>
+            <div class="plugin-dropzone-sub">Tự động nhận gói chuẩn Kuro (<code>goi.json</code> / <code>plugin.json</code>) hoặc gói skill (<code>SKILL.md</code>) - tối đa 100 MB</div>
+          </div>
+
+          <div id="s-plugin-selected-file" class="plugin-selected-file" hidden>
+            <svg class="ic ic-xs ic-accent" aria-hidden="true"><use href="#ic-file-archive"/></svg>
+            <span id="s-plugin-selected-name" class="plugin-selected-name"></span>
+            <button type="button" class="btn" id="btn-plugin-clear-zip" style="padding:4px 8px; font-size:11px;">Bỏ chọn</button>
+            <button type="button" class="btn main" id="btn-plugin-install-zip" style="padding:5px 12px; font-size:11.5px;">Cài gói nén</button>
+          </div>
+
+          <div class="plugin-divider">Hoặc cài từ thư mục / tệp trên máy tính</div>
+
+          <div class="row">
+            <input type="text" id="s-plugin-path-input" spellcheck="false" placeholder="Nhập đường dẫn thư mục plugin hoặc tệp .zip trên máy...">
+            <button type="button" class="btn" id="btn-plugin-pick-folder" title="Mở hộp thoại chọn thư mục trên Windows">Chọn thư mục</button>
+            <button type="button" class="btn main" id="btn-plugin-install-path">Cài đặt</button>
+          </div>
+
+          <details class="plugin-guide">
+            <summary>Xem cấu trúc gói plugin bên ngoài hợp lệ</summary>
+            <ul>
+              <li><b>Gói chuẩn Kuro:</b> chứa tệp <code>goi.json</code> (hoặc <code>plugin.json</code>) khai báo <code>ten</code>, <code>mo_ta</code>, <code>skill</code> (hoặc <code>skills</code>), tùy chọn <code>pip</code>, <code>import</code>, <code>agents</code>, <code>mcp</code> kèm thư mục <code>&lt;skill&gt;/SKILL.md</code>.</li>
+              <li><b>Gói Skill độc lập:</b> thư mục hoặc tệp <code>.zip</code> chứa trực tiếp <code>SKILL.md</code> (hoặc <code>skills/&lt;slug&gt;/SKILL.md</code>); Kuro tự tạo manifest và cài đặt.</li>
+              <li>Plugin ngoài được lưu riêng trong <code>state/plugins/</code> nên không bị mất khi cập nhật Kuro.</li>
+            </ul>
+          </details>
+        </div>
+      </fieldset>
+    </div>
 
     <div class="foot">
       <span id="s-msg" role="status"></span>
       <button class="btn" type="button" id="s-close">Đóng</button>
-      <button class="btn main" type="submit">Lưu</button>
+      <button class="btn main" type="submit" id="s-save-btn">Lưu</button>
     </div>
   </form>
 </dialog>
@@ -6426,6 +6856,6 @@
 <!-- POPOVER TÙY CHỌN MỞ FILE XUẤT RA TRONG TIN NHẮN KURO -->
 <div id="file-action-popover" class="file-action-popover" style="display:none;" role="menu"></div>
 
-<script src="app.js?v=64"></script>
+<script src="app.js?v=65"></script>
 </body>
 </html>

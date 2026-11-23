@@ -1,5 +1,12 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.8.9] - 2026-11-23
+- **Thêm mục Cài đặt Plugins trong Cài đặt hệ thống & tích hợp plugin Convert Font to Unicode (PKTTC TextHub v0.9.3):**
+  - Tách hộp thoại Cài đặt thành 2 tab **Lõi AI & Hệ thống** và **Plugins** (đồng bộ Soft UI Sáng/Tối).
+  - Hiển thị danh sách plugin tích hợp sẵn trong `goi/` (`autocad`, `texthub`) kèm mô tả, phiên bản, skill/agent/MCP và trạng thái thư viện Python; hỗ trợ cài/gỡ ngay trên máy tính người dùng.
+  - Hỗ trợ cài plugin từ gói bên ngoài Kuro qua kéo thả / chọn tệp `.zip`, `.kuro-plugin` (tối đa 100 MB) hoặc chọn thư mục cục bộ; lưu tách biệt ở `state/plugins/` để không mất khi cập nhật Kuro; chặn Zip Slip, symlink, cờ pip không an toàn và ghi đè skill/agent lõi.
+  - Tích hợp trọn bộ **Convert Font to Unicode - Đổi chữ TCVN3/VNI trong AutoCAD (PKTTC TextHub v0.9.3)** vào `goi/texthub/` kèm hỗ trợ khóa `kiem_tra` và API `/api/plugins/setup` để kiểm tra phiên bản AutoCAD, kho 361 font SHX/TTF và cài/cập nhật/cài font/gỡ AutoCAD trực tiếp bằng một nút.
+
 ## [1.8.8] - 2026-11-23
 - **Thêm Distilly vào kho skill (`kho/distilly`, MIT, ghim commit `0afc45c`):** chưng cất tài liệu thành hồ sơ người (Person Profile) cho agent. Tìm bằng `tim_skill`, đọc bằng `doc_skill`; mã `tools/*.py` chỉ chạy qua `chay_ma_kho` sau khi chủ máy duyệt ở Cài đặt > Kho skill (chưa duyệt, bị chặn).
   - Bỏ bộ cài npm, `tests/`, `docs/` và `install_distilly.py`. Bộ thu thập Feishu/DingTalk/Slack cần khoá API do người dùng tự nhập ở terminal riêng.

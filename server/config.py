@@ -378,8 +378,14 @@ def sync_bundled() -> None:
     pairs += [(a, BRAIN / "agents" / a.name) for a in (ROOT / "agents").glob("*.md")]
     goi = STATE / "goi-cai.json"   # gói tiện ích tùy chọn (server/goi.py): chỉ gói người dùng đã yêu cầu cài
     for gid, g in (json.loads(goi.read_text(encoding="utf-8")) if goi.is_file() else {}).items():
-        if (ROOT / "goi" / gid / g["skill"]).is_dir():
-            pairs.append((ROOT / "goi" / gid / g["skill"], BRAIN / ".claude" / "skills" / g["skill"]))
+        base = (STATE / "plugins" / gid) if g.get("nguon") == "external" else (ROOT / "goi" / gid)
+        skills = g.get("skills") or ([g["skill"]] if g.get("skill") else [])
+        for s in skills:
+            if (base / s).is_dir():
+                pairs.append((base / s, BRAIN / ".claude" / "skills" / s))
+        for a in (g.get("agents") or []):
+            if (base / "agents" / a).is_file():
+                pairs.append((base / "agents" / a, BRAIN / "agents" / a))
     for src, dst in pairs:
         key, new = f"{src.parent.name}/{src.name}", _hash(src)
         if dst.exists():

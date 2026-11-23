@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0" ProductType="Application" Name="PKTTC TextHub" AppVersion="0.9.3" Description="Quan ly chu tieng Viet trong ban ve: doi bang ma TCVN3/VNI sang Unicode, quan ly font va style, cong cho tro ly" Author="Phong Ky thuat - Thi cong" FriendlyVersion="0.9.3" ProductCode="{6CE93D44-325B-4673-A806-7A15E3D58F9C}" UpgradeCode="{8081FD1D-D9A3-4B77-8E82-68912EEBA901}" AutodeskProduct="AutoCAD" SupportedLocales="Enu">
+  <CompanyDetails Name="Phong Ky thuat - Thi cong" />
+  <Components Description="AutoCAD 2020 (.NET Framework 4.7/4.8, API 23.1)">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R23.1" SeriesMax="R23.1" SupportPath="./Contents/Fonts" />
+    <ComponentEntry AppName="PKTTC.TextHub" Version="0.9.3" ModuleName="./Contents/Windows/Pkttc.TextHub.dll" AppDescription="PKTTC TextHub" LoadOnAutoCADStartup="true">
+      <Commands GroupName="PKTTC_TEXTHUB">
+        <Command Local="PKTEXTABOUT" Global="PKTEXTABOUT" />
+        <Command Local="PKTEXTAPPLY" Global="PKTEXTAPPLY" />
+        <Command Local="PKTEXTAUDIT" Global="PKTEXTAUDIT" />
+        <Command Local="PKTEXTBRIDGE" Global="PKTEXTBRIDGE" />
+        <Command Local="PKTEXTBRIDGEEXEC" Global="PKTEXTBRIDGEEXEC" />
+        <Command Local="PKTEXTBRIDGESTOP" Global="PKTEXTBRIDGESTOP" />
+        <Command Local="PKTEXTFIX" Global="PKTEXTFIX" />
+        <Command Local="PKTEXTFONT" Global="PKTEXTFONT" />
+        <Command Local="PKTEXTFONTSUB" Global="PKTEXTFONTSUB" />
+        <Command Local="PKTEXTPLAN" Global="PKTEXTPLAN" />
+        <Command Local="PKTEXTPURGE" Global="PKTEXTPURGE" />
+        <Command Local="PKTEXTSCAN" Global="PKTEXTSCAN" />
+        <Command Local="PKTEXTUI" Global="PKTEXTUI" />
+        <Command Local="PKTEXTUIEXEC" Global="PKTEXTUIEXEC" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>
