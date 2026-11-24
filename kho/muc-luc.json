@@ -14,7 +14,7 @@
    "id": "archify",
    "ten": "Archify - vẽ sơ đồ quy trình, kiến trúc",
    "url": "https://github.com/tt-a1i/archify",
-   "commit": "a4065941f12be7967436261d9934784e381d423c",
+   "commit": "af3aaf3c36762f2afb62a4a09533f6c7273b07e5",
    "giay_phep": "Apache-2.0",
    "ghi_chu": "Chạy bằng Node có sẵn, không cần cài thêm. Mã chạy qua chay_ma_kho sau khi duyệt. Giữ .html: assets/template.html là khuôn trang bắt buộc.",
    "can_bash": "",
@@ -2551,7 +2551,7 @@
   {
    "id": "archify/archify",
    "ten": "archify",
-   "mo_ta": "Create validated architecture, workflow, sequence, data-flow, lifecycle/state, ERD, class, tree, timeline, and waterfall diagrams as explorable standalone HTML with dark/light themes, motion and image/SVG/WebM export. Accept requirements or Mermaid; inspect repository evidence for code-backed diagrams. Use when visualizing systems, API calls, pipelines, schemas, histories, timings, or everyday ste",
+   "mo_ta": "Create validated architecture, workflow, sequence, data-flow, lifecycle/state, ERD, class, tree, timeline, and waterfall diagrams as explorable standalone HTML with dark/light themes, motion and image/SVG/WebM export. Accept requirements or Mermaid; inspect repository evidence for code-backed diagrams. Also investigate local repository architecture health, coupling and refactoring scope with sourc",
    "repo": "archify",
    "nhom": "",
    "duong_dan": "kho/archify/archify",
