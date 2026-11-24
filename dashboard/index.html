@@ -5329,9 +5329,361 @@
       color: var(--text);
     }
   }
+
+  /* ============================================================================
+     CHẾ ĐỘ BÓNG CHAT NỔI (SINGLE WINDOW MORPH: FULL <-> MINI <-> BONG BÓNG TRÒN)
+     Đặt sau mọi @media để đảm bảo ưu tiên tuyệt đối ở kích thước nhỏ (370px / 64px)
+     ============================================================================ */
+  #btn-floating-mini {
+    display: none;
+  }
+  body.is-desktop-app #btn-floating-mini {
+    display: inline-flex;
+  }
+
+  /* Thanh kéo siêu mỏng chỉ hiện ở chế độ Mini */
+  #kuro-mini-topbar {
+    display: none;
+    height: 36px;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 7px 0 9px;
+    gap: 6px;
+    background: var(--card);
+    border-bottom: 1.5px solid var(--line);
+    user-select: none;
+    z-index: 30;
+  }
+  .kuro-mini-drag {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: grab;
+  }
+  .kuro-mini-drag:active {
+    cursor: grabbing;
+  }
+  .kuro-mini-avatar {
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #15264b;
+    border: 1.5px solid var(--accent);
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .kuro-mini-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+  }
+  .kuro-mini-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    flex: none;
+  }
+  body.busy .kuro-mini-dot {
+    background: var(--amber);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28);
+    animation: kuroMiniPulse 1.1s infinite;
+  }
+  .kuro-mini-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .kuro-mini-controls {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+  }
+  .kuro-mini-opacity-btn {
+    height: 23px;
+    padding: 0 7px;
+    border-radius: 99px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-2);
+    font: 700 10.5px/1 var(--body);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: all 0.14s ease;
+  }
+  .kuro-mini-opacity-btn:hover {
+    border-color: var(--line-hi);
+    color: var(--text);
+    background: var(--card-bg);
+  }
+  .kuro-mini-icon-btn {
+    width: 25px;
+    height: 25px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.14s ease;
+  }
+  .kuro-mini-icon-btn:hover {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--line);
+  }
+  .kuro-mini-icon-btn svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Viền kéo đổi kích thước cửa sổ Mini frameless */
+  .kuro-resize-handle {
+    display: none;
+    position: fixed;
+    z-index: 9990;
+  }
+  body.kuro-floating-mini .kuro-resize-handle {
+    display: block;
+  }
+  .kuro-rh-n  { top: 0; left: 8px; right: 8px; height: 5px; cursor: ns-resize; }
+  .kuro-rh-s  { bottom: 0; left: 8px; right: 8px; height: 5px; cursor: ns-resize; }
+  .kuro-rh-w  { left: 0; top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+  .kuro-rh-e  { right: 0; top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+  .kuro-rh-nw { left: 0; top: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+  .kuro-rh-ne { right: 0; top: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+  .kuro-rh-sw { left: 0; bottom: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+  .kuro-rh-se { right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+
+  /* Chế độ MINI FLOATING: chỉ giữ trao đổi Người dùng <-> Phản hồi AI */
+  body.kuro-floating-mini {
+    padding: 0 !important;
+    gap: 0 !important;
+    background: var(--surface) !important;
+    overflow: hidden !important;
+  }
+  body.kuro-floating-mini::before,
+  body.kuro-floating-mini::after {
+    display: none !important;
+  }
+  body.kuro-floating-mini #agents-sidebar,
+  body.kuro-floating-mini #history-sidebar,
+  body.kuro-floating-mini .sidebar-backdrop,
+  body.kuro-floating-mini main > header,
+  body.kuro-floating-mini #update,
+  body.kuro-floating-mini #chat-nav-rail,
+  body.kuro-floating-mini #chat-nav-popover,
+  body.kuro-floating-mini .form-hint-row {
+    display: none !important;
+  }
+  body.kuro-floating-mini main {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    border: 1.5px solid var(--line-hi) !important;
+    box-shadow: none !important;
+    background: var(--surface) !important;
+  }
+  body.kuro-floating-mini #kuro-mini-topbar {
+    display: flex !important;
+  }
+  body.kuro-floating-mini #hero {
+    padding: 16px 12px !important;
+    gap: 8px !important;
+  }
+  body.kuro-floating-mini #hero .hero-avatar-box {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  body.kuro-floating-mini #hero h1 {
+    font-size: 16px !important;
+    margin: 0 !important;
+  }
+  body.kuro-floating-mini #hero p {
+    font-size: 12px !important;
+    margin: 0 !important;
+  }
+  body.kuro-floating-mini #hero .hero-prompts-label,
+  body.kuro-floating-mini #hero .hero-prompts {
+    display: none !important;
+  }
+  body.kuro-floating-mini #log {
+    padding: 8px 10px 6px !important;
+    gap: 8px !important;
+    font-size: 13px !important;
+    line-height: 1.48 !important;
+  }
+  body.kuro-floating-mini #log .msg {
+    max-width: 94% !important;
+    padding: 8px 11px !important;
+    border-radius: 12px !important;
+    font-size: 13px !important;
+  }
+  body.kuro-floating-mini #log .msg.user {
+    max-width: 88% !important;
+  }
+  body.kuro-floating-mini #log .msg.bot::before {
+    font-size: 9.5px !important;
+    margin-bottom: 3px !important;
+    opacity: 0.72;
+  }
+  /* Rút gọn khung xử lý công cụ nền thành 1 dòng mảnh, bấm vào để xem chi tiết tool */
+  body.kuro-floating-mini .kuro-thinking-box {
+    padding: 5px 8px !important;
+    margin: 2px 0 4px !important;
+    border-radius: 8px !important;
+    font-size: 11.5px !important;
+    cursor: pointer;
+  }
+  body.kuro-floating-mini .kuro-thinking-tools {
+    display: none !important;
+  }
+  body.kuro-floating-mini .kuro-thinking-box.mini-expanded .kuro-thinking-tools {
+    display: flex !important;
+    margin-top: 5px !important;
+  }
+  body.kuro-floating-mini #btn-scroll-bottom {
+    right: 12px !important;
+    bottom: 74px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  body.kuro-floating-mini #f {
+    padding: 6px 8px 8px !important;
+    background: var(--card) !important;
+    border-top: 1px solid var(--line) !important;
+  }
+  body.kuro-floating-mini .chat-input-card {
+    padding: 6px 8px !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+  body.kuro-floating-mini .chat-textarea-wrap {
+    padding: 0 2px !important;
+  }
+  body.kuro-floating-mini #q {
+    font-size: 13px !important;
+    min-height: 24px !important;
+    max-height: 92px !important;
+  }
+  body.kuro-floating-mini .chat-toolbar-bottom {
+    margin-top: 4px !important;
+    padding-top: 4px !important;
+  }
+  body.kuro-floating-mini #btn-thinking-pill,
+  body.kuro-floating-mini #btn-mode-pill,
+  body.kuro-floating-mini #btn-quota-ring {
+    display: none !important;
+  }
+  body.kuro-floating-mini .model-pill-btn {
+    max-width: 155px;
+    padding: 3px 7px !important;
+    font-size: 11px !important;
+  }
+  body.kuro-floating-mini .btn-plus-attach,
+  body.kuro-floating-mini .btn-send-round {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  /* Giao diện BONG BÓNG TRÒN 64x64 */
+  #kuro-bubble-view {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #243f75, #122142 78%);
+    border: 2.5px solid var(--accent);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    overflow: hidden;
+    z-index: 9995;
+  }
+  #kuro-bubble-view img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+  }
+  .kuro-bubble-badge {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 7px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.85);
+  }
+  #kuro-bubble-view.has-unread .kuro-bubble-badge {
+    display: block;
+  }
+  body.busy #kuro-bubble-view {
+    border-color: #fbbf24;
+    animation: kuroBubblePulse 1.2s infinite;
+  }
+
+  body.kuro-floating-bubble {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #122142 !important;
+  }
+  body.kuro-floating-bubble::before,
+  body.kuro-floating-bubble::after,
+  body.kuro-floating-bubble #agents-sidebar,
+  body.kuro-floating-bubble main,
+  body.kuro-floating-bubble #history-sidebar,
+  body.kuro-floating-bubble .sidebar-backdrop,
+  body.kuro-floating-bubble .kuro-resize-handle {
+    display: none !important;
+  }
+  body.kuro-floating-bubble #kuro-bubble-view {
+    display: flex !important;
+  }
+
+  @keyframes kuroMiniPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.22); opacity: 0.72; }
+  }
+  @keyframes kuroBubblePulse {
+    0%, 100% { box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.55); }
+    50% { box-shadow: inset 0 0 0 6px rgba(251, 191, 36, 0.95); }
+  }
 </style>
 </head>
-<body>
+<body spellcheck="false">
 <script>
   try {
     if (localStorage.getItem("kuro_ui_theme") === "dark") {
@@ -5404,6 +5756,7 @@
   <symbol id="ic-compass" viewBox="0 0 24 24"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/></symbol>
   <symbol id="ic-list-tree" viewBox="0 0 24 24"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></symbol>
   <symbol id="ic-message-square" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="ic-message-circle-more" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></symbol>
   <symbol id="ic-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="ic-wifi" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></symbol>
   <symbol id="ic-calculator" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></symbol>
@@ -5561,6 +5914,27 @@
 
 <!-- CỘT 2: KHUNG CHAT LÀM VIỆC VỚI AGENT ĐANG CHỌN -->
 <main>
+  <!-- Thanh tiêu đề siêu mỏng chỉ hiển thị khi ở chế độ Bóng chat Mini nổi trên CAD -->
+  <div id="kuro-mini-topbar" aria-label="Thanh điều khiển bóng chat mini">
+    <div class="kuro-mini-drag" id="kuro-mini-drag-area" title="Giữ chuột kéo di chuyển · Nhấp đúp mở rộng đầy đủ">
+      <div class="kuro-mini-avatar"><img src="/kuro_os_128.png" alt="Kuro" draggable="false"></div>
+      <span class="kuro-mini-dot" id="kuro-mini-dot"></span>
+      <span class="kuro-mini-title" id="kuro-mini-title">Kuro Core</span>
+    </div>
+    <div class="kuro-mini-controls">
+      <button type="button" class="kuro-mini-opacity-btn" id="btn-mini-opacity" title="Đổi mức tự làm mờ khi rời chuột (100% = tắt tự mờ)">Mờ 72%</button>
+      <button type="button" class="kuro-mini-icon-btn" id="btn-mini-theme" title="Đổi giao diện Sáng / Tối">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button type="button" class="kuro-mini-icon-btn" id="btn-mini-to-bubble" title="Thu thành bong bóng tròn (Alt+K / Esc)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+      </button>
+      <button type="button" class="kuro-mini-icon-btn" id="btn-mini-to-full" title="Mở rộng về giao diện đầy đủ">
+        <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
+    </div>
+  </div>
+
   <header>
     <div class="header-top-bar">
       <div class="header-agent-zone">
@@ -5612,6 +5986,10 @@
       <button id="btn-context-header" class="btn-hdr btn-context-pill" type="button" title="Dung lượng ngữ cảnh AI (Context)" hidden>
         <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-gauge"/></svg></span>
         <span class="btn-text" id="header-context-text">0%</span>
+      </button>
+      <button id="btn-floating-mini" class="btn-hdr" type="button" title="Thu gọn thành bóng chat nổi trên CAD / phần mềm khác (Alt+K)">
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-message-circle-more"/></svg></span>
+        <span class="btn-text">Bóng chat</span>
       </button>
       <button id="btn-theme-toggle" class="btn-hdr" type="button" title="Đổi chế độ Giao diện Sáng / Tối">
         <span class="btn-icon" id="theme-toggle-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-moon"/></svg></span>
@@ -5942,7 +6320,7 @@
       <!-- Khung nhập văn bản chính -->
       <div class="chat-textarea-wrap">
         <span class="chat-prompt-prefix">›</span>
-        <textarea id="q" placeholder="Hỏi Kuro... (Gõ / để gọi lệnh nhanh hoặc skill)" aria-label="Câu hỏi" rows="1"></textarea>
+        <textarea id="q" placeholder="Hỏi Kuro... (Gõ / để gọi lệnh nhanh hoặc skill)" aria-label="Câu hỏi" rows="1" spellcheck="false" autocorrect="off" autocomplete="off"></textarea>
       </div>
 
       <!-- Hàng công cụ dưới đáy (Bottom Toolbar) -->
@@ -6221,7 +6599,7 @@
     </div>
 
     <label for="ca-prompt">Hướng dẫn nghiệp vụ chi tiết (System Prompt)</label>
-    <textarea id="ca-prompt" name="prompt" rows="4" placeholder="Quy trình thực hiện, tiêu chuẩn áp dụng, yêu cầu kiểm toán và định dạng báo cáo..."></textarea>
+    <textarea id="ca-prompt" name="prompt" rows="4" spellcheck="false" placeholder="Quy trình thực hiện, tiêu chuẩn áp dụng, yêu cầu kiểm toán và định dạng báo cáo..."></textarea>
 
     <div class="foot">
       <span id="ca-msg" role="status"></span>
@@ -6281,7 +6659,7 @@
     </div>
 
     <label for="ea-prompt">Hướng dẫn nghiệp vụ chi tiết (System Prompt)</label>
-    <textarea id="ea-prompt" name="prompt" rows="4"></textarea>
+    <textarea id="ea-prompt" name="prompt" rows="4" spellcheck="false"></textarea>
 
     <div class="foot">
       <span id="ea-msg" role="status"></span>
@@ -6305,7 +6683,7 @@
     <input id="cg-role" name="role" placeholder="Ví dụ: Chỉ huy trưởng kỹ thuật hiện trường, điều phối biện pháp và kiểm toán an toàn" spellcheck="false">
 
     <label for="cg-workflow">Quy trình điều phối (Workflow) của Agent tổng</label>
-    <textarea id="cg-workflow" name="workflow" rows="6" placeholder="Nhập quy trình phối hợp giữa các Agent con...&#10;Ví dụ:&#10;1. Biện pháp thi công lập phương án và mặt bằng cẩu lắp.&#10;2. Kiểm toán kết cấu phụ trợ kiểm tra tải trọng đà giáo ván khuôn.&#10;3. An toàn HSE lập danh mục kiểm tra và điểm dừng an toàn.&#10;4. Trưởng nhóm tổng hợp báo cáo hoàn chỉnh.&#10;&#10;(Để trống = nhóm phân loại bình thường, không kích hoạt Agent tổng)"></textarea>
+    <textarea id="cg-workflow" name="workflow" rows="6" spellcheck="false" placeholder="Nhập quy trình phối hợp giữa các Agent con...&#10;Ví dụ:&#10;1. Biện pháp thi công lập phương án và mặt bằng cẩu lắp.&#10;2. Kiểm toán kết cấu phụ trợ kiểm tra tải trọng đà giáo ván khuôn.&#10;3. An toàn HSE lập danh mục kiểm tra và điểm dừng an toàn.&#10;4. Trưởng nhóm tổng hợp báo cáo hoàn chỉnh.&#10;&#10;(Để trống = nhóm phân loại bình thường, không kích hoạt Agent tổng)"></textarea>
 
     <div class="remote-surface-box" style="font-size:11.5px; color:var(--muted); line-height:1.45; padding:8px 12px; background:rgba(34,211,238,.05); border:1px dashed rgba(34,211,238,.25); border-radius:6px;">
       💡 <b>Cơ chế hoạt động:</b> Nếu nhập workflow, nhóm này sẽ xuất hiện nút <b>⚡ AGENT TỔNG</b>. Bạn có thể bấm vào để chat trực tiếp với Agent Trưởng nhóm. AI sẽ tự động đọc toàn bộ năng lực của các Agent con và áp dụng quy trình trên để phối hợp giải quyết bài toán.
@@ -6844,7 +7222,7 @@
       <small style="color:var(--muted); font-size:11.5px;">
         Tệp <code>QUY_TAC_LAM_VIEC.md</code> ở gốc dự án là quy tắc Kuro làm theo ở mỗi lượt chat. Áp dụng Kuro Standard thì tệp được viết sẵn từ mẫu; sau đó sửa ở đây hoặc mở tệp trực tiếp. Xóa trắng nội dung và lưu = bỏ quy tắc.
       </small>
-      <textarea id="wsr-custom-text" placeholder="Nội dung QUY_TAC_LAM_VIEC.md (để trống = dự án không có quy tắc riêng, Kuro làm việc bình thường)..."></textarea>
+      <textarea id="wsr-custom-text" spellcheck="false" placeholder="Nội dung QUY_TAC_LAM_VIEC.md (để trống = dự án không có quy tắc riêng, Kuro làm việc bình thường)..."></textarea>
       <div class="wsr-actions">
         <button type="button" class="btn-hdr" id="btn-wsr-fill-template">Điền mẫu Kuro Standard</button>
         <button type="button" class="btn-hdr" id="btn-wsr-save-custom" style="border-color:var(--cyan); color:var(--cyan-soft);"><svg class="ic ic-xs" aria-hidden="true"><use href="#ic-check-circle"/></svg><span>Lưu QUY_TAC_LAM_VIEC.md</span></button>
@@ -6856,6 +7234,22 @@
 <!-- POPOVER TÙY CHỌN MỞ FILE XUẤT RA TRONG TIN NHẮN KURO -->
 <div id="file-action-popover" class="file-action-popover" style="display:none;" role="menu"></div>
 
-<script src="app.js?v=65"></script>
+<!-- BONG BÓNG TRÒN NỔI (64x64) KHI THU GỌN TỐI ĐA -->
+<div id="kuro-bubble-view" title="Click: Mở khung chat | Kéo: Di chuyển | Chuột phải: Mở đầy đủ | Alt+K: Ẩn/hiện nhanh">
+  <img src="/kuro_os_128.png" alt="Kuro" draggable="false">
+  <span class="kuro-bubble-badge" aria-hidden="true"></span>
+</div>
+
+<!-- VIỀN KÉO ĐỔI KÍCH THƯỚC CHO CHẾ ĐỘ BÓNG CHAT MINI -->
+<div class="kuro-resize-handle kuro-rh-n" data-edge="top"></div>
+<div class="kuro-resize-handle kuro-rh-s" data-edge="bottom"></div>
+<div class="kuro-resize-handle kuro-rh-w" data-edge="left"></div>
+<div class="kuro-resize-handle kuro-rh-e" data-edge="right"></div>
+<div class="kuro-resize-handle kuro-rh-nw" data-edge="top-left"></div>
+<div class="kuro-resize-handle kuro-rh-ne" data-edge="top-right"></div>
+<div class="kuro-resize-handle kuro-rh-sw" data-edge="bottom-left"></div>
+<div class="kuro-resize-handle kuro-rh-se" data-edge="bottom-right"></div>
+
+<script src="app.js?v=67"></script>
 </body>
 </html>

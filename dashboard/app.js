@@ -2255,6 +2255,7 @@ function connect() {
         }
         if (targetSid) runningSessions.delete(targetSid);
         updateSendButtonState();
+        if (typeof window.__markKuroBubbleUnread === "function") window.__markKuroBubbleUnread();
         if (autoSyncTimer) clearInterval(autoSyncTimer);
         loadSessions(selectedAgent);
         if (targetSid === session) loadSessionContext(session);
@@ -7046,6 +7047,7 @@ function syncThemeUI() {
 }
 window.addEventListener("pywebviewready", () => {
   syncDesktopTitlebarTheme(document.body.classList.contains("theme-dark"));
+  initKuroFloatingMode();
 });
 const btnThemeToggle = $("btn-theme-toggle");
 if (btnThemeToggle) {
@@ -7060,6 +7062,241 @@ if (btnThemeToggle) {
     void document.body.offsetWidth;
     requestAnimationFrame(() => document.body.classList.remove("theme-switching"));
   });
+}
+
+// ============================================================================
+// CHẾ ĐỘ BÓNG CHAT NỔI (SINGLE WINDOW MORPH: FULL <-> MINI <-> BONG BÓNG TRÒN)
+// ============================================================================
+let _kuroFloatingInitialized = false;
+let _kuroFloatingMode = "full";
+
+function _floatingDesktopApi() {
+  return (window.pywebview && window.pywebview.api && typeof window.pywebview.api.set_floating_mode === "function")
+    ? window.pywebview.api
+    : null;
+}
+
+function syncKuroMiniTitle() {
+  const miniTitle = $("kuro-mini-title");
+  const hdrName = $("header-agent-name");
+  if (miniTitle && hdrName) {
+    const name = (hdrName.textContent || "Kuro").trim();
+    miniTitle.textContent = name || "Kuro";
+  }
+}
+
+window.__applyKuroFloatingMode = function(mode, focusInput) {
+  const next = (mode === "mini" || mode === "bubble") ? mode : "full";
+  _kuroFloatingMode = next;
+  document.body.classList.toggle("kuro-floating-mini", next === "mini");
+  document.body.classList.toggle("kuro-floating-bubble", next === "bubble");
+
+  const bubbleEl = $("kuro-bubble-view");
+  if (bubbleEl && next !== "bubble") {
+    bubbleEl.classList.remove("has-unread");
+  }
+  if (next === "mini") {
+    syncKuroMiniTitle();
+    const logEl = $("log");
+    requestAnimationFrame(() => {
+      if (logEl) logEl.scrollTop = logEl.scrollHeight;
+      if (focusInput) {
+        const inputEl = $("q");
+        if (inputEl) inputEl.focus();
+      }
+    });
+  } else if (next === "full") {
+    if (typeof updateChatNavTicks === "function") {
+      setTimeout(updateChatNavTicks, 80);
+    }
+  }
+};
+
+window.__markKuroBubbleUnread = function() {
+  if (_kuroFloatingMode === "bubble") {
+    const bubbleEl = $("kuro-bubble-view");
+    if (bubbleEl) bubbleEl.classList.add("has-unread");
+  }
+};
+
+function initKuroFloatingMode() {
+  const api = _floatingDesktopApi();
+  if (!api) return;
+  document.body.classList.add("is-desktop-app");
+  if (_kuroFloatingInitialized) return;
+  _kuroFloatingInitialized = true;
+
+  const opacityPresets = [
+    { label: "Mờ 72%", enabled: true, val: 0.72 },
+    { label: "Mờ 55%", enabled: true, val: 0.55 },
+    { label: "Mờ 86%", enabled: true, val: 0.86 },
+    { label: "Rõ 100%", enabled: false, val: 1.0 },
+  ];
+  let opacityIdx = 0;
+
+  const btnOpacity = $("btn-mini-opacity");
+  function renderOpacityLabel(enabled, val) {
+    if (!btnOpacity) return;
+    if (!enabled || val >= 0.99) {
+      btnOpacity.textContent = "Rõ 100%";
+      opacityIdx = 3;
+      return;
+    }
+    const pct = Math.round(val * 100);
+    btnOpacity.textContent = `Mờ ${pct}%`;
+    let best = 0;
+    let bestDiff = 999;
+    opacityPresets.forEach((p, i) => {
+      if (p.enabled) {
+        const d = Math.abs(p.val - val);
+        if (d < bestDiff) {
+          bestDiff = d;
+          best = i;
+        }
+      }
+    });
+    opacityIdx = best;
+  }
+
+  function switchMode(mode, focusInput = false) {
+    const a = _floatingDesktopApi();
+    if (!a) return;
+    window.__applyKuroFloatingMode(mode, focusInput);
+    a.set_floating_mode(mode, !!focusInput).catch(() => {});
+  }
+
+  // Đồng bộ trạng thái hiện tại từ app_desktop.py (hữu ích khi nhấn F5 / reload lúc đang ở Mini)
+  if (typeof api.get_floating_state === "function") {
+    api.get_floating_state().then((st) => {
+      if (!st) return;
+      renderOpacityLabel(st.auto_dim !== false, typeof st.dim_opacity === "number" ? st.dim_opacity : 0.72);
+      if (st.mode && st.mode !== "full") {
+        window.__applyKuroFloatingMode(st.mode, false);
+      }
+    }).catch(() => {});
+  }
+
+  syncKuroMiniTitle();
+  const hdrNameEl = $("header-agent-name");
+  if (hdrNameEl && typeof MutationObserver !== "undefined") {
+    new MutationObserver(syncKuroMiniTitle).observe(hdrNameEl, { childList: true, characterData: true, subtree: true });
+  }
+
+  const btnToMini = $("btn-floating-mini");
+  if (btnToMini) btnToMini.addEventListener("click", () => switchMode("mini", true));
+
+  const btnToBubble = $("btn-mini-to-bubble");
+  if (btnToBubble) btnToBubble.addEventListener("click", () => switchMode("bubble", false));
+
+  const btnToFull = $("btn-mini-to-full");
+  if (btnToFull) btnToFull.addEventListener("click", () => switchMode("full", false));
+
+  const btnMiniTheme = $("btn-mini-theme");
+  if (btnMiniTheme && btnThemeToggle) {
+    btnMiniTheme.addEventListener("click", () => btnThemeToggle.click());
+  }
+
+  if (btnOpacity) {
+    btnOpacity.addEventListener("click", () => {
+      opacityIdx = (opacityIdx + 1) % opacityPresets.length;
+      const p = opacityPresets[opacityIdx];
+      btnOpacity.textContent = p.label;
+      const a = _floatingDesktopApi();
+      if (a && typeof a.set_floating_auto_dim === "function") {
+        a.set_floating_auto_dim(p.enabled, p.val).catch(() => {});
+      }
+    });
+  }
+
+  // Kéo di chuyển thanh tiêu đề Mini + nhấp đúp mở rộng Full
+  const dragArea = $("kuro-mini-drag-area");
+  if (dragArea) {
+    dragArea.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || _kuroFloatingMode !== "mini") return;
+      const a = _floatingDesktopApi();
+      if (a && typeof a.start_window_drag === "function") {
+        a.start_window_drag().catch(() => {});
+      }
+    });
+    dragArea.addEventListener("dblclick", () => {
+      if (_kuroFloatingMode === "mini") switchMode("full", false);
+    });
+  }
+
+  // Kéo 8 cạnh/góc đổi kích thước khung Mini
+  document.querySelectorAll(".kuro-resize-handle").forEach((el) => {
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || _kuroFloatingMode !== "mini") return;
+      const edge = el.getAttribute("data-edge") || "bottom-right";
+      const a = _floatingDesktopApi();
+      if (a && typeof a.start_window_resize === "function") {
+        a.start_window_resize(edge).catch(() => {});
+      }
+    });
+  });
+
+  // Bấm vào dòng xử lý tool thu gọn trong chế độ Mini để xem/ẩn chi tiết tool
+  const logEl = $("log");
+  if (logEl) {
+    logEl.addEventListener("click", (e) => {
+      if (_kuroFloatingMode !== "mini") return;
+      const box = e.target && e.target.closest ? e.target.closest(".kuro-thinking-box") : null;
+      if (box) box.classList.toggle("mini-expanded");
+    });
+  }
+
+  // Phím Esc khi đang ở Mini (và không mở dialog/popover) -> thu gọn thành bong bóng tròn
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || _kuroFloatingMode !== "mini") return;
+    if (document.querySelector("dialog[open]")) return;
+    const popovers = ["slash-menu", "attach-menu-popover", "model-menu-popover", "thinking-menu-popover", "mode-menu-popover", "quota-menu-popover"];
+    const anyOpen = popovers.some((id) => {
+      const el = $(id);
+      return el && el.style.display !== "none" && getComputedStyle(el).display !== "none";
+    });
+    if (anyOpen) return;
+    switchMode("bubble", false);
+  });
+
+  // Bong bóng tròn: phân biệt Click mở Mini vs Kéo di chuyển, Chuột phải mở Full
+  const bubbleEl = $("kuro-bubble-view");
+  if (bubbleEl) {
+    let downPt = null;
+    let dragged = false;
+    bubbleEl.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || _kuroFloatingMode !== "bubble") return;
+      downPt = { x: e.screenX, y: e.screenY };
+      dragged = false;
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!downPt || dragged || _kuroFloatingMode !== "bubble") return;
+      if (Math.abs(e.screenX - downPt.x) > 5 || Math.abs(e.screenY - downPt.y) > 5) {
+        dragged = true;
+        downPt = null;
+        const a = _floatingDesktopApi();
+        if (a && typeof a.start_window_drag === "function") {
+          a.start_window_drag().catch(() => {});
+        }
+      }
+    });
+    window.addEventListener("mouseup", () => {
+      if (downPt && !dragged && _kuroFloatingMode === "bubble") {
+        downPt = null;
+        switchMode("mini", true);
+      } else {
+        downPt = null;
+        dragged = false;
+      }
+    });
+    bubbleEl.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      if (_kuroFloatingMode === "bubble") switchMode("full", false);
+    });
+  }
+}
+
+if (_floatingDesktopApi()) {
+  initKuroFloatingMode();
 }
 
 // Khởi chạy
