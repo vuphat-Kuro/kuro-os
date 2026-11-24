@@ -1268,6 +1268,8 @@ def get_session_info(sid: str):
         raise HTTPException(404, "Không tìm thấy phiên")
     if not sess.get("provider"):
         sess["provider"] = store.session_provider(sess)
+    task = session_chat_tasks.get(sid)
+    sess["running"] = bool(task and not task.done())
     return sess
 
 
