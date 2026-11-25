@@ -23,6 +23,7 @@ import subprocess
 from pathlib import Path
 
 import config
+import tiet_kiem
 
 HOOK_AGY = Path.home() / ".gemini" / "config" / "hooks.json"   # agy nạp hooks.json toàn máy ở đây
 
@@ -97,6 +98,7 @@ def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | N
             "-c", f"sandbox_mode=\"{'workspace-write' if (shell or write) else 'read-only'}\""]
         if shell:   # elevated lỗi quyền trên máy thường; unelevated chạy được (xem ghi chú đầu file)
             cmd += ["-c", "windows.sandbox=\"unelevated\""]
+        cmd += tiet_kiem.codex_args(shell)   # context-mode: cất kết quả dài vào kho tìm kiếm, bớt token
         if thinking in _CODEX_EFFORT:
             cmd += ["-c", f'model_reasoning_effort="{_CODEX_EFFORT[thinking]}"']
         if chosen_model:
@@ -216,7 +218,7 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
     st = {"id": None, "text": False, "error": "", "tools": set(), "notes": [], "usage": None, "init_tools": []}
     work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(
-        *cmd, cwd=work_dir, limit=16 * 1024 * 1024, env={**os.environ, "KURO_AGY": "1"},   # bật hook chặn xóa kho mạng
+        *cmd, cwd=work_dir, limit=16 * 1024 * 1024, env={**os.environ, **tiet_kiem.ENV, "KURO_AGY": "1"},   # bật hook chặn xóa kho mạng
         stdin=subprocess.PIPE if stdin else subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if stdin:

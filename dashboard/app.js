@@ -4920,7 +4920,8 @@ if (btnModelPill) {
 }
 
 // Nút chọn Mức suy nghĩ (Thinking Pill)
-let currentThinkingMode = "high";
+// Mặc định "Tiêu chuẩn": "Cao" tốn nhiều token suy nghĩ cho việc thường; mỗi máy nhớ lựa chọn riêng
+let currentThinkingMode = "standard";
 const btnThinkingPill = $("btn-thinking-pill");
 if (btnThinkingPill) {
   btnThinkingPill.onclick = (e) => {
@@ -4947,10 +4948,17 @@ thinkingItems.forEach(item => {
     });
     const labelMap = { high: "Cao", standard: "Tiêu chuẩn", off: "Tắt" };
     const labelEl = $("thinking-pill-label");
-    if (labelEl) labelEl.textContent = labelMap[t] || "Cao";
+    if (labelEl) labelEl.textContent = labelMap[t] || "Tiêu chuẩn";
+    try { localStorage.setItem("kuro_thinking", t); } catch (_) {}
     hideBottomPopovers();
   };
 });
+(() => {
+  let saved = "standard";
+  try { saved = localStorage.getItem("kuro_thinking") || "standard"; } catch (_) {}
+  const item = document.querySelector(`#thinking-menu-popover .mode-menu-item[data-thinking="${saved}"]`);
+  if (item) item.click();
+})();
 
 // Nút chọn Chế độ thực thi (Mode)
 const btnModePill = $("btn-mode-pill");

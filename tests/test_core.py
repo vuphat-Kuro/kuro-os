@@ -198,6 +198,45 @@ class ModelPerAI(unittest.TestCase):
             engine._engine_turn = keep_turn
 
 
+class TietKiem(unittest.TestCase):
+    def test_system_prompt_khong_co_gio(self):
+        """Giờ đổi mỗi phút mà nằm trong system prompt thì prompt cache hỏng mỗi lượt."""
+        import engine
+        with tempfile.TemporaryDirectory() as d:
+            o = engine.options(None, cwd=d, provider="claude")
+        self.assertNotIn("Bây giờ là", o.system_prompt["append"])
+        self.assertEqual((o.skills, "Skill" in o.tools), ([], False))           # dự án không có .claude/skills
+
+    def test_cli_quy_tac_chi_gui_khi_doi(self):
+        import engine
+        with tempfile.TemporaryDirectory() as d:
+            self.assertIn("<huong_dan_kuro>", engine.cli_prompt("câu 2", False, ws_dir=d, key="hoi-thoai-x"))
+            lan_sau = engine.cli_prompt("câu 3", False, ws_dir=d, key="hoi-thoai-x")
+        self.assertNotIn("<huong_dan_kuro>", lan_sau)
+        self.assertIn("câu 3", lan_sau)
+
+    def test_context_mode_chi_mo_chay_ma_khi_bat_bash(self):
+        from unittest import mock
+        import tiet_kiem
+        with tempfile.TemporaryDirectory() as d:
+            srv = Path(d) / "server.mjs"
+            srv.write_text("", encoding="utf-8")
+            try:
+                with mock.patch.dict(os.environ, {"KURO_CONTEXT_MODE": str(srv)}), \
+                        mock.patch.object(tiet_kiem, "_node_du_moi", lambda: True):
+                    tiet_kiem.context_mode.cache_clear()
+                    doc = " ".join(tiet_kiem.codex_args(shell=False))
+                    self.assertIn("ctx_search", doc)
+                    self.assertNotIn("ctx_execute", doc)
+                    self.assertIn("ctx_execute", " ".join(tiet_kiem.codex_args(shell=True)))
+                    self.assertEqual(tiet_kiem.mcp_claude(False)[1][0], "mcp__context-mode__ctx_index")
+                with mock.patch.dict(os.environ, {"KURO_CONTEXT_MODE": "0"}):
+                    tiet_kiem.context_mode.cache_clear()
+                    self.assertEqual(tiet_kiem.codex_args(shell=True), [])
+            finally:
+                tiet_kiem.context_mode.cache_clear()
+
+
 class DocPdf(unittest.TestCase):
     def test_mo_san_pdf(self):
         """PDF thả vào chat hoặc dán đường dẫn có dấu cách: Kuro xuất ảnh từng trang và chữ cho AI."""

@@ -26,6 +26,7 @@ import dien_hoa
 import doc_pdf
 import config
 import store
+import tiet_kiem
 import workspace_rules
 
 
@@ -252,13 +253,20 @@ def agent_prompt_block(agent: str) -> str:
     return "\n".join(lines)
 
 
-def system_append() -> str:
-    """Kernel (CLAUDE.md gốc) + ký ức + giờ hiện tại, nối vào sau prompt mặc định của Claude Code."""
+def gio_may() -> str:
+    return f"Bây giờ là {datetime.now():%H:%M %d/%m/%Y} (giờ máy)."
+
+
+def system_append(gio: bool = True) -> str:
+    """Kernel (CLAUDE.md gốc) + ký ức (+ giờ hiện tại), nối vào sau prompt mặc định của Claude Code.
+    Đường Claude gọi gio=False và đặt giờ trong câu hỏi: giờ đổi mỗi phút mà nằm trong system prompt thì prompt cache
+    của Anthropic hỏng mỗi lượt, phải ghi lại cả system prompt + toàn bộ lịch sử chat với giá 125% thay vì đọc 10%."""
     parts = []
     for p in (config.ROOT / "CLAUDE.md", config.BRAIN / "memory" / "MEMORY.md"):
         if p.is_file():
             parts.append(p.read_text(encoding="utf-8"))
-    parts.append(f"Bây giờ là {datetime.now():%H:%M %d/%m/%Y} (giờ máy).")
+    if gio:
+        parts.append(gio_may())
     return "\n\n".join(parts)
 
 
@@ -383,22 +391,27 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
     ws_note = workspace_rules.build_workspace_rules_prompt(Path(ws_path), get_workspaces_config()) + f"\n{KHO_MANG_CAM_XOA}"
     prov = provider or config.PROVIDER or "claude"
     chosen_model = model or config.get_provider_model(prov) or None
+    # Skill ngành của Kuro đi qua SKILL_NGANH (Read SKILL.md), không qua tool Skill. Tool Skill chỉ đưa vào 13 skill
+    # lập trình có sẵn của Claude Code (~2k token mỗi lượt) nên chỉ bật khi dự án có .claude/skills riêng.
+    du_an_co_skill = (Path(ws_path) / ".claude" / "skills").is_dir()
+    shell = "Bash" in config.ALLOWED_TOOLS
+    ctx_mcp, ctx_allowed = tiet_kiem.mcp_claude(shell)
     return ClaudeAgentOptions(
-        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append() + extra + ws_note + DOC_TEP_LON + SKILL_NGANH.format(skills=skill_index())},
+        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append(gio=False) + extra + ws_note + DOC_TEP_LON + SKILL_NGANH.format(skills=skill_index()) + tiet_kiem.huong_dan(shell)},
         cwd=ws_path,
         model=chosen_model,
-        env=config.provider_env(chosen_model, provider=prov),
+        env={**config.provider_env(chosen_model, provider=prov), **tiet_kiem.ENV},
         resume=claude_id,
-        skills="all",
+        skills="all" if du_an_co_skill else [],
         setting_sources=["project"],      # chỉ đọc cấu hình trong brain, KHÔNG nạp ~/.claude của máy
         # Hai lớp chặn: `tools` gỡ hẳn tool built-in ngoài danh sách (dontAsk một mình vẫn cho chạy
         # lệnh Bash "chỉ đọc" như echo - đã thử thật); dontAsk từ chối MCP tool chưa được liệt kê.
-        tools=[t for t in config.ALLOWED_TOOLS if not t.startswith("mcp__")] + ["Skill", "Agent"],
-        allowed_tools=config.ALLOWED_TOOLS + ["Agent"] + calc.KHO_TOOLS,   # kho luôn bật (specs/002); mã vẫn phải duyệt
+        tools=[t for t in config.ALLOWED_TOOLS if not t.startswith("mcp__")] + (["Skill"] if du_an_co_skill else []) + ["Agent"],
+        allowed_tools=config.ALLOWED_TOOLS + ["Agent"] + calc.KHO_TOOLS + ctx_allowed,   # kho luôn bật (specs/002); mã vẫn phải duyệt
         agents=load_agents(),
         permission_mode="dontAsk",
         hooks={"PreToolUse": [HookMatcher(hooks=[chan_xoa_kho_mang])]},
-        mcp_servers={**mcp_from_file(), "kuro": calc.SERVER},
+        mcp_servers={**mcp_from_file(), **ctx_mcp, "kuro": calc.SERVER},
         include_partial_messages=True,
         # Mặc định 1 MB: đọc tệp đính kèm lớn (PDF, Excel, txt) sinh một dòng JSON vượt mức là báo CLIJSONDecodeError.
         # Read của Claude Code tối đa ~20 MB PDF (~27 MB base64): 256 MB dư nhiều, chỉ tốn RAM khi có dòng lớn thật.
@@ -422,22 +435,33 @@ def skill_index() -> str:
             meta = yaml.safe_load(raw.split("---\n", 2)[1]) if raw.startswith("---\n") else {}
         except (IndexError, yaml.YAMLError):
             meta = {}
-        desc = str((meta or {}).get("description") or "").replace("\n", " ")[:220]
+        desc = str((meta or {}).get("description") or "").replace("\n", " ")[:140]   # 63 skill: 220 ký tự mỗi mô tả tốn ~5k token mỗi lượt
         out.append(f"- {p.parent.name}: {desc} (file: {p.as_posix()})")   # đường dẫn tuyệt đối: cwd của AI là thư mục dự án, không phải brain
     return "\n".join(out)
 
 
-def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None) -> str:
+_QUY_TAC_DA_GUI: dict[str, str] = {}   # mã hội thoại CLI -> quy tắc thư mục đã gửi (khởi động lại Kuro thì gửi lại một lần)
+
+
+def _quy_tac(ws_path: str) -> str:
+    return workspace_rules.build_workspace_rules_prompt(Path(ws_path), get_workspaces_config()) + f"\n{KHO_MANG_CAM_XOA}"
+
+
+def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None, key: str | None = None) -> str:
     ws_path = ws_dir or str(active_workspace_dir())
     ws_cfg = get_workspaces_config()
     co_quy_tac = workspace_rules.inspect_workspace_rules(Path(ws_path), ws_cfg)["has_rules"]
-    ws_rules = workspace_rules.build_workspace_rules_prompt(Path(ws_path), ws_cfg) + f"\n{KHO_MANG_CAM_XOA}"
+    ws_rules = _quy_tac(ws_path)
     ws_note = ws_rules + DOC_TEP_LON
     if not first:   # lượt sau nối tiếp hội thoại cũ, CLI đã giữ hướng dẫn của lượt đầu
-        # quy tắc thư mục dự án + kho mạng gửi lại MỖI lượt: dự án có thể vừa đổi quy tắc, đổi thư mục, hoặc hội
-        # thoại bắt đầu trước khi có quy tắc (đường Claude đã gửi lại cả system prompt mỗi lượt)
-        return (f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}.)\n<huong_dan_kuro>{ws_rules}\n</huong_dan_kuro>\n\n"
-                f"Câu hỏi của người dùng:\n{text}")
+        # quy tắc thư mục + kho mạng chỉ gửi lại khi khác lần trước (dự án vừa đổi quy tắc hoặc đổi thư mục):
+        # gửi mỗi lượt tốn ~1k token mà AI vẫn còn bản cũ trong hội thoại
+        gio = f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}.)\n"
+        if key and _QUY_TAC_DA_GUI.get(key) == ws_rules:
+            return f"{gio}\nCâu hỏi của người dùng:\n{text}"
+        if key:
+            _QUY_TAC_DA_GUI[key] = ws_rules
+        return f"{gio}<huong_dan_kuro>{ws_rules}\n</huong_dan_kuro>\n\nCâu hỏi của người dùng:\n{text}"
     can_shell = "Bash" in config.ALLOWED_TOOLS
     can_write = "Write" in config.ALLOWED_TOOLS or "Edit" in config.ALLOWED_TOOLS
     if can_shell:
@@ -464,7 +488,7 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
             f"kho 230 skill (DDC xây dựng, archify, anatomy...): mục lục `{kho.MUC_LUC}` (id, ten, mo_ta tiếng Anh, "
             f"duong_dan), đọc SKILL.md ở `{config.ROOT}/<duong_dan>`. Ghi tên skill và repo đã dùng. CHỈ chạy mã của "
             f"skill có trong `{kho.SO_GOC}`. Dữ liệu giá CWICR cấm dùng thương mại: báo trước khi dùng.\n\n"
-            f"## Tính toán\n{calc_rule}\n</huong_dan_kuro>\n\n"
+            f"## Tính toán\n{calc_rule}{tiet_kiem.huong_dan(can_shell)}\n</huong_dan_kuro>\n\n"
             "Câu hỏi của người dùng:\n" + text)
 
 
@@ -642,15 +666,18 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
         eff_model = model
         if kind == "agy" and thinking in THINK_LEVELS:
             eff_model = await cli_engines.agy_model_for_thinking(model or config.get_provider_model(cur), thinking)
-        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path),
+        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path, key=resume),
                                         resume, cwd=ws_path, model=eff_model, provider=cur, thinking=thinking):
+            if ev["type"] == "final" and ev.get("claude_id") and resume is None:
+                _QUY_TAC_DA_GUI[ev["claude_id"]] = _quy_tac(ws_path)   # lượt đầu đã gửi quy tắc trong khối hướng dẫn
             yield ev
         return
     try:
         think = {}
         if thinking in THINK_LEVELS:
             think = thinking_options(claude_cap(await claude_models_caps(), model or config.get_provider_model(cur)), thinking)
-        async for m in query(prompt=prompt, options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur, think=think)):
+        # giờ nằm trong câu hỏi (không trong system prompt) để prompt cache dùng lại được giữa các lượt
+        async for m in query(prompt=f"({gio_may()})\n\n{prompt}", options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur, think=think)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
