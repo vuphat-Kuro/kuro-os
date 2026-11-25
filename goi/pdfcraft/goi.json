@@ -1,0 +1,19 @@
+{
+  "ten": "PdfCraft - đọc, sửa, gộp, tách PDF",
+  "mo_ta": "Đọc, trích chữ, gộp, tách, xoay, xóa trang, chú thích PDF bằng pdfcraft-cli (Rust, MIT/Apache-2.0, chạy offline). Chỉ nạp khi việc liên quan đến thao tác tệp PDF. Tải bản portable có kiểm SHA-256, kèm MCP giới hạn thư mục làm việc.",
+  "skill": "pdfcraft-pdf",
+  "pip": [],
+  "import": [],
+  "phien_ban": "0.22.0",
+  "kiem_tra": "scripts/pdfcraft_setup.py status",
+  "mcp": {
+    "pdfcraft": {
+      "command": "${KURO_PYTHON}",
+      "args": [
+        "-X",
+        "utf8",
+        "${KURO_ROOT}/goi/pdfcraft/pdfcraft-pdf/scripts/mcp_chay.py"
+      ]
+    }
+  }
+}

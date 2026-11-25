@@ -1,5 +1,13 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.9.0] - 2026-11-25
+- **Thêm 7 plugin/kho vào Kuro, thẻ Plugins thu gọn và có hàng Phần mềm + MCP riêng:**
+  - Plugin mới trong `goi/`: `librecad` (CAD 2D, winget, MCP tự viết), `pdfcraft`, `cadcraft`, `solidcraft` (app Rust: tải bản portable ghim phiên bản, kiểm SHA-256, cài `%LOCALAPPDATA%\Programs`, chạy nền; nhận bản cài tay ở Program Files và registry), `chili3d` (web + cầu nối MCP npm `@chili3d/mcp`), `cli-hub` (pip `cli-anything-hub`). Mã cài dùng chung ở `goi/_chung/cai_phan_mem.py`.
+  - Kho skill thêm `kho/cli-anything` (HKUDS/CLI-Anything, Apache-2.0, ghim `34f5195`): 71 skill CLI dựng sẵn, quy trình dựng CLI cho phần mềm GUI, meta-skill CLI-Hub. `dong_bo_kho` cho `skill_don` kèm `mo_ta`.
+  - Giao diện Plugins: thẻ thu gọn (bấm mới xổ chi tiết), mỗi plugin có hàng Phần mềm (Cài/Gỡ/Mở) và hàng MCP (Cài MCP/Gỡ MCP, API `/api/plugins/mcp`); `goi.json` hỗ trợ `mcp_cai` và `${KURO_ROOT}`/`${KURO_PYTHON}` trong khối `mcp`.
+  - Chưa thử: tải SolidCraft thật (220 MB), cú pháp `dxf2pdf` của LibreCAD trên bản đã cài. MCP CADCraft 0.20.1 chưa giới hạn thư mục.
+- Kèm các thay đổi đang làm dở của người bảo trì (ngữ cảnh token, đường dẫn tệp, cli_engines, engine, store, demo bóng chat).
+
 ## [1.8.9] - 2026-11-23
 - **Thêm mục Cài đặt Plugins trong Cài đặt hệ thống & tích hợp plugin Convert Font to Unicode (PKTTC TextHub v0.9.3):**
   - Tách hộp thoại Cài đặt thành 2 tab **Lõi AI & Hệ thống** và **Plugins** (đồng bộ Soft UI Sáng/Tối).

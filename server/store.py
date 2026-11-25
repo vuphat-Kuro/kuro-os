@@ -36,6 +36,7 @@ def init() -> None:
         "ALTER TABLE sessions ADD COLUMN model TEXT DEFAULT ''",
         "ALTER TABLE sessions ADD COLUMN provider TEXT DEFAULT ''",
         "ALTER TABLE sessions ADD COLUMN conv_ids TEXT DEFAULT '{}'",
+        "ALTER TABLE sessions ADD COLUMN usage_json TEXT DEFAULT '{}'",
         "ALTER TABLE messages ADD COLUMN provider TEXT DEFAULT ''",
     ):
         try:
@@ -125,7 +126,7 @@ def get(sid: str) -> dict | None:
 
 def set_claude_id(sid: str, claude_id: str | None) -> None:
     if claude_id is None:
-        _q("UPDATE sessions SET claude_id=NULL, conv_ids='{}', updated=? WHERE id=?", (time.time(), sid))
+        _q("UPDATE sessions SET claude_id=NULL, conv_ids='{}', usage_json='{}', updated=? WHERE id=?", (time.time(), sid))
         return
     owner, conv = parse_conv_id(claude_id)
     conv_map = get_conv_ids(sid)
@@ -133,6 +134,42 @@ def set_claude_id(sid: str, claude_id: str | None) -> None:
         conv_map[owner] = conv
     _q("UPDATE sessions SET claude_id=?, conv_ids=?, updated=? WHERE id=?",
        (claude_id, json.dumps(conv_map, ensure_ascii=False), time.time(), sid))
+
+
+def get_usage(sess_or_sid, provider: str | None = None) -> dict | None:
+    """Lấy thống kê token gần nhất đã lưu cho phiên (theo provider nếu chỉ định)."""
+    sess = get(sess_or_sid) if isinstance(sess_or_sid, str) else (sess_or_sid or {})
+    if not sess:
+        return None
+    raw = sess.get("usage_json")
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    if provider:
+        prov = {"codex": "chatgpt", "agy": "antigravity"}.get(str(provider), str(provider))
+        val = parsed.get(prov)
+        return val if isinstance(val, dict) else None
+    return parsed
+
+
+def set_usage(sid: str, provider: str, usage: dict) -> None:
+    """Lưu thống kê token thật (input/cache/output/total) gần nhất của phiên theo provider."""
+    if not sid or not isinstance(usage, dict):
+        return
+    prov = {"codex": "chatgpt", "agy": "antigravity"}.get((provider or "claude").strip(), (provider or "claude").strip())
+    cur = get_usage(sid) or {}
+    merged = dict(cur.get(prov) or {})
+    for k, v in usage.items():
+        if v is not None:
+            merged[k] = v
+    merged["updated_at"] = time.time()
+    cur[prov] = merged
+    _q("UPDATE sessions SET usage_json=? WHERE id=?", (json.dumps(cur, ensure_ascii=False), sid))
 
 
 def set_conv_id(sid: str, provider: str, conv_id: str) -> None:
@@ -173,7 +210,7 @@ def replace_messages(sid: str, new_messages: list[dict]) -> None:
     for m in new_messages:
         _q("INSERT INTO messages(session_id,role,text,ts,provider) VALUES(?,?,?,?,?)",
            (sid, m.get("role", "assistant"), m.get("text", ""), now, m.get("provider", "")))
-    _q("UPDATE sessions SET updated=?, claude_id=NULL, conv_ids='{}' WHERE id=?", (now, sid))
+    _q("UPDATE sessions SET updated=?, claude_id=NULL, conv_ids='{}', usage_json='{}' WHERE id=?", (now, sid))
 
 
 def add(sid: str, role: str, text: str, provider: str = "") -> None:

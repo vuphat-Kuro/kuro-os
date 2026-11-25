@@ -1,0 +1,9 @@
+{
+  "ten": "CLI-Hub - tra cứu và cài CLI cho phần mềm",
+  "mo_ta": "Công cụ cli-hub của CLI-Anything (MIT) để tìm và cài CLI điều khiển phần mềm (FreeCAD, GIMP, LibreOffice...). Chỉ nạp khi người dùng muốn điều khiển một phần mềm bằng dòng lệnh. Không có MCP; mỗi CLI cài thêm là mã bên thứ ba nên phải hỏi từng lần.",
+  "skill": "cli-hub",
+  "pip": [],
+  "import": [],
+  "phien_ban": "0.4.1",
+  "kiem_tra": "scripts/cli_hub_setup.py status"
+}

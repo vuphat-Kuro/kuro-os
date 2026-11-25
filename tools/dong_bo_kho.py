@@ -106,7 +106,11 @@ def dong_bo(chi: set | None = None) -> dict:
             for c in n.get("chon", []):
                 chep(src / c, moi / c, bd)
             if n.get("skill_don"):
-                chep(src / n["skill_don"]["tu"], moi / n["skill_don"]["id"] / "SKILL.md", bd)
+                sd = moi / n["skill_don"]["id"] / "SKILL.md"
+                chep(src / n["skill_don"]["tu"], sd, bd)
+                if n["skill_don"].get("mo_ta"):   # tệp nguồn không có frontmatter: thêm tên + mô tả để tim_skill tìm được
+                    sd.write_text(f"---\nname: {n['skill_don']['id']}\ndescription: {n['skill_don']['mo_ta']}\n---\n\n"
+                                  + sd.read_text(encoding="utf-8"), encoding="utf-8")
             for b in n.get("bo_tep", []):   # tệp làm việc ra bên ngoài (đăng bài...) không cho vào kho
                 (moi / b).unlink(missing_ok=True)
             giu = giu_ma_da_duyet(n["id"], moi, dst, so)

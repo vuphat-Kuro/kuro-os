@@ -1,0 +1,20 @@
+{
+  "ten": "Chili3D - CAD 3D trên trình duyệt",
+  "mo_ta": "Điều khiển Chili3D (CAD 3D chạy trên trình duyệt, AGPL-3.0) qua cầu nối MCP @chili3d/mcp: dựng, sửa, đo, chụp mô hình. Chỉ nạp khi việc liên quan đến dựng mô hình 3D trong Chili3D. Kuro không kèm mã Chili3D; trang web mở từ chili3d.com.",
+  "skill": "chili3d-cad",
+  "pip": [],
+  "import": [],
+  "phien_ban": "0.8.0",
+  "kiem_tra": "scripts/chili3d_setup.py status",
+  "mcp": {
+    "chili3d": {
+      "command": "${KURO_PYTHON}",
+      "args": [
+        "-X",
+        "utf8",
+        "${KURO_ROOT}/goi/chili3d/chili3d-cad/scripts/mcp_chay.py"
+      ]
+    }
+  },
+  "mcp_cai": true
+}

@@ -168,6 +168,7 @@ def _normalize_manifest(raw: dict, gid: str, base_dir: Path, nguon: str) -> dict
         "import": imp_list,
         "mcp": mcp_cfg,
         "kiem_tra": str(raw.get("kiem_tra") or "").strip(),
+        "mcp_cai": bool(raw.get("mcp_cai")),   # script kiem_tra có hành động mcp-install / mcp-uninstall (cài thành phần MCP riêng)
     }
 
 
@@ -257,7 +258,7 @@ def _kiem_tra_thieu_pip(imp_list: list[str]) -> list[str]:
     return thieu
 
 
-_SETUP_ACTIONS = {"status", "install", "uninstall", "fonts-install"}
+_SETUP_ACTIONS = {"status", "install", "uninstall", "fonts-install", "open"}
 
 
 def _setup_script(base: Path, m: dict, nguon: str) -> tuple[Path, list[str]] | None:
@@ -398,6 +399,7 @@ def danh_sach(kiem_tra: bool = False) -> dict:
                 "skills": m["skills"],
                 "agents": m["agents"],
                 "mcp": sorted(m["mcp"].keys()),
+                "mcp_da_cai": _mcp_da_dang_ky(m),
                 "pip": m["pip"],
                 "thieu_pip": thieu,
                 "co_cai_dat_may": bool(setup_info),
@@ -454,6 +456,50 @@ def _cai_pip(pip_specs: list[str], imp_list: list[str]) -> None:
         raise ValueError("Không cài được thư viện Python (kiểm tra kết nối mạng): " + err_line)
 
 
+def _thay_giu_cho(v):
+    """Thay ${KURO_ROOT} và ${KURO_PYTHON} trong cấu hình MCP bằng đường dẫn thật trên máy này."""
+    if isinstance(v, str):
+        return v.replace("${KURO_ROOT}", config.ROOT.as_posix()).replace("${KURO_PYTHON}", _python())
+    if isinstance(v, list):
+        return [_thay_giu_cho(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _thay_giu_cho(x) for k, x in v.items()}
+    return v
+
+
+def _mcp_da_dang_ky(m: dict) -> bool:
+    ten = list(m["mcp"])
+    have = _doc_mcp()["mcpServers"]
+    return bool(ten) and all(t in have for t in ten)
+
+
+def mcp_bat(gid: str, bat: bool) -> str:
+    """Thêm/bớt RIÊNG khối MCP của plugin trong state/mcp.json (không đụng skill). Có hiệu lực cho phiên chat mới."""
+    base, m, nguon = _find_plugin(gid)
+    cfg = _validate_mcp(m["mcp"])
+    if not cfg:
+        raise ValueError(f"Plugin '{gid}' không có MCP.")
+    if m.get("mcp_cai"):   # thành phần MCP cần cài riêng (vd cầu nối npm): chạy script trước khi ghi cấu hình
+        found = _setup_script(base, m, nguon)
+        if not found:
+            raise ValueError(f"Plugin '{gid}' khai mcp_cai nhưng thiếu script kiem_tra.")
+        rc, res = _run_setup_cmd(found[0], ["mcp-install" if bat else "mcp-uninstall"], timeout=170)
+        if rc != 0 or not res.get("ok", True):
+            raise ValueError(str(res.get("thong_bao") or "Cài thành phần MCP không thành công."))
+    data = _doc_mcp()
+    owned = set((da_cai().get(gid) or {}).get("mcp") or [])
+    for srv, c in cfg.items():
+        want = _thay_giu_cho(c)
+        if bat:
+            if srv in data["mcpServers"] and data["mcpServers"][srv] != want and srv not in owned:
+                raise ValueError(f"MCP '{srv}' đã có trong state/mcp.json với cấu hình khác (không ghi đè).")
+            data["mcpServers"][srv] = want
+        else:
+            data["mcpServers"].pop(srv, None)
+    _luu_mcp(data)
+    return f"Đã {'cài' if bat else 'gỡ'} MCP {', '.join(cfg)}. Áp dụng cho phiên chat mới."
+
+
 def cai(gid: str) -> str:
     base, m, nguon = _find_plugin(gid)
     pip_specs = _validate_pip_specs(m["pip"])
@@ -465,7 +511,7 @@ def cai(gid: str) -> str:
     if mcp_cfg:
         mcp_data = _doc_mcp()
         for srv in mcp_cfg:
-            if srv in mcp_data["mcpServers"] and srv not in owned_mcp:
+            if srv in mcp_data["mcpServers"] and srv not in owned_mcp and mcp_data["mcpServers"][srv] != _thay_giu_cho(mcp_cfg[srv]):
                 raise ValueError(f"MCP server '{srv}' đã tồn tại trong state/mcp.json (thuộc cấu hình khác).")
 
     _cai_pip(pip_specs, m["import"])
@@ -473,7 +519,7 @@ def cai(gid: str) -> str:
     if mcp_cfg:
         mcp_data = _doc_mcp()
         for srv, cfg in mcp_cfg.items():
-            mcp_data["mcpServers"][srv] = cfg
+            mcp_data["mcpServers"][srv] = _thay_giu_cho(cfg)
         _luu_mcp(mcp_data)
 
     st[gid] = {

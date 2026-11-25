@@ -123,14 +123,53 @@ def _codex_event(e: dict, st: dict):
             st["text"] = True
     elif t == "item.started" and it.get("type") not in (None, "agent_message", "reasoning"):
         yield {"type": "tool", "name": it["type"], "input": {}}
+    elif t == "turn.completed" and isinstance(e.get("usage"), dict):
+        u = e["usage"]
+        inp = int(u.get("input_tokens") or 0)
+        cached = int(u.get("cached_input_tokens") or 0)
+        out = int(u.get("output_tokens") or 0)
+        if inp or out:
+            st["usage"] = {
+                "input_tokens": inp,
+                "cache_read_tokens": cached,
+                "output_tokens": out,
+                "total_tokens": inp + out,
+                "source": "codex-stream",
+            }
+            yield {"type": "usage", "usage": st["usage"]}
     elif t in ("turn.failed", "error"):
         st["error"] = str((e.get("error") or {}).get("message") or e.get("message") or e)[:500]
+
+
+def _normalize_agy_usage(u: dict) -> dict | None:
+    if not isinstance(u, dict):
+        return None
+    inp = int(u.get("input_tokens") or 0)
+    cache = int(u.get("cache_read_tokens") or 0)
+    out = int(u.get("output_tokens") or 0)
+    think = int(u.get("thinking_tokens") or 0)
+    tot = int(u.get("total_tokens") or 0)
+    if not (inp or cache or out or tot):
+        return None
+    # Khi cache_read_tokens được tách riêng, tổng ngữ cảnh thực = input + cache_read + output
+    ctx_total = max(tot, inp + cache + out) if cache else max(tot, inp + out)
+    return {
+        "input_tokens": inp,
+        "cache_read_tokens": cache,
+        "output_tokens": out,
+        "thinking_tokens": think,
+        "total_tokens": ctx_total,
+        "source": "agy-stream",
+    }
 
 
 def _agy_event(e: dict, st: dict):
     ev = e.get("event")
     if ev == "init":
         st["id"] = e.get("conversation_id")
+        init_obj = e.get("init") or {}
+        if isinstance(init_obj.get("tools"), list):
+            st["init_tools"] = [str(x) for x in init_obj["tools"] if x]
     elif ev == "step_update":
         s = e.get("step_update") or {}
         if s.get("step_type") == "agent_response" and s.get("text_delta"):
@@ -139,8 +178,17 @@ def _agy_event(e: dict, st: dict):
         elif s.get("step_type") == "tool" and s.get("state") == "ACTIVE" and s.get("step_index") not in st["tools"]:
             st["tools"].add(s.get("step_index"))
             yield {"type": "tool", "name": s.get("tool_name") or "tool", "input": {}}
+        if s.get("state") == "DONE" and isinstance(s.get("usage"), dict):
+            norm = _normalize_agy_usage(s["usage"])
+            if norm:
+                st["usage"] = norm
+                yield {"type": "usage", "usage": norm}
     elif ev == "result":
         r = e.get("result") or {}
+        if not st["usage"] and isinstance(r.get("usage"), dict):
+            norm = _normalize_agy_usage(r["usage"])
+            if norm:
+                st["usage"] = norm
         if r.get("status") != "SUCCESS":
             st["error"] = f"{r.get('status')}: {r.get('error') or r.get('response') or ''}"[:500]
         elif r.get("denied_actions") and not st["text"] and not r.get("response"):
@@ -165,7 +213,7 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
     cmd, stdin = _cmd(kind, prompt, resume, shell=can_shell, model=model, write=can_write, provider=provider, thinking=thinking)
     if kind == "agy":
         go_hook_agy()
-    st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
+    st = {"id": None, "text": False, "error": "", "tools": set(), "notes": [], "usage": None, "init_tools": []}
     work_dir = cwd or str(config.BRAIN)
     proc = await asyncio.create_subprocess_exec(
         *cmd, cwd=work_dir, limit=16 * 1024 * 1024, env={**os.environ, "KURO_AGY": "1"},   # bật hook chặn xóa kho mạng
@@ -195,7 +243,12 @@ async def run(kind: str, prompt: str, resume: str | None, cwd: str | None = None
                            [f"{kind} thoát mã {code}" if code else "AI không trả lời gì."])[-1][:500]
         if st["error"]:
             yield {"type": "error", "text": st["error"]}
-        yield {"type": "final", "text": "", "claude_id": st["id"]}   # engine gắn tiền tố <id AI>:
+        final_ev = {"type": "final", "text": "", "claude_id": st["id"]}   # engine gắn tiền tố <id AI>:
+        if st["usage"]:
+            final_ev["usage"] = st["usage"]
+        if st["init_tools"]:
+            final_ev["init_tools"] = st["init_tools"]
+        yield final_ev
     finally:
         if proc.returncode is None:
             try:

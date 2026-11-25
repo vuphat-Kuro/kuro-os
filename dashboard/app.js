@@ -45,6 +45,22 @@ const KURO_FILE_META = {
   yml:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
   xml:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
   sql:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: true },
+  db:   { icon: "🗄️", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: false },
+  sqlite: { icon: "🗄️", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: false },
+  sqlite3: { icon: "🗄️", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: false },
+  dgn:  { icon: "📐", iconId: "ic-compass", colorCls: "ic-cad", app: "MicroStation / CAD mặc định", text: false },
+  kml:  { icon: "🗺️", iconId: "ic-globe", colorCls: "ic-web", app: "Google Earth / GIS mặc định", text: true },
+  kmz:  { icon: "🗺️", iconId: "ic-globe", colorCls: "ic-web", app: "Google Earth / GIS mặc định", text: false },
+  geojson: { icon: "🗺️", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: true },
+  ini:  { icon: "📄", iconId: "ic-file-text", colorCls: "ic-muted", app: "Notepad / mặc định Windows", text: true },
+  cfg:  { icon: "📄", iconId: "ic-file-text", colorCls: "ic-muted", app: "Notepad / mặc định Windows", text: true },
+  toml: { icon: "📄", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
+  bat:  { icon: "⚙️", iconId: "ic-file-code", colorCls: "ic-amber", app: "phần mềm mặc định Windows", text: true },
+  ps1:  { icon: "⚙️", iconId: "ic-file-code", colorCls: "ic-code", app: "phần mềm mặc định Windows", text: true },
+  sh:   { icon: "⚙️", iconId: "ic-file-code", colorCls: "ic-code", app: "phần mềm mặc định Windows", text: true },
+  mp4:  { icon: "🎬", iconId: "ic-file-text", colorCls: "ic-archive", app: "trình phát video (Windows)", text: false },
+  mp3:  { icon: "🎵", iconId: "ic-file-text", colorCls: "ic-archive", app: "trình phát âm thanh (Windows)", text: false },
+  wav:  { icon: "🎵", iconId: "ic-file-text", colorCls: "ic-archive", app: "trình phát âm thanh (Windows)", text: false },
   css:  { icon: "📄", iconId: "ic-file-code", colorCls: "ic-web", app: "phần mềm mặc định Windows", text: true },
   zip:  { icon: "📦", iconId: "ic-file-archive", colorCls: "ic-archive", app: "trình giải nén (Windows)", text: false },
   rar:  { icon: "📦", iconId: "ic-file-archive", colorCls: "ic-archive", app: "trình giải nén (Windows)", text: false },
@@ -52,9 +68,19 @@ const KURO_FILE_META = {
 };
 const _KNOWN_EXT_PATTERN = Object.keys(KURO_FILE_META).join("|");
 const _WIN_ABS_PATH_RE = /^[A-Za-z]:[\\/][^\r\n<>|"*?]+$/;
-const _UNC_PATH_RE = /^\\\\[^\\\s<>|"*?]+\\[^\\\r\n<>|"*?]+$/;
+const _UNC_PATH_RE = /^\\\\[^\\\s<>|"*?]+\\[^\r\n<>|"*?]+$/;
 const _REL_FILE_RE = new RegExp(`^(?:[\\w.\\-\\/\\\\]+[\\/\\\\])?[\\w.\\-\\u00C0-\\u1EF9][\\w.\\-\\u00C0-\\u1EF9 ]*\\.(${_KNOWN_EXT_PATTERN})$`, "i");
 const _INLINE_WIN_FILE_RE = new RegExp(`((?:[A-Za-z]:[\\\\/]|\\\\\\\\[^\\\\\\s<>|"*?]+\\\\)[^\\s<>|"*?(),;'"\`]+\\.(?:${_KNOWN_EXT_PATTERN}))`, "gi");
+// Cho phép giao thức file:// và đường dẫn ổ đĩa Windows (C:/..., D:\...) qua DOMPurify để giữ nguyên liên kết tệp
+const KURO_ALLOWED_URI_RE = /^(?:(?:(?:f|ht)tps?|file|mailto|tel|callto|sms|cid|xmpp):|(?:[A-Za-z]:[\\/])|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+
+function safeDecodeUri(s) {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return String(s || "");
+  }
+}
 
 function getFileExt(pathStr) {
   const clean = String(pathStr || "").replace(/#L\d+(?:-L?\d+)?$/i, "").trim();
@@ -76,18 +102,75 @@ function getFileBaseName(pathStr) {
 function decodeFileHref(href) {
   try {
     let raw = String(href || "").trim();
-    if (!raw.toLowerCase().startsWith("file://")) return raw;
+    if (!raw) return "";
     raw = raw.replace(/#L\d+(?:-L?\d+)?$/i, "");
+    if (!raw.toLowerCase().startsWith("file://")) {
+      const dec = safeDecodeUri(raw);
+      if (/^[A-Za-z]:[\\/]/.test(dec) || dec.startsWith("\\\\")) {
+        return dec.replace(/\//g, "\\");
+      }
+      return dec;
+    }
     const u = new URL(raw);
     if (u.hostname && u.hostname.toLowerCase() !== "localhost") {
-      return "\\\\" + u.hostname + decodeURIComponent(u.pathname).replace(/\//g, "\\");
+      return "\\\\" + u.hostname + safeDecodeUri(u.pathname).replace(/\//g, "\\");
     }
-    let p = decodeURIComponent(u.pathname);
+    let p = safeDecodeUri(u.pathname);
     if (/^\/[A-Za-z]:/.test(p)) p = p.slice(1);
     return p.replace(/\//g, "\\");
   } catch {
-    return String(href || "");
+    let fallback = String(href || "").trim().replace(/^file:\/+/i, "").replace(/#L\d+(?:-L?\d+)?$/i, "");
+    fallback = safeDecodeUri(fallback);
+    if (/^\/[A-Za-z]:/.test(fallback)) fallback = fallback.slice(1);
+    return fallback.replace(/\//g, "\\");
   }
+}
+
+const _resolvedPathCache = new Map();
+
+function isAbsoluteFilePath(filePath) {
+  const raw = String(filePath || "").trim();
+  return _WIN_ABS_PATH_RE.test(raw) || _UNC_PATH_RE.test(raw);
+}
+
+function resolveFullDisplayPath(filePath) {
+  const raw = String(filePath || "").trim().replace(/#L\d+(?:-L?\d+)?$/i, "");
+  if (!raw) return "";
+  if (_resolvedPathCache.has(raw)) {
+    return _resolvedPathCache.get(raw);
+  }
+  if (_WIN_ABS_PATH_RE.test(raw) || _UNC_PATH_RE.test(raw)) {
+    return raw.replace(/\//g, "\\");
+  }
+  const wsPath = (typeof currentWorkspace !== "undefined" && currentWorkspace && currentWorkspace.path)
+    ? String(currentWorkspace.path).replace(/[\\/]+$/, "")
+    : "";
+  if (wsPath) {
+    const rel = raw.replace(/^[.\\/]+/, "").replace(/\//g, "\\");
+    return rel ? `${wsPath}\\${rel}` : wsPath;
+  }
+  return raw;
+}
+
+async function resolveRealPathAsync(rawPath) {
+  const raw = String(rawPath || "").trim().replace(/#L\d+(?:-L?\d+)?$/i, "");
+  if (!raw) return "";
+  if (_resolvedPathCache.has(raw)) return _resolvedPathCache.get(raw);
+  if (isAbsoluteFilePath(raw)) {
+    const norm = raw.replace(/\//g, "\\");
+    _resolvedPathCache.set(raw, norm);
+    return norm;
+  }
+  try {
+    const res = await fetch(`/api/fs/resolve?path=${encodeURIComponent(raw)}`);
+    if (!res.ok) return "";
+    const data = await res.json();
+    if (data && data.ok && data.path) {
+      _resolvedPathCache.set(raw, data.path);
+      return data.path;
+    }
+  } catch (_) {}
+  return "";
 }
 
 function looksLikeFilePath(text) {
@@ -107,11 +190,12 @@ function looksLikeFilePath(text) {
 
 function makeFileLinkEl(doc, filePath, displayText) {
   const meta = getFileMeta(filePath);
+  const fullPath = resolveFullDisplayPath(filePath);
   const btn = doc.createElement("button");
   btn.type = "button";
   btn.className = "kuro-file-link";
   btn.setAttribute("data-file-path", filePath);
-  btn.title = `${filePath}\nBấm để mở bằng ${meta.app} hoặc xem tùy chọn`;
+  btn.setAttribute("aria-label", `${fullPath} - Nhấp hoặc chuột phải để mở tùy chọn tệp`);
 
   const ico = doc.createElement("span");
   ico.className = "kfl-ico";
@@ -133,11 +217,24 @@ function enhanceFilePathsInHtml(cleanHtml) {
   tpl.innerHTML = cleanHtml;
   const root = tpl.content;
 
-  // 1. Nâng cấp thẻ <a href="file://..."> thành nút mở file native Windows
+  // 1. Nâng cấp thẻ <a href="file://...">, đường dẫn Windows/UNC hoặc tệp tương đối thành nút mở file native Windows
   root.querySelectorAll("a[href]").forEach((a) => {
-    const href = a.getAttribute("href") || "";
-    if (href.toLowerCase().startsWith("file://")) {
-      const pathStr = decodeFileHref(href);
+    const href = (a.getAttribute("href") || "").trim();
+    if (!href) return;
+    const low = href.toLowerCase();
+    if (low.startsWith("http://") || low.startsWith("https://") || low.startsWith("mailto:") || low.startsWith("tel:") || low.startsWith("#") || low.startsWith("/api/")) {
+      return;
+    }
+    let pathStr = "";
+    if (low.startsWith("file://")) {
+      pathStr = decodeFileHref(href);
+    } else {
+      const candidate = decodeFileHref(href);
+      if (_WIN_ABS_PATH_RE.test(candidate) || _UNC_PATH_RE.test(candidate) || (!href.startsWith("/") && looksLikeFilePath(candidate))) {
+        pathStr = candidate;
+      }
+    }
+    if (pathStr) {
       const label = (a.textContent || "").trim() || getFileBaseName(pathStr);
       a.replaceWith(makeFileLinkEl(document, pathStr, label));
     }
@@ -198,7 +295,10 @@ const md = (t) => {
     } catch { return m; }
     return `@@KM${math.length - 1}@@`;
   });
-  const safeHtml = DOMPurify.sanitize(marked.parse(src).replace(/@@KM(\d+)@@/g, (_, i) => math[i]));
+  const safeHtml = DOMPurify.sanitize(
+    marked.parse(src).replace(/@@KM(\d+)@@/g, (_, i) => math[i]),
+    { ALLOWED_URI_REGEXP: KURO_ALLOWED_URI_RE }
+  );
   return enhanceFilePathsInHtml(safeHtml);
 };
 
@@ -1637,22 +1737,43 @@ function formatTokens(num) {
   return String(num || 0);
 }
 
+let _ctxLoadSeq = 0;
+let _ctxRefreshTimer = null;
+
+function scheduleContextRefresh(targetSid, delayMs = 2500) {
+  if (!targetSid || targetSid !== session) return;
+  if (_ctxRefreshTimer) return;
+  _ctxRefreshTimer = setTimeout(() => {
+    _ctxRefreshTimer = null;
+    if (session === targetSid) {
+      loadSessionContext(session);
+    }
+  }, delayMs);
+}
+
 async function loadSessionContext(sid) {
   const esc = (t) => DOMPurify.sanitize(String(t || ""), { ALLOWED_TAGS: [] });
+  const reqSeq = ++_ctxLoadSeq;
   const url = sid ? `/api/sessions/${encodeURIComponent(sid)}/context` : `/api/context`;
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
+    // Bỏ qua phản hồi cũ nếu người dùng đã chuyển sang phiên khác trong lúc tải
+    if (reqSeq !== _ctxLoadSeq) return;
+    if ((sid || null) !== (session || null)) return;
     currentContextData = data;
 
-    // 1. Cập nhật môi trường
+    // 1. Cập nhật môi trường theo đúng dự án & phiên hội thoại hiện tại
     const env = data.environment || {};
-    $("ctx-env-proj").textContent = "Kuro OS (" + (data.agent_name || "Kuro") + ")";
-    $("ctx-env-path").textContent = env.brain_path ? env.brain_path.split("\\").pop() : "Brain Default";
-    $("ctx-env-path").title = env.brain_path || "";
-    $("ctx-env-branch").textContent = env.git_branch || "main";
+    const wsName = env.workspace_name || (currentWorkspace && currentWorkspace.name) || "Kuro OS";
+    const wsPath = env.workspace_path || (currentWorkspace && currentWorkspace.path) || env.brain_path || "Brain Default";
+    $("ctx-env-proj").textContent = `${wsName} (${data.agent_name || "Kuro"})`;
+    $("ctx-env-proj").title = `${wsName} - ${data.agent_name || "Kuro"}`;
+    $("ctx-env-path").textContent = wsPath;
+    $("ctx-env-path").title = wsPath;
+    $("ctx-env-branch").textContent = env.git_branch || "Không có Git";
     const curSess = sid ? currentSessions.find(s => s.id === sid) : null;
     const activeProv = (curSess && curSess.provider) || data.session_provider || env.provider || activeSessionProvider || "";
     const activeModel = (curSess && curSess.model) || data.session_model || env.model || activeSessionModel || "";
@@ -1668,7 +1789,14 @@ async function loadSessionContext(sid) {
 
     $("ctx-used-percent").textContent = `Đã dùng ${pct}%`;
     $("ctx-used-ratio").textContent = `${formattedTok} / ${formattedWin}`;
-    const winSrc = { "claude-code": "Cửa sổ và số liệu lấy từ bộ đếm của Claude Code", "mac-dinh": "Model ngoài họ Claude: cửa sổ mặc định 200k, đặt KURO_CONTEXT_WINDOW_<AI> trong .env để chỉnh", "bang-tra-cuu": "Cửa sổ lấy từ tài liệu hãng (Claude Code không biết model này, có thể tự nén sớm ở 200k); số liệu khác do Claude Code đếm", "uoc-tinh": "AI chạy bằng CLI riêng: số liệu là ước tính (Agy đo thật phần nền, Codex chưa đo được)" };
+    const winSrc = {
+      "claude-code": "Cửa sổ và số liệu lấy từ bộ đếm thật của Claude Code",
+      "agy-real": "Số token thật lấy trực tiếp từ phiên Google Antigravity (gồm ngữ cảnh, bộ nhớ đệm, công cụ và phản hồi)",
+      "codex-real": "Số token thật lấy trực tiếp từ luồng Codex",
+      "mac-dinh": "Model ngoài họ Claude: cửa sổ mặc định 200k, đặt KURO_CONTEXT_WINDOW_<AI> trong .env để chỉnh",
+      "bang-tra-cuu": "Cửa sổ lấy từ tài liệu hãng (Claude Code không biết model này, có thể tự nén sớm ở 200k); số liệu khác do Claude Code đếm",
+      "uoc-tinh": "AI chạy bằng CLI riêng: số liệu là ước tính ban đầu trước khi có lượt trả lời mới"
+    };
     $("ctx-used-ratio").title = winSrc[env.window_source] || "";
     $("sidebar-context-badge").textContent = `${pct}%`;
     $("header-context-text").textContent = `📊 ${pct}% · ${formattedTok}`;
@@ -1843,7 +1971,7 @@ async function loadSessionContext(sid) {
       $("ctx-until-compact").innerHTML = `<b style="color:#f87171;">⚠️ Ngữ cảnh đã đầy, nên nén ngay</b>`;
     }
 
-    // 7. Render danh sách Artifacts
+    // 7. Render danh sách Artifacts (tệp từ hội thoại + tệp dự án của phiên)
     const artList = $("ctx-artifacts-list");
     artList.innerHTML = "";
     const artifacts = data.artifacts || [];
@@ -1852,8 +1980,10 @@ async function loadSessionContext(sid) {
     } else {
       artifacts.forEach(art => {
         const item = document.createElement("div");
-        item.className = "ctx-artifact-item";
-        item.title = `Xem tệp: ${art.path}`;
+        item.className = "ctx-artifact-item" + (art.from_chat ? " from-chat" : "");
+        const fullArtPath = art.full_path || resolveFullDisplayPath(art.path);
+        item.setAttribute("data-file-path", fullArtPath);
+        item.title = `${fullArtPath}\nNhấp để xem nhanh · Chuột phải để mở tùy chọn tệp`;
         const rawExt = art.name.split(".").pop() || "";
         const ext = "." + rawExt.toLowerCase();
         const artMeta = getFileMeta(art.name);
@@ -1864,7 +1994,12 @@ async function loadSessionContext(sid) {
           </div>
           <span class="ctx-art-ext">${esc(rawExt.toUpperCase())}</span>
         `;
-        item.onclick = () => openFilePreview(art.path, art.name, ext);
+        item.onclick = () => openFilePreview(fullArtPath, art.name, ext);
+        item.oncontextmenu = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          showFileActionPopover(fullArtPath, item, { x: ev.clientX, y: ev.clientY });
+        };
         artList.appendChild(item);
       });
     }
@@ -2241,6 +2376,12 @@ function connect() {
       }
       if (m.type === "session_saved") {
         loadSessions(selectedAgent);
+        if ((m.id || m.session) === session) loadSessionContext(session);
+        return;
+      }
+      if (m.type === "usage") {
+        const uSid = m.session || session;
+        if (uSid && uSid === session) scheduleContextRefresh(uSid, 1200);
         return;
       }
       if (m.type === "workspace_changed") {
@@ -2251,6 +2392,7 @@ function connect() {
           updateWorkspaceUI();
           refreshFsTree();
           loadSessions(selectedAgent);
+          loadSessionContext(session);
         }
         return;
       }
@@ -2308,6 +2450,7 @@ function connect() {
             if (oldBox) oldBox.remove();
             sessData.botEl.insertAdjacentHTML("beforeend", buildProcessingHtml(sessData.statusLabel, sessData.tools));
           }
+          scheduleContextRefresh(targetSid, 3500);
         }
       } else if (m.type === "error") {
         if (sessData) sessData.text = (sessData.text || "") + `\n\n**Lỗi:** ${m.text}`;
@@ -2336,6 +2479,7 @@ function connect() {
           autoSyncTimer = null;
         }
         loadSessions(selectedAgent);
+        if (targetSid === session) loadSessionContext(session);
       } else if (m.type === "turn_stopped") {
         renderPending = false;
         if (targetSid === session) {
@@ -2356,6 +2500,7 @@ function connect() {
           autoSyncTimer = null;
         }
         loadSessions(selectedAgent);
+        if (targetSid === session) loadSessionContext(session);
       } else if (m.type === "turn_complete") {   // "final" của engine bị bỏ: nếu xử lý cả hai, câu trả lời hiện 2 khung
         renderPending = false;
         const ans = (m.answer || (sessData ? sessData.text : "") || m.text || "").trim();
@@ -3613,6 +3758,8 @@ const _MACHINE_STATUS_META = {
   da_cai: { label: "Đã cài trên máy", cls: "prov-pill-ok" },
   co_ban_moi: { label: "Có bản mới", cls: "prov-pill-warn" },
   chua_cai: { label: "Chưa cài vào phần mềm", cls: "prov-pill-warn" },
+  dang_cai: { label: "Đang tải và cài...", cls: "prov-pill-def" },
+  web: { label: "Web, không cần cài", cls: "prov-pill-ok" },
   da_cai_ban_moi_hon: { label: "Máy đang có bản mới hơn", cls: "prov-pill-def" },
   khong_co_autocad: { label: "Chưa thấy AutoCAD", cls: "plugin-id-tag" },
   khong_ho_tro: { label: "Phiên bản chưa hỗ trợ", cls: "prov-pill-warn" },
@@ -3631,28 +3778,26 @@ function _buildMachineSetupBox(p) {
 
   const ttl = document.createElement("div");
   ttl.className = "plugin-machine-title";
-  const icWrap = document.createElement("span");
-  icWrap.innerHTML = kuroIcon("ic-monitor", "ic-xs");
-  const ttlTxt = document.createElement("span");
-  ttlTxt.textContent = "Cài đặt trên máy tính";
-  ttl.append(icWrap, ttlTxt);
+  ttl.textContent = "Phần mềm";
 
   const code = st.trang_thai || "loi";
   const meta = _MACHINE_STATUS_META[code] || _MACHINE_STATUS_META.loi;
   const pill = document.createElement("span");
   pill.className = meta.cls;
   const verInstalled = st.cai_dat && st.cai_dat.phien_ban;
-  pill.textContent = (code === "da_cai" && verInstalled) ? `Đã cài v${verInstalled}`
-    : (code === "co_ban_moi" && verInstalled) ? `v${verInstalled} -> v${st.phien_ban_goi || p.phien_ban}`
+  pill.textContent = (code === "da_cai" && verInstalled) ? `Đã cài v${String(verInstalled).replace(/^v/i, "")}`
+    : (code === "co_ban_moi" && verInstalled) ? `v${String(verInstalled).replace(/^v/i, "")} -> v${st.phien_ban_goi || p.phien_ban}`
     : meta.label;
 
   head.append(ttl, pill);
   box.append(head);
+  if (st.thong_bao) ttl.title = st.thong_bao;
 
-  if (st.thong_bao) {
+  if (st.thong_bao && code !== "da_cai" && code !== "web") {
     const msg = document.createElement("div");
     msg.className = "plugin-machine-msg";
     msg.textContent = st.thong_bao;
+    msg.title = st.thong_bao;
     box.append(msg);
   }
 
@@ -3721,12 +3866,12 @@ function _buildMachineSetupBox(p) {
   if (code === "chua_cai" || code === "co_ban_moi" || goiY.includes("install")) {
     const btnInst = document.createElement("button");
     btnInst.type = "button";
-    btnInst.className = "btn main";
+    btnInst.className = "btn";
     btnInst.textContent = code === "co_ban_moi"
       ? `Cập nhật lên v${st.phien_ban_goi || p.phien_ban}`
       : code === "da_cai"
         ? "Cài bổ sung kho font"
-        : "Cài vào AutoCAD";
+        : (st.nhan_cai || "Cài vào AutoCAD");
     btnInst.disabled = pluginOpBusy;
     btnInst.onclick = () => runSetup("install", btnInst, "Đang cài...");
     actions.append(btnInst);
@@ -3746,29 +3891,49 @@ function _buildMachineSetupBox(p) {
     const btnUn = document.createElement("button");
     btnUn.type = "button";
     btnUn.className = "btn";
-    btnUn.textContent = "Gỡ khỏi AutoCAD";
+    btnUn.textContent = st.nhan_go || "Gỡ khỏi AutoCAD";
     btnUn.disabled = pluginOpBusy;
     btnUn.onclick = () => runSetup(
       "uninstall",
       btnUn,
       "Đang gỡ...",
-      `Gỡ plugin "${p.ten || p.id}" khỏi AutoCAD trên máy tính này? (Kho font và bản sao lưu bản vẽ được giữ lại)`
+      st.xac_nhan_go || `Gỡ plugin "${p.ten || p.id}" khỏi AutoCAD trên máy tính này? (Kho font và bản sao lưu bản vẽ được giữ lại)`
     );
     actions.append(btnUn);
   }
 
+  for (const n of (Array.isArray(st.nut_them) ? st.nut_them : [])) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn";
+    b.textContent = n.nhan;
+    b.disabled = pluginOpBusy;
+    b.onclick = () => runSetup(n.action, b, "Đang mở...");
+    actions.append(b);
+  }
+
   if (actions.childElementCount > 0) {
-    box.append(actions);
+    head.append(actions);
   }
   return box;
 }
 
+const _pluginOpen = new Set();
+const _shortDesc = (t) => {
+  const first = String(t || "Không có mô tả.").split(/(?<=[.!?])\s/)[0];
+  return first.length > 150 ? first.slice(0, 147) + "..." : first;
+};
+
 function buildPluginCard(p) {
-  const card = document.createElement("div");
+  const card = document.createElement("details");
   card.className = "plugin-card" + (p.da_cai ? " installed" : "");
   card.dataset.pluginId = p.id;
+  card.open = _pluginOpen.has(p.id);
+  card.addEventListener("toggle", () => {
+    if (card.open) _pluginOpen.add(p.id); else _pluginOpen.delete(p.id);
+  });
 
-  const head = document.createElement("div");
+  const head = document.createElement("summary");
   head.className = "plugin-card-head";
 
   const main = document.createElement("div");
@@ -3778,37 +3943,17 @@ function buildPluginCard(p) {
   iconBox.className = "plugin-icon-box";
   iconBox.innerHTML = kuroIcon(p.nguon === "external" ? "ic-plug" : "ic-blocks", "ic-sm");
 
-  const info = document.createElement("div");
-  info.className = "plugin-card-info";
-
   const title = document.createElement("div");
   title.className = "plugin-card-title";
   const nameSpan = document.createElement("span");
+  nameSpan.className = "plugin-card-name";
   nameSpan.textContent = p.ten || p.id;
-  const idTag = document.createElement("span");
-  idTag.className = "plugin-id-tag";
-  idTag.textContent = p.id;
-  const verTag = document.createElement("span");
-  verTag.className = "plugin-id-tag";
-  verTag.textContent = `v${p.phien_ban || "1.0.0"}`;
+  nameSpan.title = p.ten || p.id;
   const statePill = document.createElement("span");
   statePill.className = p.da_cai ? "prov-pill-ok" : "plugin-id-tag";
   statePill.textContent = p.da_cai ? "Đã cài" : "Chưa cài";
-  title.append(nameSpan, idTag, verTag, statePill);
-
-  if (p.nguon === "external") {
-    const extPill = document.createElement("span");
-    extPill.className = "prov-pill-def";
-    extPill.textContent = "Gói ngoài";
-    title.append(extPill);
-  }
-
-  const desc = document.createElement("p");
-  desc.className = "plugin-card-desc";
-  desc.textContent = p.mo_ta || "Không có mô tả.";
-
-  info.append(title, desc);
-  main.append(iconBox, info);
+  title.append(nameSpan, statePill);
+  main.append(iconBox, title);
 
   const actions = document.createElement("div");
   actions.className = "plugin-card-actions";
@@ -3858,12 +4003,72 @@ function buildPluginCard(p) {
     }
   };
   actions.append(actBtn);
-  head.append(main, actions);
+  actions.addEventListener("click", (e) => e.stopPropagation());
+  const chev = document.createElement("span");
+  chev.className = "plugin-chev";
+  chev.textContent = "▾";
+  head.append(main, actions, chev);
   card.append(head);
+
+  const body = document.createElement("div");
+  body.className = "plugin-card-body";
+  const desc = document.createElement("p");
+  desc.className = "plugin-card-desc";
+  desc.textContent = `v${p.phien_ban || "1.0.0"} · ${_shortDesc(p.mo_ta)}`;
+  desc.title = p.mo_ta || "";
+  body.append(desc);
 
   const machineBox = _buildMachineSetupBox(p);
   if (machineBox) {
-    card.append(machineBox);
+    body.append(machineBox);
+  }
+
+  // Hàng MCP: cài / gỡ riêng khối MCP của plugin trong state/mcp.json
+  if (p.mcp && p.mcp.length) {
+    const row = document.createElement("div");
+    row.className = "plugin-machine-box";
+    const head2 = document.createElement("div");
+    head2.className = "plugin-machine-head";
+    const t = document.createElement("div");
+    t.className = "plugin-machine-title";
+    t.textContent = "MCP";
+    t.title = p.mcp.join(", ");
+    const pill = document.createElement("span");
+    pill.className = p.mcp_da_cai ? "prov-pill-ok" : "plugin-id-tag";
+    pill.textContent = p.mcp_da_cai ? "Đã cài" : "Chưa cài";
+    head2.append(t, pill);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn";
+    btn.textContent = p.mcp_da_cai ? "Gỡ MCP" : "Cài MCP";
+    btn.disabled = pluginOpBusy;
+    btn.onclick = async () => {
+      if (pluginOpBusy) return;
+      pluginOpBusy = true;
+      btn.disabled = true;
+      try {
+        const resp = await fetch("/api/plugins/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: p.id, bat: !p.mcp_da_cai })
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(j.detail || "Thao tác thất bại");
+        setPluginStatus(j.message || "Hoàn tất.", "ok");
+        renderPlugins(j);
+      } catch (err) {
+        setPluginStatus(`Lỗi: ${err.message}`, "err");
+        btn.disabled = false;
+      } finally {
+        pluginOpBusy = false;
+      }
+    };
+    const act2 = document.createElement("div");
+    act2.className = "plugin-machine-actions";
+    act2.append(btn);
+    head2.append(act2);
+    row.append(head2);
+    body.append(row);
   }
 
   // Dòng thành phần đi kèm (skills, agents, mcp, pip, nguồn gói ngoài)
@@ -3875,25 +4080,16 @@ function buildPluginCard(p) {
   if (p.agents && p.agents.length) {
     chips.append(_createPluginChip(`Cộng sự: ${p.agents.join(", ")}`));
   }
-  if (p.mcp && p.mcp.length) {
-    chips.append(_createPluginChip(`MCP: ${p.mcp.join(", ")}`));
-  }
-  if (p.pip && p.pip.length) {
-    const missing = p.thieu_pip && p.thieu_pip.length > 0;
-    chips.append(_createPluginChip(
-      `Thư viện Python: ${p.pip.join(", ")} (${missing ? "sẽ tự cài qua pip" : "đã có sẵn"})`,
-      missing && !p.da_cai
-    ));
+  if (p.thieu_pip && p.thieu_pip.length && !p.da_cai) {
+    chips.append(_createPluginChip(`Sẽ cài thư viện: ${p.thieu_pip.join(", ")}`, true));
   }
   if (p.nguon === "external" && p.nguon_tep) {
     chips.append(_createPluginChip(`Nguồn: ${p.nguon_tep}`));
   }
-  if (p.da_cai && p.cai_luc) {
-    chips.append(_createPluginChip(`Cài lúc: ${p.cai_luc.replace("T", " ")}`));
-  }
   if (chips.childElementCount > 0) {
-    card.append(chips);
+    body.append(chips);
   }
+  card.append(body);
   return card;
 }
 
@@ -5810,11 +6006,13 @@ async function switchWorkspace(path, name) {
     renderRecentWorkspaces();
 
     // 1. Làm mới cây thư mục tệp tin của dự án mới
+    _resolvedPathCache.clear();
     fsExpanded.clear();
     await refreshFsTree();
 
     // 2. Chuyển đổi và cô lập lịch sử hội thoại của Agent theo dự án mới
     await loadSessions(selectedAgent);
+    loadSessionContext(session);
 
     if (statusEl) statusEl.textContent = `Thư mục: ${data.name}`;
     setTimeout(() => { if (!busy && statusEl) statusEl.textContent = "Sẵn sàng"; }, 2500);
@@ -6431,21 +6629,110 @@ async function revealFileNative(path) {
 }
 
 // ========================================================
-// MENU TÙY CHỌN MỞ FILE KHI CLICK VÀO ĐƯỜNG DẪN TRONG CÂU TRẢ LỜI KURO
+// TOOLTIP ĐƯỜNG DẪN ĐẦY ĐỦ KHI RÊ CHUỘT & MENU TÙY CHỌN MỞ FILE (TRÁI / PHẢI)
 // ========================================================
+let _fileTooltipTimer = null;
+let _fileTooltipTarget = null;
+
+function _mountOverlayForAnchor(overlayEl, anchorEl) {
+  if (!overlayEl) return;
+  const hostDialog = anchorEl && anchorEl.closest ? anchorEl.closest("dialog[open]") : null;
+  const targetParent = hostDialog || document.body;
+  if (overlayEl.parentElement !== targetParent) {
+    targetParent.appendChild(overlayEl);
+  }
+}
+
+function hideFilePathTooltip() {
+  if (_fileTooltipTimer) {
+    clearTimeout(_fileTooltipTimer);
+    _fileTooltipTimer = null;
+  }
+  _fileTooltipTarget = null;
+  const tip = $("file-path-tooltip");
+  if (tip) tip.style.display = "none";
+}
+
+function showFilePathTooltip(filePath, anchorEl) {
+  const tip = $("file-path-tooltip");
+  if (!tip || !anchorEl || !filePath) return;
+  // Không hiện tooltip nếu bảng tùy chọn mở tệp đang mở
+  const pop = $("file-action-popover");
+  if (pop && pop.style.display !== "none") return;
+
+  const fullPath = resolveFullDisplayPath(filePath);
+  const meta = getFileMeta(filePath);
+
+  _mountOverlayForAnchor(tip, anchorEl);
+  tip.innerHTML = "";
+
+  const pathRow = document.createElement("div");
+  pathRow.className = "fpt-path";
+  pathRow.textContent = fullPath;
+
+  const hintRow = document.createElement("div");
+  hintRow.className = "fpt-hint";
+  hintRow.textContent = `Chuột phải hoặc nhấp để mở tùy chọn (${meta.app})`;
+
+  tip.append(pathRow, hintRow);
+  tip.style.display = "block";
+  tip.style.left = "0px";
+  tip.style.top = "0px";
+
+  const rect = anchorEl.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = rect.left;
+  if (left + tipRect.width > vw - 12) {
+    left = Math.max(12, vw - tipRect.width - 12);
+  }
+  if (left < 12) left = 12;
+
+  // Ưu tiên hiện ngay phía trên liên kết tệp để không che dòng bên dưới
+  let top = rect.top - tipRect.height - 8;
+  if (top < 10) {
+    top = Math.min(vh - tipRect.height - 10, rect.bottom + 8);
+  }
+  if (top < 10) top = 10;
+
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+
+  // Nếu là đường dẫn tương đối/rút gọn (vd 03_Silver_C5/c5_xl01_ckn_phan_tu.db), tra đường dẫn thật trên máy
+  if (!isAbsoluteFilePath(filePath) && !_resolvedPathCache.has(filePath)) {
+    resolveRealPathAsync(filePath).then((realPath) => {
+      if (!realPath) return;
+      if (anchorEl && anchorEl.isConnected) {
+        anchorEl.setAttribute("data-file-path", realPath);
+      }
+      if (_fileTooltipTarget === anchorEl && tip.style.display !== "none") {
+        pathRow.textContent = realPath;
+      }
+    });
+  }
+}
+
 function hideFileActionPopover() {
   const pop = $("file-action-popover");
   if (pop) pop.style.display = "none";
 }
 
-function showFileActionPopover(filePath, anchorEl) {
+function showFileActionPopover(filePath, anchorEl, point = null) {
   const pop = $("file-action-popover");
   if (!pop || !filePath) return;
 
+  hideFilePathTooltip();
+  if (typeof hideFsContextMenu === "function") hideFsContextMenu();
+
+  let effectivePath = resolveFullDisplayPath(filePath);
+  const targetForApi = () => (_resolvedPathCache.get(filePath) || (isAbsoluteFilePath(filePath) ? effectivePath : filePath));
   const meta = getFileMeta(filePath);
   const name = getFileBaseName(filePath);
   const ext = getFileExt(filePath);
 
+  _mountOverlayForAnchor(pop, anchorEl);
   pop.innerHTML = "";
 
   const hdr = document.createElement("div");
@@ -6455,10 +6742,24 @@ function showFileActionPopover(filePath, anchorEl) {
   nameEl.innerHTML = `${kuroIcon(meta.iconId || "ic-file-text", "ic-sm", meta.colorCls || "")}<span>${escapeHtml(name)}</span>`;
   const pathEl = document.createElement("div");
   pathEl.className = "fap-path";
-  pathEl.textContent = filePath;
-  pathEl.title = filePath;
+  pathEl.textContent = effectivePath;
+  pathEl.title = effectivePath;
   hdr.append(nameEl, pathEl);
   pop.appendChild(hdr);
+
+  if (!isAbsoluteFilePath(filePath) && !_resolvedPathCache.has(filePath)) {
+    resolveRealPathAsync(filePath).then((realPath) => {
+      if (!realPath) return;
+      effectivePath = realPath;
+      if (anchorEl && anchorEl.isConnected) {
+        anchorEl.setAttribute("data-file-path", realPath);
+      }
+      if (pathEl.isConnected) {
+        pathEl.textContent = realPath;
+        pathEl.title = realPath;
+      }
+    });
+  }
 
   const addItem = (iconHtml, label, onClick, isPrimary = false) => {
     const btn = document.createElement("button");
@@ -6473,15 +6774,15 @@ function showFileActionPopover(filePath, anchorEl) {
     pop.appendChild(btn);
   };
 
-  addItem(kuroIcon("ic-external-link", "ic-xs"), `Mở bằng ${meta.app}`, () => openFileNative(filePath, false), true);
-  addItem(kuroIcon("ic-wrench", "ic-xs"), "Chọn phần mềm mở khác (Open With...)", () => openFileNative(filePath, true));
-  addItem(kuroIcon("ic-folder-open", "ic-xs", "ic-folder"), "Mở thư mục chứa tệp (Explorer)", () => revealFileNative(filePath));
+  addItem(kuroIcon("ic-external-link", "ic-xs"), `Mở bằng ${meta.app}`, () => openFileNative(targetForApi(), false), true);
+  addItem(kuroIcon("ic-wrench", "ic-xs"), "Chọn phần mềm mở khác (Open With...)", () => openFileNative(targetForApi(), true));
+  addItem(kuroIcon("ic-folder-open", "ic-xs", "ic-folder"), "Mở thư mục chứa tệp (Explorer)", () => revealFileNative(targetForApi()));
 
   if (meta.text && typeof openFilePreview === "function") {
     const sep1 = document.createElement("div");
     sep1.className = "fap-sep";
     pop.appendChild(sep1);
-    addItem(kuroIcon("ic-eye", "ic-xs"), "Xem nhanh nội dung trong Kuro", () => openFilePreview(filePath, name));
+    addItem(kuroIcon("ic-eye", "ic-xs"), "Xem nhanh nội dung trong Kuro", () => openFilePreview(targetForApi(), name, ext ? `.${ext}` : ""));
   }
 
   const sep2 = document.createElement("div");
@@ -6489,7 +6790,7 @@ function showFileActionPopover(filePath, anchorEl) {
   pop.appendChild(sep2);
   addItem(kuroIcon("ic-copy", "ic-xs"), "Sao chép đường dẫn", async () => {
     try {
-      await navigator.clipboard.writeText(filePath);
+      await navigator.clipboard.writeText(effectivePath);
       if ($("state") && !busy) {
         $("state").textContent = "Đã sao chép đường dẫn tệp";
         setTimeout(() => { if (!busy && $("state")) $("state").textContent = "Sẵn sàng"; }, 1800);
@@ -6501,34 +6802,110 @@ function showFileActionPopover(filePath, anchorEl) {
   pop.style.display = "block";
   pop.style.left = "0px";
   pop.style.top = "0px";
-  const rect = anchorEl.getBoundingClientRect();
   const popRect = pop.getBoundingClientRect();
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  let left = rect.left;
-  if (left + popRect.width > vw - 12) {
-    left = Math.max(12, vw - popRect.width - 12);
+  let left;
+  let top;
+  if (point && typeof point.x === "number" && typeof point.y === "number") {
+    left = point.x;
+    top = point.y;
+    if (left + popRect.width > vw - 12) {
+      left = Math.max(12, vw - popRect.width - 12);
+    }
+    if (top + popRect.height > vh - 12) {
+      top = Math.max(12, point.y - popRect.height - 4);
+    }
+  } else {
+    const rect = anchorEl.getBoundingClientRect();
+    left = rect.left;
+    if (left + popRect.width > vw - 12) {
+      left = Math.max(12, vw - popRect.width - 12);
+    }
+    top = rect.bottom + 6;
+    if (top + popRect.height > vh - 12) {
+      top = Math.max(12, rect.top - popRect.height - 6);
+    }
   }
-  let top = rect.bottom + 6;
-  if (top + popRect.height > vh - 12) {
-    top = Math.max(12, rect.top - popRect.height - 6);
-  }
+  if (left < 12) left = 12;
+  if (top < 12) top = 12;
   pop.style.left = `${Math.round(left)}px`;
   pop.style.top = `${Math.round(top)}px`;
 }
 
-// Event delegation trên khung chat #log: click vào bất kỳ đường dẫn file nào đều hiện menu mở bằng Windows
-if ($("log")) {
-  $("log").addEventListener("click", (e) => {
-    const btn = e.target.closest(".kuro-file-link");
+// Event delegation trên khung chat #log và khung xem trước Markdown #fp-body:
+// - Rê chuột (mouseover/focusin): hiện đầy đủ đường dẫn tệp
+// - Chuột trái (click) hoặc Chuột phải (contextmenu): mở bảng tùy chọn mở tệp
+function bindFileLinkInteractions(container) {
+  if (!container) return;
+
+  container.addEventListener("mouseover", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".kuro-file-link") : null;
+    if (!btn) return;
+    if (_fileTooltipTarget === btn) return;
+    hideFilePathTooltip();
+    _fileTooltipTarget = btn;
+    const fp = btn.getAttribute("data-file-path");
+    if (!fp) return;
+    _fileTooltipTimer = setTimeout(() => {
+      if (_fileTooltipTarget === btn && btn.isConnected) {
+        showFilePathTooltip(fp, btn);
+      }
+    }, 90);
+  });
+
+  container.addEventListener("mouseout", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".kuro-file-link") : null;
+    if (!btn) return;
+    const rel = e.relatedTarget;
+    if (rel && btn.contains(rel)) return;
+    if (_fileTooltipTarget === btn) {
+      hideFilePathTooltip();
+    }
+  });
+
+  container.addEventListener("focusin", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".kuro-file-link") : null;
+    if (!btn) return;
+    const fp = btn.getAttribute("data-file-path");
+    if (fp) {
+      _fileTooltipTarget = btn;
+      showFilePathTooltip(fp, btn);
+    }
+  });
+
+  container.addEventListener("focusout", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".kuro-file-link") : null;
+    if (btn && _fileTooltipTarget === btn) hideFilePathTooltip();
+  });
+
+  container.addEventListener("click", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".kuro-file-link") : null;
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
     const fp = btn.getAttribute("data-file-path");
     if (fp) showFileActionPopover(fp, btn);
   });
+
+  container.addEventListener("contextmenu", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".kuro-file-link") : null;
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const fp = btn.getAttribute("data-file-path");
+    if (fp) showFileActionPopover(fp, btn, { x: e.clientX, y: e.clientY });
+  });
+
+  container.addEventListener("scroll", () => {
+    hideFilePathTooltip();
+    hideFileActionPopover();
+  }, { passive: true });
 }
+
+bindFileLinkInteractions($("log"));
+bindFileLinkInteractions($("fp-body"));
 
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#file-action-popover") && !e.target.closest(".kuro-file-link")) {
@@ -6536,8 +6913,22 @@ document.addEventListener("click", (e) => {
   }
 });
 
+document.addEventListener("contextmenu", (e) => {
+  if (!e.target.closest("#file-action-popover") && !e.target.closest(".kuro-file-link")) {
+    hideFileActionPopover();
+    hideFilePathTooltip();
+  }
+});
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") hideFileActionPopover();
+  if (e.key === "Escape") {
+    hideFilePathTooltip();
+    const pop = $("file-action-popover");
+    if (pop && pop.style.display !== "none") {
+      hideFileActionPopover();
+      e.stopPropagation();
+    }
+  }
 });
 
 // Bắt sự kiện Toolbar Explorer & Workspace Manager
@@ -6666,6 +7057,7 @@ async function openFilePreview(filePath, fileName, ext) {
     ".pptx", ".ppt", ".pptm",
     ".pdf",
     ".dwg", ".dxf", ".dgn",
+    ".db", ".sqlite", ".sqlite3",
     ".zip", ".rar", ".7z", ".tar", ".gz",
     ".exe", ".dll", ".bin", ".iso", ".msi",
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"
@@ -7374,7 +7766,7 @@ function initKuroFloatingMode() {
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || _kuroFloatingMode !== "mini") return;
     if (document.querySelector("dialog[open]")) return;
-    const popovers = ["slash-menu", "attach-menu-popover", "model-menu-popover", "thinking-menu-popover", "mode-menu-popover", "quota-menu-popover"];
+    const popovers = ["slash-menu", "attach-menu-popover", "model-menu-popover", "thinking-menu-popover", "mode-menu-popover", "quota-menu-popover", "file-action-popover"];
     const anyOpen = popovers.some((id) => {
       const el = $(id);
       return el && el.style.display !== "none" && getComputedStyle(el).display !== "none";

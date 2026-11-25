@@ -1,0 +1,19 @@
+{
+  "ten": "CADCraft - CAD 2D/3D, DXF/DWG",
+  "mo_ta": "Xem thông tin, đổi DXF/DWG sang SVG/PNG, chạy lệnh CAD bằng cadcraft-cli (Rust, Apache-2.0). Chỉ nạp khi việc liên quan đến đọc, đổi, xuất bản vẽ DXF/DWG. Tải bản portable có kiểm SHA-256, kèm MCP (chưa giới hạn thư mục ở bản này).",
+  "skill": "cadcraft-dxf",
+  "pip": [],
+  "import": [],
+  "phien_ban": "0.20.1",
+  "kiem_tra": "scripts/cadcraft_setup.py status",
+  "mcp": {
+    "cadcraft": {
+      "command": "${KURO_PYTHON}",
+      "args": [
+        "-X",
+        "utf8",
+        "${KURO_ROOT}/goi/cadcraft/cadcraft-dxf/scripts/mcp_chay.py"
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "ten": "SolidCraft - CAD 3D tham số",
+  "mo_ta": "Dựng mô hình 3D tham số, xuất STEP bằng solidcraft-cli (Rust, Apache-2.0). Chỉ nạp khi việc liên quan đến dựng, sửa, xuất mô hình 3D cơ khí/chi tiết. Gói ~220 MB, tải bản portable có kiểm SHA-256, kèm MCP.",
+  "skill": "solidcraft-3d",
+  "pip": [],
+  "import": [],
+  "phien_ban": "0.49.0",
+  "kiem_tra": "scripts/solidcraft_setup.py status",
+  "mcp": {
+    "solidcraft": {
+      "command": "${KURO_PYTHON}",
+      "args": [
+        "-X",
+        "utf8",
+        "${KURO_ROOT}/goi/solidcraft/solidcraft-3d/scripts/mcp_chay.py"
+      ]
+    }
+  }
+}

@@ -763,14 +763,28 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
             shown.append(ev["text"])
         elif ev["type"] == "error":
             shown.append(f"\n\n[Lỗi] {ev['text']}")
+        elif ev["type"] == "usage" and isinstance(ev.get("usage"), dict):
+            try:
+                store.set_usage(sid, chosen_provider, ev["usage"])
+            except Exception:
+                pass
         elif ev["type"] == "final":
             final = ev["text"]
             if ev.get("claude_id"):
                 owner_id, raw_id = split_conv(ev["claude_id"])
                 if raw_id:
                     store.set_conv_id(sid, owner_id or chosen_provider, raw_id)
+            usage_payload = ev.get("usage") if isinstance(ev.get("usage"), dict) else None
+            if ev.get("init_tools"):
+                usage_payload = dict(usage_payload or {})
+                usage_payload["init_tools"] = ev["init_tools"]
+            if usage_payload:
+                try:
+                    store.set_usage(sid, chosen_provider, usage_payload)
+                except Exception:
+                    pass
         if emit:
-            await emit({k: v for k, v in ev.items() if k != "claude_id"})
+            await emit({k: v for k, v in ev.items() if k not in ("claude_id", "init_tools")})
     answer = "".join(shown) or final
     store.add(sid, "assistant", answer, provider=chosen_provider)
     return answer

@@ -2652,11 +2652,36 @@
     word-break:break-all;
   }
   .fap-path {
-    font:11px/1.3 Consolas, "Cascadia Mono", monospace;
+    font:11px/1.35 Consolas, "Cascadia Mono", monospace;
     color:var(--muted);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    white-space:normal;
+    word-break:break-all;
+    max-height:76px;
+    overflow-y:auto;
+  }
+  .file-path-tooltip {
+    position:fixed;
+    max-width:min(540px, calc(100vw - 24px));
+    padding:8px 11px;
+    background:#0c1726;
+    border:1px solid var(--line-hi);
+    border-radius:8px;
+    box-shadow:0 12px 30px rgba(0, 0, 0, 0.72);
+    z-index:10001;
+    pointer-events:none;
+    display:none;
+    animation:rise .1s ease;
+  }
+  .file-path-tooltip .fpt-path {
+    font:500 11.5px/1.4 Consolas, "Cascadia Mono", monospace;
+    color:#e0f2fe;
+    word-break:break-all;
+    white-space:normal;
+  }
+  .file-path-tooltip .fpt-hint {
+    margin-top:4px;
+    font:500 11px/1.25 var(--body);
+    color:var(--muted);
   }
   .fap-item {
     display:flex;
@@ -4563,13 +4588,25 @@
   body .slash-popover,
   body .chat-nav-popover,
   body .fs-context-menu,
-  body .file-action-popover {
+  body .file-action-popover,
+  body .file-path-tooltip {
     background: var(--content-bg);
     border: 1.5px solid var(--line-strong);
     border-radius: 14px;
     box-shadow: 0 14px 36px var(--popover-shadow);
     color: var(--text);
     backdrop-filter: none;
+  }
+  body .file-path-tooltip {
+    border-radius: 10px;
+    padding: 8px 12px;
+  }
+  body .file-path-tooltip .fpt-path {
+    color: var(--text);
+    font-family: var(--mono);
+  }
+  body .file-path-tooltip .fpt-hint {
+    color: var(--muted);
   }
   body .slash-header,
   body .quota-popover-header,
@@ -4903,6 +4940,31 @@
     color: var(--muted);
     font-size: 12.5px;
   }
+  .plugin-card > summary { list-style: none; cursor: pointer; align-items: center; }
+  .plugin-card > summary::-webkit-details-marker { display: none; }
+  .plugin-card-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .plugin-card-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #s-tab-plugins fieldset, #s-plugins-builtin, #s-plugins-external { min-width: 0; }
+  .plugin-card { min-width: 0; overflow: hidden; }
+  .plugin-card > summary { min-width: 0; }
+  .plugin-card .plugin-card-title { flex-wrap: nowrap; min-width: 0; flex: 1; }
+  .plugin-card .plugin-card-title .prov-pill-ok, .plugin-card .plugin-card-title .plugin-id-tag { flex: none; }
+  .plugin-card .plugin-card-main { flex: 1; min-width: 0; }
+  .plugin-card .plugin-card-desc { margin: 0; font-size: 12px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plugin-card-body { gap: 5px; margin-top: 6px; }
+  .plugin-card .plugin-machine-box { padding: 5px 10px; gap: 3px; border-radius: 8px; }
+  .plugin-card .plugin-machine-head { flex-wrap: nowrap; gap: 8px; }
+  .plugin-card .plugin-machine-actions { margin: 0 0 0 auto; flex: none; }
+  .plugin-card .plugin-machine-actions .btn { padding: 3px 10px; font-size: 11px; }
+  .plugin-card .plugin-machine-msg { font-size: 11.5px; line-height: 1.3; }
+  .plugin-card .plugin-chips { gap: 4px; }
+  .plugin-card .plugin-chip { font-size: 10.5px; padding: 1px 7px; }
+  .plugin-card .plugin-chips { border-top: 0; padding-top: 0; }
+  .plugin-chev { flex: none; color: var(--muted); font-size: 12px; transition: transform .18s ease; }
+  .plugin-card[open] .plugin-chev { transform: rotate(180deg); }
+  .plugin-card-main { align-items: center; }
+  .plugin-card-desc { margin: 0; }
+  .plugin-chips { border-top: 0; padding-top: 0; }
   .plugin-card {
     display: flex;
     flex-direction: column;
@@ -7231,6 +7293,9 @@
   </div>
 </dialog>
 
+<!-- TOOLTIP HIỂN THỊ ĐẦY ĐỦ ĐƯỜNG DẪN FILE KHI RÊ CHUỘT TRONG KHUNG CHAT -->
+<div id="file-path-tooltip" class="file-path-tooltip" style="display:none;" role="tooltip"></div>
+
 <!-- POPOVER TÙY CHỌN MỞ FILE XUẤT RA TRONG TIN NHẮN KURO -->
 <div id="file-action-popover" class="file-action-popover" style="display:none;" role="menu"></div>
 
@@ -7250,6 +7315,6 @@
 <div class="kuro-resize-handle kuro-rh-sw" data-edge="bottom-left"></div>
 <div class="kuro-resize-handle kuro-rh-se" data-edge="bottom-right"></div>
 
-<script src="app.js?v=68"></script>
+<script src="app.js?v=71"></script>
 </body>
 </html>

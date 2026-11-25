@@ -1,0 +1,19 @@
+{
+  "ten": "LibreCAD - CAD 2D mã nguồn mở",
+  "mo_ta": "Xem, đổi bản vẽ DXF/DWG sang PDF, PNG, SVG bằng LibreCAD (GPLv2), không cần AutoCAD. Cài từ gói chính thức qua winget, Kuro không kèm mã LibreCAD. Chỉ nạp khi việc liên quan đến xem, in, xuất ảnh/PDF bản vẽ DXF/DWG. Nguồn: https://github.com/LibreCAD/LibreCAD. Kèm MCP tự viết (LibreCAD không có MCP riêng).",
+  "skill": "librecad-cad",
+  "pip": [],
+  "import": [],
+  "phien_ban": "1.0.0",
+  "kiem_tra": "scripts/librecad_setup.py status",
+  "mcp": {
+    "librecad": {
+      "command": "${KURO_PYTHON}",
+      "args": [
+        "-X",
+        "utf8",
+        "${KURO_ROOT}/goi/librecad/librecad-cad/scripts/librecad_mcp.py"
+      ]
+    }
+  }
+}

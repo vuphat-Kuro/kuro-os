@@ -805,6 +805,20 @@ async def uninstall_plugin(body: dict):
     return {"ok": True, "id": gid, "message": msg, **(await asyncio.to_thread(goi.danh_sach, True))}
 
 
+@app.post("/api/plugins/mcp", dependencies=[Depends(local_only)])
+async def plugin_mcp_toggle(body: dict):
+    gid = str(body.get("id") or "").strip()
+    if not gid:
+        raise HTTPException(400, "Thiếu mã plugin.")
+    try:
+        msg = await asyncio.to_thread(goi.mcp_bat, gid, bool(body.get("bat")))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi cấu hình MCP: {e}")
+    return {"ok": True, "id": gid, "message": msg, **(await asyncio.to_thread(goi.danh_sach, True))}
+
+
 @app.post("/api/plugins/setup", dependencies=[Depends(local_only)])
 async def setup_plugin_machine(body: dict):
     gid = str(body.get("id") or "").strip()
@@ -1705,10 +1719,274 @@ def _real_messages_tokens(provider: str, model: str, agent_slug: str, ws: str, c
     return tok
 
 
+_AGY_TRANSCRIPT_CACHE: dict = {}
+_CHAT_FILE_URL_RE = re.compile(r"file:///[^\s\)\"'>\]]+|file://[^\s\)\"'>\]]+", re.IGNORECASE)
+_CHAT_WIN_PATH_RE = re.compile(
+    r"(?:[A-Za-z]:[\\/]|\\\\[^\\\s<>|\"*?]+\\)[^\r\n<>|\"*?()\[\],;'`]+?\.(?:xlsx|xls|xlsm|xlsb|csv|docx|doc|pptx|ppt|pdf|html|htm|md|py|json|db|sqlite|sqlite3|sql|txt|yaml|yml|xml|dwg|dxf|dgn|ifc|rvt|png|jpg|jpeg|webp|svg|zip|rar|7z|kml|kmz|geojson)",
+    re.IGNORECASE,
+)
+_ARTIFACT_EXTS = {
+    ".xlsx", ".xls", ".xlsm", ".csv", ".docx", ".doc", ".pptx", ".ppt",
+    ".pdf", ".html", ".htm", ".md", ".py", ".json", ".db", ".sqlite",
+    ".sqlite3", ".sql", ".dwg", ".dxf", ".dgn", ".ifc", ".png", ".jpg",
+    ".jpeg", ".webp", ".svg", ".zip", ".kml", ".kmz", ".geojson",
+}
+_ARTIFACT_SKIP_NAMES = {"README.md", "CLAUDE.md", "AGENTS.md", "KE-HOACH.md", "VERSION", "SKILL.md", "CHANGELOG.md"}
+_ARTIFACT_SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".attachments", ".archify", ".system_generated"}
+
+
+def _resolve_session_workspace(sess_row: dict | None) -> Path:
+    """Lấy đúng thư mục dự án của phiên (giữ nguyên chữ hoa/thường thật trên đĩa)."""
+    raw_ws = (sess_row.get("workspace") if isinstance(sess_row, dict) else "") or ""
+    if raw_ws:
+        # Ưu tiên lấy đúng tên gốc từ workspaces.json nếu khớp không phân biệt hoa thường
+        try:
+            cfg = engine.get_workspaces_config()
+            norm_target = store.normalize_workspace(raw_ws)
+            candidates = [cfg.get("active") or ""] + [r.get("path") or "" for r in (cfg.get("recent") or []) if isinstance(r, dict)]
+            for c in candidates:
+                if c and store.normalize_workspace(c) == norm_target and Path(c).is_dir():
+                    return Path(c)
+        except Exception:
+            pass
+        try:
+            p = Path(raw_ws)
+            if p.is_dir():
+                return p.resolve()
+        except Exception:
+            pass
+    return engine.active_workspace_dir()
+
+
+def _agy_transcript_stats(conv_id: str | None) -> dict | None:
+    """Đọc số liệu THẬT từ nhật ký transcript.jsonl của agy (cache theo mtime + size nên rất nhanh)."""
+    if not conv_id:
+        return None
+    home = Path.home()
+    cand_paths = (
+        home / ".gemini" / "antigravity-cli" / "brain" / conv_id / ".system_generated" / "logs" / "transcript.jsonl",
+        home / ".gemini" / "antigravity" / "brain" / conv_id / ".system_generated" / "logs" / "transcript.jsonl",
+    )
+    tp = next((p for p in cand_paths if p.is_file()), None)
+    if not tp:
+        return None
+    try:
+        st = tp.stat()
+        cache_key = (str(tp), st.st_mtime_ns, st.st_size)
+        if cache_key in _AGY_TRANSCRIPT_CACHE:
+            return _AGY_TRANSCRIPT_CACHE[cache_key]
+    except OSError:
+        return None
+
+    last_in = 0
+    last_cache = 0
+    last_out = 0
+    last_model = ""
+    tool_counts: dict[str, int] = {}
+    touched_files: list[str] = []
+    steps_count = 0
+    write_tools = {"write_file", "edit_file", "write_to_file", "replace_file_content", "multi_replace_file_content"}
+    try:
+        with tp.open("r", encoding="utf-8", errors="ignore") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    obj = json.loads(ln)
+                except ValueError:
+                    continue
+                if obj.get("type") != "PLANNER_RESPONSE":
+                    continue
+                steps_count += 1
+                inp = int(obj.get("input_tokens") or 0)
+                cache = int(obj.get("cache_read_tokens") or 0)
+                out = int(obj.get("output_tokens") or 0)
+                if inp or cache or out:
+                    last_in, last_cache, last_out = inp, cache, out
+                if obj.get("model"):
+                    last_model = str(obj["model"])
+                for tc in (obj.get("tool_calls") or []):
+                    if not isinstance(tc, dict):
+                        continue
+                    tname = str(tc.get("name") or "").strip()
+                    if tname:
+                        tool_counts[tname] = tool_counts.get(tname, 0) + 1
+                    if tname in write_tools:
+                        args = tc.get("args") or tc.get("arguments") or {}
+                        if isinstance(args, dict):
+                            for k in ("Path", "path", "TargetFile", "file_path", "AbsolutePath"):
+                                val = args.get(k)
+                                if isinstance(val, str) and val.strip():
+                                    touched_files.append(val.strip().strip('"').strip("'"))
+                                    break
+    except Exception:
+        return None
+
+    total_tokens = last_in + last_cache + last_out
+    result = {
+        "input_tokens": last_in,
+        "cache_read_tokens": last_cache,
+        "output_tokens": last_out,
+        "total_tokens": total_tokens,
+        "model": last_model,
+        "tool_counts": tool_counts,
+        "touched_files": list(reversed(touched_files)),
+        "steps_count": steps_count,
+    }
+    if len(_AGY_TRANSCRIPT_CACHE) > 64:
+        _AGY_TRANSCRIPT_CACHE.clear()
+    _AGY_TRANSCRIPT_CACHE[cache_key] = result
+    return result
+
+
+def _list_configured_mcp_servers(provider: str) -> list[str]:
+    """Liệt kê tên các MCP server đang cấu hình cho hệ thống / agy."""
+    names: list[str] = []
+    seen: set[str] = set()
+    # 1. state/mcp.json của Kuro
+    try:
+        mcp_file = config.STATE / "mcp.json"
+        if mcp_file.is_file():
+            data = json.loads(mcp_file.read_text(encoding="utf-8", errors="ignore"))
+            servers = data.get("mcpServers") if isinstance(data, dict) else {}
+            if isinstance(servers, dict):
+                for k, v in servers.items():
+                    if k and (not isinstance(v, dict) or not v.get("disabled")) and k not in seen:
+                        seen.add(k)
+                        names.append(str(k))
+    except Exception:
+        pass
+    # 2. Thư mục MCP đã nạp của Antigravity (~/.gemini/antigravity/mcp/*)
+    if provider == "antigravity":
+        try:
+            agy_mcp_dir = Path.home() / ".gemini" / "antigravity" / "mcp"
+            if agy_mcp_dir.is_dir():
+                for d in sorted(agy_mcp_dir.iterdir()):
+                    if d.is_dir() and d.name not in seen:
+                        seen.add(d.name)
+                        names.append(d.name)
+        except Exception:
+            pass
+    return names
+
+
+def _decode_file_uri_str(raw: str) -> str:
+    from urllib.parse import unquote
+    s = re.sub(r"#L\d+(?:-L?\d+)?$", "", (raw or "").strip())
+    if s.lower().startswith("file://"):
+        try:
+            u = urlparse(s)
+            if u.netloc and u.netloc.lower() != "localhost":
+                return "\\\\" + u.netloc + unquote(u.path).replace("/", "\\")
+            p_str = unquote(u.path)
+            if sys.platform == "win32" and re.match(r"^/[A-Za-z]:", p_str):
+                p_str = p_str[1:]
+            return p_str.replace("/", "\\") if sys.platform == "win32" else p_str
+        except Exception:
+            return s
+    return s
+
+
+def _extract_chat_artifacts(msgs: list[dict], ws_dir: Path, extra_paths: list[str] | None = None, limit: int = 15) -> list[dict]:
+    """Lấy danh sách tệp kết quả từ chính hội thoại (ưu tiên) + tệp mới sửa gần đây trong thư mục dự án của phiên."""
+    ws_resolved = ws_dir.resolve()
+    artifacts: list[dict] = []
+    seen: set[str] = set()
+
+    def _try_add(raw_path: str, from_chat: bool):
+        if not raw_path or len(artifacts) >= limit:
+            return
+        dec = _decode_file_uri_str(raw_path).strip().strip("`'\".,;:")
+        if not dec or ".system_generated" in dec or "transcript.jsonl" in dec:
+            return
+        try:
+            p = Path(dec)
+            if not p.is_absolute() and not dec.startswith("\\\\"):
+                p = (ws_resolved / dec)
+            if not p.is_file():
+                return
+            rp = p.resolve()
+        except Exception:
+            return
+        if rp.name in _ARTIFACT_SKIP_NAMES:
+            return
+        key = str(rp).lower()
+        if key in seen:
+            return
+        seen.add(key)
+        try:
+            rel = str(rp.relative_to(ws_resolved)).replace("\\", "/")
+        except Exception:
+            rel = str(rp)
+        try:
+            mtime = rp.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        artifacts.append({
+            "name": rp.name,
+            "path": rel,
+            "full_path": str(rp),
+            "mtime": mtime,
+            "from_chat": from_chat,
+        })
+
+    # 1. Ưu tiên các tệp AI vừa tạo/sửa trực tiếp bằng tool trong hội thoại
+    for ep in (extra_paths or []):
+        _try_add(ep, from_chat=True)
+
+    # 2. Các tệp xuất ra / liên kết được nhắc tới trong tin nhắn của phiên (mới nhất trước)
+    for m in reversed(msgs or []):
+        txt = m.get("text") or ""
+        if not txt:
+            continue
+        for match in _CHAT_FILE_URL_RE.findall(txt):
+            _try_add(match, from_chat=True)
+        for match in _CHAT_WIN_PATH_RE.findall(txt):
+            _try_add(match, from_chat=True)
+        if len(artifacts) >= limit:
+            break
+
+    # 3. Bổ sung tệp mới sửa gần đây trong chính thư mục dự án của phiên (tối đa 2 cấp con, không quét config.ROOT)
+    if len(artifacts) < limit and ws_resolved.is_dir():
+        ws_files: list[tuple[float, Path]] = []
+
+        def _scan_dir(d: Path, depth: int):
+            if depth > 2:
+                return
+            try:
+                for entry in d.iterdir():
+                    if entry.name.startswith(".") and entry.name not in (".", ".."):
+                        continue
+                    if entry.is_dir():
+                        if entry.name in _ARTIFACT_SKIP_DIRS:
+                            continue
+                        _scan_dir(entry, depth + 1)
+                    elif entry.is_file():
+                        if entry.name in _ARTIFACT_SKIP_NAMES:
+                            continue
+                        if entry.suffix.lower() in _ARTIFACT_EXTS:
+                            try:
+                                ws_files.append((entry.stat().st_mtime, entry))
+                            except OSError:
+                                pass
+            except OSError:
+                pass
+
+        _scan_dir(ws_resolved, 0)
+        ws_files.sort(key=lambda x: x[0], reverse=True)
+        for _mt, fp in ws_files:
+            if len(artifacts) >= limit:
+                break
+            _try_add(str(fp), from_chat=False)
+
+    return artifacts
+
+
 def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     """Tập hợp số liệu ngữ cảnh. Claude/API chạy qua Claude Code: lấy số THẬT từ bộ đếm của Claude Code.
-    Agy/Codex (CLI riêng) không hỏi được: ước tính từ đúng nội dung Kuro gửi đi (đánh dấu measured=False)."""
-    # 1. Messages: ước tính từ chữ (Claude Code chỉ đếm được khi nạp lại cả phiên)
+    Agy: ưu tiên lấy số THẬT từ transcript.jsonl hoặc usage đã lưu của agy; Codex: ưu tiên usage thật từ stream."""
+    # 1. Messages: lấy từ SQLite của phiên
     msgs = store.messages(sid) if sid else []
     msg_chars = sum(len(m.get("text", "")) for m in msgs)
     msg_tokens = 0   # tính sau khi biết provider
@@ -1719,12 +1997,13 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     sess_provider = store.session_provider(sess_row) or (config.PROVIDER or "antigravity")
     sess_model = (sess_row.get("model") if sess_row else None) or config.get_provider_model(sess_provider) or ""
 
-    # 3. Agent
+    # 3. Agent & đúng thư mục dự án của phiên
     if not agent_slug:
         agent_slug = (sess_row.get("agent", "kuro-core") if sess_row else "kuro-core")
     meta, _body = engine.agent_persona(agent_slug)
     agent_name = meta.get("name") or agent_slug
-    ws = str(engine.active_workspace_dir())
+    ws_dir = _resolve_session_workspace(sess_row)
+    ws = str(ws_dir)
 
     skill_rows = []   # (slug, name, desc, số ký tự dòng của skill trong danh mục)
     seen_skills = set()
@@ -1754,6 +2033,8 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     conv_id = store.get_conv_ids(sid).get(sess_provider) if sid else None
     real_msg = _real_messages_tokens(sess_provider, sess_model, agent_slug, ws, conv_id, msgs_count) if (measured and conv_id) else None
     msg_tokens = real_msg if real_msg is not None else ((_ctx_tok(msg_chars, sess_provider) + msgs_count * 6) if msgs else 0)
+    agy_stats = _agy_transcript_stats(conv_id) if (sess_provider == "antigravity" and conv_id) else None
+    saved_usage = store.get_usage(sess_row, sess_provider) if sess_row else None
     memory_files = []
     if measured:
         window_size = real["window"]
@@ -1785,20 +2066,101 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
         window_size = get_model_context_window(sess_provider, sess_model)
         window_source = "uoc-tinh"
         autocompact_buffer = min(33_000, int(window_size * 0.2))
-        # Memory: Codex đọc AGENTS.md ở thư mục dự án; Agy chưa xác minh
-        for p in (Path(ws) / "AGENTS.md",):
-            if p.is_file():
+        # Tệp bộ nhớ & quy tắc thực tế đang áp dụng cho phiên (workspace + Brain AGENTS.md)
+        seen_mem: set[str] = set()
+        mem_candidates = [
+            ws_dir / "AGENTS.md",
+            ws_dir / "QUY_TAC_LAM_VIEC.md",
+            ws_dir / "CLAUDE.md",
+            ws_dir / "MEMORY.md",
+            config.BRAIN / "AGENTS.md",
+        ]
+        for p in mem_candidates:
+            try:
+                if not p.is_file():
+                    continue
+                rp = str(p.resolve()).lower()
+                if rp in seen_mem:
+                    continue
+                seen_mem.add(rp)
                 txt = p.read_text(encoding="utf-8", errors="ignore")
-                memory_files.append({"name": p.name, "path": str(p).replace("\\", "/"), "full_path": str(p).replace("\\", "/"),
-                                     "tokens": max(1, _ctx_tok(len(txt), sess_provider)), "exists": True})
+                memory_files.append({
+                    "name": p.name,
+                    "path": str(p.resolve()).replace("\\", "/"),
+                    "full_path": str(p.resolve()).replace("\\", "/"),
+                    "tokens": max(1, _ctx_tok(len(txt), sess_provider)),
+                    "exists": True,
+                })
+            except Exception:
+                pass
         mem_tokens = sum(f["tokens"] for f in memory_files)
         full_prompt = engine.cli_prompt("", True, agent_slug, ws)
         skill_index_tok = _ctx_tok(len(engine.skill_index()), sess_provider)
         skill_tokens = skill_index_tok
         prompt_tokens = max(0, _ctx_tok(len(full_prompt), sess_provider) - skill_index_tok)
-        system_tools_tokens = AGY_BASE_TOKENS if sess_provider == "antigravity" else 0   # Codex: chưa đo được (cần codex login)
+        system_tools_tokens = AGY_BASE_TOKENS if sess_provider == "antigravity" else 0
         agents_tokens = 0
         mcp_tools, mcp_tools_tokens = [], 0
+
+        # Danh sách công cụ thực tế đã gọi trong hội thoại + MCP server đang bật (cho AGY)
+        if sess_provider == "antigravity":
+            used_tools = (agy_stats.get("tool_counts") if agy_stats else None) or {}
+            init_tools = (saved_usage.get("init_tools") if isinstance(saved_usage, dict) else None) or []
+            if used_tools:
+                sorted_used = sorted(used_tools.items(), key=lambda kv: (-kv[1], kv[0]))
+                total_calls = sum(used_tools.values()) or 1
+                for tname, cnt in sorted_used:
+                    mcp_tools.append({
+                        "name": f"agy · {tname} ({cnt} lần)",
+                        "server": "agy",
+                        "desc": f"Công cụ hệ thống AGY đã gọi {cnt} lần trong hội thoại này",
+                        "tokens": max(1, int(system_tools_tokens * cnt / total_calls)),
+                    })
+            elif init_tools:
+                share = system_tools_tokens // max(1, len(init_tools))
+                for tname in init_tools[:30]:
+                    mcp_tools.append({
+                        "name": f"agy · {tname}",
+                        "server": "agy",
+                        "desc": "Công cụ hệ thống của Google Antigravity",
+                        "tokens": share,
+                    })
+            for mname in _list_configured_mcp_servers(sess_provider):
+                mcp_tools.append({
+                    "name": f"mcp · {mname}",
+                    "server": mname,
+                    "desc": "MCP Server đang bật trong Antigravity / Kuro",
+                    "tokens": 0,
+                })
+
+        # Đồng bộ số token THẬT của hội thoại từ AGY transcript / stream usage hoặc Codex stream usage
+        real_cli_total = 0
+        if sess_provider == "antigravity":
+            if agy_stats and agy_stats.get("total_tokens", 0) > 0:
+                real_cli_total = int(agy_stats["total_tokens"])
+                window_source = "agy-real"
+                measured = True
+            elif saved_usage and int(saved_usage.get("total_tokens") or 0) > 0:
+                real_cli_total = int(saved_usage["total_tokens"])
+                window_source = "agy-real"
+                measured = True
+        elif sess_provider == "chatgpt" and saved_usage and int(saved_usage.get("total_tokens") or 0) > 0:
+            real_cli_total = int(saved_usage["total_tokens"])
+            window_source = "codex-real"
+            measured = True
+
+        if real_cli_total > 0:
+            fixed_overhead = mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens + agents_tokens
+            if real_cli_total >= fixed_overhead:
+                msg_tokens = real_cli_total - fixed_overhead
+            else:
+                # Lượt đầu rất ngắn: không hiển thị vượt quá số token thật mà model báo về
+                scale = real_cli_total / max(1, fixed_overhead)
+                mem_tokens = int(mem_tokens * scale)
+                prompt_tokens = int(prompt_tokens * scale)
+                skill_tokens = int(skill_tokens * scale)
+                system_tools_tokens = int(system_tools_tokens * scale)
+                msg_tokens = max(0, real_cli_total - (mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens))
 
     # Danh sách skill: chia token danh mục theo độ dài từng dòng
     line_total = sum(r[3] for r in skill_rows) or 1
@@ -1810,7 +2172,7 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     custom_agents = []
     for a in engine.list_agents_info():
         aslug = a.get("slug", "")
-        if measured and aslug in real["agent_tokens"]:
+        if real and aslug in real["agent_tokens"]:
             atok = real["agent_tokens"][aslug]
         else:
             ameta, abody = engine.agent_persona(aslug)
@@ -1828,31 +2190,19 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
     tokens_until_compact = max(0, autocompact_threshold - total_used)
     percent_used = round((total_used / window_size) * 100, 1)
 
-    # 9. Git branch
-    branch = "main"
+    # 9. Git branch của đúng thư mục dự án phiên đang làm việc
+    branch = "Không có Git"
     try:
         no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=config.ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=2, creationflags=no_win)
+        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=ws_dir, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=2, creationflags=no_win)
         if r.returncode == 0 and r.stdout.strip():
             branch = r.stdout.strip()
     except Exception:
         pass
 
-    # 10. Artifacts
-    artifacts = []
-    for ext in ("*.xlsx", "*.docx", "*.pdf", "*.py", "*.md", "*.csv"):
-        for f in (config.ROOT).glob(ext):
-            if f.name in ("README.md", "CLAUDE.md", "AGENTS.md", "KE-HOACH.md", "VERSION"):
-                continue
-            try:
-                artifacts.append({
-                    "name": f.name,
-                    "path": str(f.relative_to(config.ROOT)).replace("\\", "/"),
-                    "mtime": f.stat().st_mtime
-                })
-            except Exception:
-                pass
-    artifacts = sorted(artifacts, key=lambda x: x["mtime"], reverse=True)[:10]
+    # 10. Artifacts: ưu tiên tệp xuất ra từ chính hội thoại + tệp mới sửa trong dự án của phiên
+    agy_touched = agy_stats.get("touched_files") if agy_stats else None
+    artifacts = _extract_chat_artifacts(msgs, ws_dir, extra_paths=agy_touched, limit=15)
 
     return {
         "id": sid,
@@ -1863,6 +2213,8 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
         "session_model": (sess_row.get("model") if sess_row else "") or "",
         "environment": {
             "host": "Máy tính này (Local Windows)",
+            "workspace_name": ws_dir.name,
+            "workspace_path": str(ws_dir),
             "brain_path": str(config.BRAIN),
             "git_branch": branch,
             "provider": sess_provider,
@@ -2308,42 +2660,117 @@ BINARY_FILE_EXTENSIONS = {
     ".pptx", ".ppt", ".pptm",
     ".pdf",
     ".dwg", ".dxf", ".dgn",
+    ".db", ".sqlite", ".sqlite3",
     ".zip", ".rar", ".7z", ".tar", ".gz",
     ".exe", ".dll", ".bin", ".iso", ".msi",
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"
 }
 
 
+def _find_in_root_recursive(rel_raw: str, root: Path, max_dirs: int = 4000) -> Path | None:
+    """Tìm tệp hoặc thư mục theo đường dẫn tương đối/tên tệp (khớp hậu tố đường dẫn) bên trong `root`."""
+    cleaned = (rel_raw or "").strip().strip("`'\"").replace("\\", "/").lstrip("./")
+    parts = [p.lower() for p in cleaned.split("/") if p and p != "."]
+    if not parts or not root.is_dir():
+        return None
+    target_name = parts[-1]
+    n_parts = len(parts)
+    skip_dirs = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".archify"}
+    matches: list[tuple[int, float, Path]] = []
+    visited = 0
+    try:
+        for cur_root, dirs, files in os.walk(root):
+            visited += 1
+            if visited > max_dirs:
+                break
+            dirs[:] = [d for d in dirs if d not in skip_dirs and not (d.startswith(".") and d != ".attachments")]
+            rel_dir = os.path.relpath(cur_root, root)
+            dir_parts = [] if rel_dir == "." else [x.lower() for x in rel_dir.replace("\\", "/").split("/")]
+
+            # Kiểm tra khớp tệp tin
+            for fname in files:
+                if fname.lower() != target_name:
+                    continue
+                cand_parts = dir_parts + [fname.lower()]
+                if len(cand_parts) >= n_parts and cand_parts[-n_parts:] == parts:
+                    fp = Path(cur_root) / fname
+                    try:
+                        mt = fp.stat().st_mtime
+                    except OSError:
+                        mt = 0.0
+                    # Ưu tiên khớp tệp tin (score 2) > thư mục (score 1), rồi theo mtime mới nhất
+                    matches.append((2, mt, fp.resolve()))
+
+            # Kiểm tra khớp thư mục
+            for dname in dirs:
+                if dname.lower() != target_name:
+                    continue
+                cand_parts = dir_parts + [dname.lower()]
+                if len(cand_parts) >= n_parts and cand_parts[-n_parts:] == parts:
+                    dp = Path(cur_root) / dname
+                    try:
+                        mt = dp.stat().st_mtime
+                    except OSError:
+                        mt = 0.0
+                    matches.append((1, mt, dp.resolve()))
+    except Exception:
+        pass
+    if not matches:
+        return None
+    matches.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return matches[0][2]
+
+
 def resolve_fs_target(path: str) -> Path:
-    """Xác định đường dẫn an toàn trong workspace, root dự án hoặc brain."""
-    p = Path(path)
+    """Xác định đường dẫn an toàn trong workspace, root dự án hoặc brain (hỗ trợ tìm tệp nằm trong thư mục con)."""
+    raw = (path or "").strip().strip("`'\"")
+    p = Path(raw)
     base = engine.active_workspace_dir().resolve()
     root_base = config.ROOT.resolve()
     brain_base = config.BRAIN.resolve()
 
-    if p.is_absolute():
-        target = p.resolve()
-    else:
-        t1 = (base / path).resolve()
-        if t1.exists():
-            target = t1
-        else:
-            t2 = (root_base / path).resolve()
-            if t2.exists():
-                target = t2
-            else:
-                t3 = (brain_base / path).resolve()
-                if t3.exists():
-                    target = t3
-                else:
-                    target = t1
+    allowed_roots = [base, root_base, brain_base]
+    recent_roots: list[Path] = []
+    try:
+        cfg = engine.get_workspaces_config()
+        for r in (cfg.get("recent") or []):
+            rp = (r.get("path") or "").strip() if isinstance(r, dict) else ""
+            if rp and Path(rp).is_dir():
+                rr = Path(rp).resolve()
+                allowed_roots.append(rr)
+                if str(rr).lower() != str(base).lower():
+                    recent_roots.append(rr)
+    except Exception:
+        pass
 
-    allowed = (
-        str(target).startswith(str(base)) or
-        str(target).startswith(str(root_base)) or
-        str(target).startswith(str(brain_base))
-    )
-    if not allowed or not target.exists():
+    target = None
+    if p.is_absolute():
+        cand = p.resolve()
+        if cand.exists():
+            target = cand
+        elif str(cand).lower().startswith(str(base).lower() + os.sep):
+            # Đường dẫn tuyệt đối đoán thiếu thư mục con: thử tìm lại phần đuôi trong workspace
+            tail = str(cand)[len(str(base)) + 1:]
+            target = _find_in_root_recursive(tail, base)
+    else:
+        for b in (base, root_base, brain_base, *recent_roots):
+            cand = (b / raw).resolve()
+            if cand.exists():
+                target = cand
+                break
+        if target is None:
+            for b in (base, *recent_roots, root_base, brain_base):
+                found = _find_in_root_recursive(raw, b)
+                if found is not None:
+                    target = found
+                    break
+
+    if target is None or not target.exists():
+        raise HTTPException(404, f"Không tìm thấy tệp hoặc thư mục: {raw}")
+
+    t_low = str(target).lower()
+    allowed = any(t_low.startswith(str(ar).lower()) for ar in allowed_roots)
+    if not allowed:
         raise HTTPException(404, "Không tìm thấy tệp hoặc thư mục")
     return target
 
@@ -2440,11 +2867,12 @@ _BLOCKED_OPEN_EXTS = {
 
 
 def resolve_open_target(path: str) -> Path:
-    """Chuẩn hóa đường dẫn tệp/thư mục trên máy cục bộ (tuyệt đối, UNC, file:///, hoặc tương đối trong dự án)."""
+    """Chuẩn hóa đường dẫn tệp/thư mục trên máy cục bộ (tuyệt đối, UNC, file:///, hoặc tương đối/rút gọn trong dự án)."""
     from urllib.parse import unquote
     raw = (path or "").strip().strip("`'\"")
+    base = engine.active_workspace_dir().resolve()
     if not raw:
-        return engine.active_workspace_dir().resolve()
+        return base
     if raw.lower().startswith("file://"):
         u = urlparse(raw)
         if u.netloc and u.netloc.lower() != "localhost":
@@ -2460,15 +2888,51 @@ def resolve_open_target(path: str) -> Path:
 
     p = Path(raw)
     if p.is_absolute() or raw.startswith("\\\\"):
-        if not p.exists():
-            raise HTTPException(404, f"Không tìm thấy tệp hoặc thư mục trên máy: {raw}")
-        return p
+        if p.exists():
+            return p
+        # Nếu là đường dẫn ghép thiếu thư mục con bên trong workspace đang mở -> tìm đệ quy theo phần đuôi
+        if str(p).lower().startswith(str(base).lower() + os.sep):
+            tail = str(p)[len(str(base)) + 1:]
+            found = _find_in_root_recursive(tail, base)
+            if found is not None:
+                return found
+        raise HTTPException(404, f"Không tìm thấy tệp hoặc thư mục trên máy: {raw}")
 
-    for base in (engine.active_workspace_dir().resolve(), config.ROOT.resolve(), config.BRAIN.resolve()):
-        cand = (base / raw).resolve()
+    recent_roots: list[Path] = []
+    try:
+        cfg = engine.get_workspaces_config()
+        for r in (cfg.get("recent") or []):
+            rp = (r.get("path") or "").strip() if isinstance(r, dict) else ""
+            if rp and Path(rp).is_dir():
+                rr = Path(rp).resolve()
+                if str(rr).lower() != str(base).lower():
+                    recent_roots.append(rr)
+    except Exception:
+        pass
+
+    # 1. Kiểm tra đường dẫn trực tiếp
+    for root in (base, config.ROOT.resolve(), config.BRAIN.resolve(), *recent_roots):
+        cand = (root / raw).resolve()
         if cand.exists():
             return cand
+
+    # 2. Tìm đệ quy theo hậu tố đường dẫn / tên tệp trong workspace đang mở, rồi workspace gần đây, rồi ROOT/BRAIN
+    for root in (base, *recent_roots, config.ROOT.resolve(), config.BRAIN.resolve()):
+        found = _find_in_root_recursive(raw, root)
+        if found is not None:
+            return found
+
     raise HTTPException(404, f"Không tìm thấy tệp hoặc thư mục: {raw}")
+
+
+@app.get("/api/fs/resolve")
+def resolve_fs_path_api(path: str = ""):
+    """Giải đường dẫn rút gọn/tương đối thành đường dẫn đầy đủ thật trên đĩa (phục vụ tooltip rê chuột & menu mở tệp)."""
+    try:
+        target = resolve_open_target(path)
+        return {"ok": True, "path": str(target), "is_dir": target.is_dir(), "name": target.name}
+    except HTTPException:
+        return {"ok": False, "path": path}
 
 
 @app.post("/api/fs/open", dependencies=[Depends(local_only)])
@@ -2505,6 +2969,9 @@ def reveal_fs_item(body: dict):
     try:
         if target.is_dir():
             subprocess.Popen(["explorer.exe", str(target)])
+        elif sys.platform == "win32":
+            # Chuẩn dòng lệnh Windows Explorer: /select,"<đường dẫn có khoảng trắng>"
+            subprocess.Popen(f'explorer.exe /select,"{str(target)}"')
         else:
             subprocess.Popen(["explorer.exe", f"/select,{str(target)}"])
         return {"ok": True, "path": str(target)}

@@ -68,6 +68,19 @@
       "bo_tep": ["tools/install_distilly.py"],
       "can_bash": "Chạy tools/*.py qua chay_ma_kho sau khi chủ máy duyệt mã. Cần thư viện requests (requirements.txt). Bộ thu thập Feishu/DingTalk/Slack cần khoá API do người dùng tự nhập ở terminal riêng, không đưa vào hội thoại.",
       "ghi_chu": "Bỏ bin/ (bộ cài npm), tests/, docs/, install_distilly.py (tự cài vào host khác). Hồ sơ sinh ra lưu ở ./skills/<loại>/<slug>/ trong thư mục dự án đang mở."
+    },
+    {
+      "id": "cli-anything",
+      "ten": "CLI-Anything - biến phần mềm GUI thành CLI cho agent (kèm ~70 skill CLI dựng sẵn và CLI-Hub)",
+      "url": "https://github.com/HKUDS/CLI-Anything",
+      "commit": "34f519533bc175d2fe287ab8316b0dd99bb9cc43",
+      "giay_phep": "Apache-2.0",
+      "clone": "",
+      "chon": ["skills", "cli-hub-meta-skill", "cli-anything-plugin/guides", "cli-anything-plugin/commands", "cli-anything-plugin/templates", "LICENSE"],
+      "skill_don": {"id": "cli-anything-plugin", "tu": "cli-anything-plugin/HARNESS.md",
+                    "mo_ta": "Quy trình 7 pha dựng CLI điều khiển được cho phần mềm GUI mã nguồn mở (HARNESS.md của CLI-Anything): phân tích mã, thiết kế CLI, viết, test, sinh SKILL.md, đóng gói PyPI."},
+      "can_bash": "Mỗi skill cli-anything-<app> cần cài CLI tương ứng (qua cli-hub) và chính phần mềm. Cài CLI từ cộng đồng chạy mã bên thứ ba: phải hỏi người dùng từng lần, không cài hàng loạt.",
+      "ghi_chu": "Chỉ lấy tài liệu/skill, không lấy mã harness của từng app (agent-harness/), tests/, ảnh. Skill chỉ là hướng dẫn dùng CLI; mã CLI nằm ở gói pip do cli-hub cài."
     }
   ]
 }
