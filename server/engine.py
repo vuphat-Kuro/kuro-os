@@ -23,6 +23,7 @@ import calc
 import kho
 import cli_engines
 import dien_hoa
+import doc_pdf
 import config
 import store
 import workspace_rules
@@ -747,9 +748,15 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
         store.add(sid, "assistant", answer, provider=chosen_provider)
         return answer
 
+    prompt = text
+    if doc_pdf.tim_pdf(text):   # PDF thả vào chat hoặc dán đường dẫn: Kuro mở sẵn, AI nào cũng đọc được (doc_pdf.py)
+        if emit:
+            await emit({"type": "tool", "name": "Kuro mở PDF", "input": {"pdf": [str(p) for p in doc_pdf.tim_pdf(text)]}})
+        prompt += await asyncio.to_thread(doc_pdf.khoi, text, ws_path)
+
     shown, final = [], ""
     async for ev in run_turn(
-        text,
+        prompt,
         sess.get("claude_id"),
         agent=agent,
         cwd=ws_path,

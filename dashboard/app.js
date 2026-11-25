@@ -2898,35 +2898,29 @@ if (chatInput) {
     }
   });
 
-  // Hỗ trợ kéo thả file từ Windows Explorer vào ô chat
-  chatInput.addEventListener("dragover", (e) => {
+  // Kéo thả tệp (PDF, ảnh, Excel...) từ Windows Explorer vào khung chat: tải lên như Claude,
+  // AI nhận đường dẫn bản sao trong dự án; PDF được máy chủ mở sẵn (server/doc_pdf.py)
+  const dropZone = $("f") || chatInput;
+  dropZone.addEventListener("dragover", (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
+    dropZone.classList.add("drop-on");
+  });
+  dropZone.addEventListener("dragleave", (e) => {
+    if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove("drop-on");
   });
 
-  chatInput.addEventListener("drop", async function (e) {
+  dropZone.addEventListener("drop", async function (e) {
     e.preventDefault();
+    dropZone.classList.remove("drop-on");
     if (e.dataTransfer?.files?.length) {
-      // Ưu tiên nếu kéo thả ảnh trực tiếp
-      for (const f of e.dataTransfer.files) {
-        if (f.type && f.type.startsWith("image/")) {
-          uploadImageFile(f);
-          return;
-        }
-      }
-
-      const paths = Array.from(e.dataTransfer.files)
-        .map((f) => f.path || f.name)
-        .filter(Boolean);
-      const fullPaths = paths.filter((p) => /^[a-zA-Z]:\\|^\\\\/.test(p));
-      if (fullPaths.length > 0) {
-        insertTextAtCursor(this, formatFilePaths(fullPaths));
-        return;
-      }
+      for (const f of e.dataTransfer.files) uploadGeneralFile(f);
+      chatInput.focus();
+      return;
     }
     const files = await fetchClipboardFiles();
     if (files && files.length > 0) {
-      insertTextAtCursor(this, formatFilePaths(files));
+      insertTextAtCursor(chatInput, formatFilePaths(files));
     }
   });
 }

@@ -198,6 +198,34 @@ class ModelPerAI(unittest.TestCase):
             engine._engine_turn = keep_turn
 
 
+class DocPdf(unittest.TestCase):
+    def test_mo_san_pdf(self):
+        """PDF thả vào chat hoặc dán đường dẫn có dấu cách: Kuro xuất ảnh từng trang và chữ cho AI."""
+        import pypdfium2 as pdfium
+        import doc_pdf
+        self.assertEqual(doc_pdf.doi_tcvn3("mÆt c¾t chi tiÕt ®Þnh h×nh"), "mặt cắt chi tiết định hình")
+        self.assertEqual(doc_pdf.doi_tcvn3("Ø16 a200 ø20 300×300"), "Ø16 a200 ø20 300×300")   # ký hiệu giữ nguyên
+        self.assertEqual(doc_pdf.doi_tcvn3("cét H300 KIÓM TRA DANH MôC"), "cột H300 KIỂM TRA DANH MỤC")
+        self.assertEqual(doc_pdf.doi_tcvn3("hä vµ tªn DỰ ÁN vËt t￾"), "họ và tên DỰ ÁN vật tư ")
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "II. BAN VE TRU P31.pdf"
+            pdf = pdfium.PdfDocument.new()
+            pdf.new_page(842, 595)
+            pdf.new_page(842, 595)
+            pdf.save(str(p))
+            pdf.close()
+            self.assertEqual(doc_pdf.tim_pdf(f'"{p}" đọc bản vẽ'), [p])
+            self.assertEqual(doc_pdf.tim_pdf(f"xem C:\\khong-co và\n[Tệp đính kèm: {p}]"), [p])
+            self.assertEqual(doc_pdf.tim_pdf("không có tệp nào"), [])
+            ws = Path(d) / "du-an"
+            ws.mkdir()
+            out = doc_pdf.khoi(f"bóc khối lượng {p}", ws)
+            self.assertIn("2 trang", out)
+            anh = list(ws.rglob("trang_*.png"))
+            self.assertEqual(len(anh), 2)
+            self.assertEqual(doc_pdf.khoi(str(p), ws), out)                       # lần 2 dùng lại ảnh đã xuất
+
+
 class Origin(unittest.TestCase):
     def test_validation_and_origin(self):
         import re
