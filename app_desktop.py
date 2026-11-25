@@ -927,7 +927,7 @@ class DesktopApi:
             import config
             port = getattr(config, "PORT", 7788)
             base_url = f"http://127.0.0.1:{port}/"
-            target_url = f"{base_url}?_r={int(time.time() * 1000)}" if hard else base_url
+            target_url = f"{base_url}?theme={_load_saved_ui_theme()}" + (f"&_r={int(time.time() * 1000)}" if hard else "")
             self._window.load_url(target_url)
             return True
         except Exception as e:
@@ -1117,7 +1117,8 @@ def main():
 
         window = webview.create_window(
             title="Kuro OS - Trợ lý Kỹ sư Hạ tầng",
-            url=app_url,
+            # pywebview chạy chế độ riêng tư (xoá localStorage mỗi lần tắt): báo theme đã lưu qua địa chỉ
+            url=f"{app_url}/?theme={initial_theme}",
             width=1340,
             height=880,
             min_size=(960, 620),

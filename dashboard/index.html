@@ -2440,7 +2440,11 @@
   .dialog-form .btn:hover { background:rgba(34,211,238,.1); }
   .dialog-form .btn.main { color:#031018; background:var(--cyan); border-color:var(--cyan); font-weight:700; }
   .dialog-form .btn.main:hover { background:var(--cyan-soft); }
-  .dialog-form .foot { display:flex; align-items:center; gap:10px; margin-top:20px; }
+  /* Ghim nút Đóng/Lưu ở đáy hộp thoại: hộp dài (Cài đặt hệ thống) không phải cuộn xuống cuối mới bấm được */
+  .dialog-form .foot {
+    display:flex; align-items:center; gap:10px; margin:20px -24px -20px; padding:12px 24px 14px;
+    position:sticky; bottom:0; z-index:5; background:var(--panel-solid); border-top:1px solid var(--line);
+  }
   .dialog-form .test { margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
   #s-test-msg { font-size:13px; } #s-test-msg.ok { color:#34d399; } #s-test-msg.err { color:var(--amber); }
   #s-msg { flex:1; font-size:13px; color:var(--cyan-soft); } #s-msg.err { color:var(--amber); }
@@ -5750,6 +5754,15 @@
 <body spellcheck="false">
 <script>
   try {
+    // App desktop gửi theme đã lưu trên máy qua ?theme= (bộ nhớ trình duyệt của nó bị xoá mỗi lần tắt);
+    // điện thoại / trình duyệt thì mỗi máy tự nhớ trong localStorage
+    var qt = new URLSearchParams(location.search).get("theme");
+    if (qt === "dark" || qt === "light") {
+      localStorage.setItem("kuro_ui_theme", qt);
+      var u = new URL(location.href);
+      u.searchParams.delete("theme");     // bỏ khỏi địa chỉ: tải lại trang sau khi đổi theme không bị trả về theme cũ
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    }
     if (localStorage.getItem("kuro_ui_theme") === "dark") {
       document.body.classList.add("theme-dark");
       var m = document.getElementById("meta-theme-color");
