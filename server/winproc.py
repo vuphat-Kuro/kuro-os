@@ -10,6 +10,8 @@ import sys
 
 CREATE_NO_WINDOW = 0x08000000
 CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+CREATE_NEW_CONSOLE = 0x00000010
+DETACHED_PROCESS = 0x00000008
 _job = None   # giữ handle sống đến hết đời tiến trình; đóng handle = Windows giết cả job
 
 
@@ -19,8 +21,11 @@ def an_cua_so() -> None:
     goc = subprocess.Popen.__init__
 
     def init(self, *a, **kw):
-        if not kw.get("creationflags"):   # chỗ nào tự đặt cờ (đăng nhập CLI cần console thật) thì giữ nguyên
-            kw["creationflags"] = CREATE_NO_WINDOW
+        co = kw.get("creationflags") or 0
+        # Chỗ nào cố ý mở console thật (đăng nhập CLI: CREATE_NEW_CONSOLE) hoặc tách rời (DETACHED) thì giữ nguyên;
+        # cờ khác (vd CREATE_BREAKAWAY_FROM_JOB, NEW_PROCESS_GROUP) vẫn phải ẩn cửa sổ
+        if not co & (CREATE_NEW_CONSOLE | DETACHED_PROCESS):
+            kw["creationflags"] = co | CREATE_NO_WINDOW
         goc(self, *a, **kw)
 
     subprocess.Popen.__init__ = init
