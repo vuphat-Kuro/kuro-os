@@ -158,6 +158,11 @@ def _apply_no_cache(path: str, resp):
 
 @app.middleware("http")
 async def chan_thiet_bi_la(req: Request, call_next):
+    # Kiểm cả máy này: trình duyệt trên máy này vẫn có thể bị trang lạ mượn để gửi lệnh vào Kuro
+    if not is_trusted_host(urlparse("//" + (req.headers.get("host") or "")).hostname):
+        return HTMLResponse("Kuro: tên máy không hợp lệ", 421)          # DNS rebinding
+    if req.method not in ("GET", "HEAD", "OPTIONS") and not cung_goc(req.headers):
+        return HTMLResponse("Kuro: chặn yêu cầu gửi từ trang web khác", 403)  # CSRF
     if may_nay(req):
         return _apply_no_cache(req.url.path, await call_next(req))
     if dung_ma(req.query_params.get("t")):     # vừa quét QR: đổi mã trên địa chỉ thành cookie rồi bỏ khỏi địa chỉ
@@ -193,12 +198,19 @@ def is_trusted_host(hostname: str | None) -> bool:
         return hostname.endswith(".local") or hostname.endswith(".ts.net")
 
 
+def cung_goc(headers) -> bool:
+    """Origin (nếu có) phải trùng đúng Host: trang khác cổng, khác máy LAN, khác *.ts.net đều bị chặn."""
+    origin = headers.get("origin")
+    if not origin:
+        return True                      # không phải trình duyệt gửi chéo trang (curl, ứng dụng trên máy)
+    o = urlparse(origin)
+    return o.scheme in ("http", "https") and o.netloc.lower() == (headers.get("host") or "").lower()
+
+
 def is_local(headers) -> bool:
     """Chấp nhận localhost và các thiết bị trong mạng riêng (Wi-Fi, LAN, Tailscale); chặn website lạ (CSRF, DNS rebinding)."""
-    origin = headers.get("origin")
     host_name = urlparse("//" + (headers.get("host") or "")).hostname
-    origin_name = urlparse(origin).hostname if origin else None
-    return is_trusted_host(host_name) and (not origin or is_trusted_host(origin_name))
+    return is_trusted_host(host_name) and cung_goc(headers)
 
 
 class ConnectionManager:

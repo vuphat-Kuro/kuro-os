@@ -89,7 +89,7 @@ class ParallelSessionsAndHandoff(unittest.TestCase):
     def test_parallel_antigravity_and_claude_sessions(self):
         calls = []
 
-        async def fake_engine_turn(prompt, resume, cur, agent="kuro-core", cwd=None, model=None):
+        async def fake_engine_turn(prompt, resume, cur, agent="kuro-core", cwd=None, model=None, **_):
             calls.append({"provider": cur, "model": model, "resume": resume, "prompt": prompt})
             # Giả lập độ trễ để chạy xen kẽ thực sự song song
             await asyncio.sleep(0.05 if cur == "antigravity" else 0.02)
@@ -122,7 +122,7 @@ class ParallelSessionsAndHandoff(unittest.TestCase):
     def test_switch_provider_mid_session_handoff_and_return(self):
         calls = []
 
-        async def fake_engine_turn(prompt, resume, cur, agent="kuro-core", cwd=None, model=None):
+        async def fake_engine_turn(prompt, resume, cur, agent="kuro-core", cwd=None, model=None, **_):
             calls.append({"provider": cur, "model": model, "resume": resume, "prompt": prompt})
             yield {"type": "text", "text": f"Trả lời bởi {cur}"}
             yield {"type": "final", "text": f"Trả lời bởi {cur}", "claude_id": f"thread-{cur}-{len(calls)}"}
@@ -207,7 +207,9 @@ class MultiProviderApi(unittest.TestCase):
         sid = sess_res.json()["id"]
         ctx = self.client.get(f"/api/sessions/{sid}/context").json()
         self.assertEqual(ctx["environment"]["provider"], "claude")
-        self.assertEqual(ctx["usage"]["window_size"], 200_000)
+        # "sonnet" trỏ tới Claude 5.x: cửa sổ 1M (Claude 3/4 mới là 200k, xem get_model_context_window)
+        self.assertEqual(ctx["usage"]["window_size"], 1_000_000)
+        self.assertEqual(main.get_model_context_window("claude", "claude-sonnet-4-5"), 200_000)
 
         self.client.post(f"/api/sessions/{sid}/model", json={"provider": "antigravity", "model": "gemini-3.8-flash-medium"})
         ctx2 = self.client.get(f"/api/sessions/{sid}/context").json()

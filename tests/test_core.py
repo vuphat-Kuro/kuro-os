@@ -225,6 +225,21 @@ class Origin(unittest.TestCase):
         nha = TestClient(main.app, base_url="http://127.0.0.1:7788", client=("127.0.0.1", 5000))
         self.assertEqual(nha.get("/api/settings").status_code, 200)
 
+    def test_chan_trang_la(self):
+        """Trang lạ mở trong trình duyệt của chính máy này không gửi lệnh được vào Kuro (CSRF, DNS rebinding)."""
+        from starlette.testclient import TestClient
+        import main
+        # Origin trong mạng riêng nhưng khác gốc: trước đây lọt qua is_local
+        for o in ("http://evil.ts.net", "http://192.168.1.9:7788", "http://127.0.0.1:8080", "null"):
+            self.assertFalse(main.is_local({"host": "127.0.0.1:7788", "origin": o}), o)
+        self.assertTrue(main.is_local({"host": "100.101.1.2:7788", "origin": "http://100.101.1.2:7788"}))
+        nha = TestClient(main.app, base_url="http://127.0.0.1:7788", client=("127.0.0.1", 5000))
+        r = nha.post("/api/agents/upload", headers={"origin": "https://evil.example"}, files={"file": ("a.md", b"x")})
+        self.assertEqual(r.status_code, 403)                                            # tải tệp chéo trang
+        self.assertEqual(nha.post("/api/khong-co", headers={"origin": "http://evil.ts.net"}).status_code, 403)
+        self.assertNotEqual(nha.post("/api/khong-co", headers={"origin": "http://127.0.0.1:7788"}).status_code, 403)
+        self.assertEqual(nha.get("/api/sessions", headers={"host": "evil.example:7788"}).status_code, 421)
+
 
 class Providers(unittest.TestCase):
     def setUp(self):
@@ -253,7 +268,7 @@ class CliEngines(unittest.TestCase):
 
     def run_parse(self, parse, events):
         import cli_engines  # noqa: F401
-        st = {"id": None, "text": False, "error": "", "tools": set(), "notes": []}
+        st = {"id": None, "text": False, "error": "", "tools": set(), "notes": [], "usage": None, "init_tools": []}
         out = [o for e in events for o in parse(e, st)]
         return st, out
 
