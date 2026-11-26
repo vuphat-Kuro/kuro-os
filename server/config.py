@@ -405,3 +405,43 @@ def sync_bundled() -> None:
         shutil.copytree(src, dst) if src.is_dir() else shutil.copy2(src, dst)
         seen[key] = new
     log.write_text(json.dumps(seen, indent=1, ensure_ascii=False), encoding="utf-8")
+
+
+def cua_so_ngu_canh(provider: str | None = None, model: str | None = None) -> int:
+    """Cửa sổ ngữ cảnh khi Claude Code không biết (AI chạy bằng CLI riêng, model ngoài họ Claude) hoặc hỏi lỗi.
+    Nguồn: Claude 5.x đo thật bằng Claude Code; Codex đo bằng `codex debug models`; Agy do người dùng chốt 1M;
+    DeepSeek, GLM, Kimi lấy từ tài liệu chính thức (api-docs.deepseek.com, docs.z.ai, platform.kimi.ai), tra 2026-11.
+    Đặt KURO_CONTEXT_WINDOW_<AI viết hoa> trong .env để ghi đè."""
+    prov = (provider or PROVIDER or "claude").lower()
+    mod = (model or get_provider_model(prov) or "").lower()
+    ov = os.getenv(f"KURO_CONTEXT_WINDOW_{prov.upper()}", "").strip()
+    if ov.isdigit() and int(ov) > 0:
+        return int(ov)
+    if prov == "antigravity":
+        return 1_000_000
+    if prov in ("claude", "anthropic") or mod.startswith("claude") or mod in ("opus", "sonnet", "haiku", "fable"):
+        return 200_000 if re.match(r"claude-(?:(?:opus|sonnet|haiku)-)?[34](?:[-.]|$)", mod) else 1_000_000
+    if prov == "chatgpt" or "gpt" in mod:
+        return 272_000
+    if prov == "deepseek" or "deepseek" in mod:
+        return 1_048_576
+    if prov == "zai" or "glm" in mod:
+        return 1_000_000 if re.search(r"glm-5\.[23]", mod) else 200_000
+    if prov == "kimi" or "kimi" in mod:
+        return 1_048_576 if "k3" in mod else 262_144
+    if "gemini" in mod:
+        return 1_000_000
+    if prov == "ollama":
+        return 32_000
+    return 200_000
+
+
+def nguong_ngu_canh(provider: str | None = None, model: str | None = None) -> int:
+    """Token mỗi lần gọi mà Kuro coi là quá nặng: báo đỏ và lượt sau tự mở hội thoại mới với AI.
+    Mặc định 80% cửa sổ của model đang dùng (ngữ cảnh không bao giờ chạm 100%); KURO_NGUONG_NGU_CANH=<phần trăm> để chỉnh.
+    Ngưỡng cố định 100k cũ quá thấp với model 1M: đọc vài trang PDF là nhảy hội thoại sau 1-2 câu (phản hồi 26/11/2026)."""
+    try:
+        pt = float(os.getenv("KURO_NGUONG_NGU_CANH", "80"))
+    except ValueError:
+        pt = 80.0
+    return int(cua_so_ngu_canh(provider, model) * min(max(pt, 10.0), 95.0) / 100)

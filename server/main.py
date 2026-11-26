@@ -1648,33 +1648,7 @@ def _ctx_tok(chars: int, provider: str | None = None) -> int:
     return int(chars / (CTX_CHARS_PER_TOK_GEMINI if provider == "antigravity" else CTX_CHARS_PER_TOK))
 
 
-def get_model_context_window(provider: str | None = None, model: str | None = None) -> int:
-    """Cửa sổ ngữ cảnh khi Claude Code không biết (AI chạy bằng CLI riêng, model ngoài họ Claude) hoặc hỏi lỗi.
-    Nguồn: Claude 5.x đo thật bằng Claude Code; Codex đo bằng `codex debug models`; Agy do người dùng chốt 1M;
-    DeepSeek, GLM, Kimi lấy từ tài liệu chính thức (api-docs.deepseek.com, docs.z.ai, platform.kimi.ai), tra 2026-11.
-    Đặt KURO_CONTEXT_WINDOW_<AI viết hoa> trong .env để ghi đè."""
-    prov = (provider or config.PROVIDER or "claude").lower()
-    mod = (model or config.get_provider_model(prov) or "").lower()
-    ov = os.getenv(f"KURO_CONTEXT_WINDOW_{prov.upper()}", "").strip()
-    if ov.isdigit() and int(ov) > 0:
-        return int(ov)
-    if prov == "antigravity":
-        return 1_000_000
-    if prov in ("claude", "anthropic") or mod.startswith("claude") or mod in ("opus", "sonnet", "haiku", "fable"):
-        return 200_000 if re.match(r"claude-(?:(?:opus|sonnet|haiku)-)?[34](?:[-.]|$)", mod) else 1_000_000
-    if prov == "chatgpt" or "gpt" in mod:
-        return 272_000
-    if prov == "deepseek" or "deepseek" in mod:
-        return 1_048_576
-    if prov == "zai" or "glm" in mod:
-        return 1_000_000 if re.search(r"glm-5\.[23]", mod) else 200_000
-    if prov == "kimi" or "kimi" in mod:
-        return 1_048_576 if "k3" in mod else 262_144
-    if "gemini" in mod:
-        return 1_000_000
-    if prov == "ollama":
-        return 32_000
-    return 200_000
+get_model_context_window = config.cua_so_ngu_canh   # chuyển sang config để engine, token_stats dùng chung
 
 
 async def _fetch_real_context(provider: str, model: str, agent_slug: str, ws: str):
@@ -2314,8 +2288,14 @@ def default_context():
 @app.get("/api/sessions/{sid}/token")
 def session_token(sid: str):
     """Token của phiên Kuro này (lần gọi gần nhất so với ngưỡng): giao diện báo đỏ ngay sau lượt chat."""
-    ids = store.get_conv_ids(sid) if store.get(sid) else {}
-    return token_stats.mot_phien(list(ids.values())) or {}
+    sess = store.get(sid)
+    if not sess:
+        return {}
+    prov = store.session_provider(sess) or config.PROVIDER or "claude"
+    ids = store.get_conv_ids(sid)
+    # chỉ hội thoại của AI đang dùng: hội thoại cũ của AI khác trong cùng phiên không còn đốt token
+    return token_stats.mot_phien([ids.get(prov, "")], provider=prov,
+                                 model=sess.get("model") or config.get_provider_model(prov)) or {}
 
 
 @app.get("/api/sessions/{sid}/context")

@@ -232,6 +232,16 @@ class TietKiem(unittest.TestCase):
         self.assertTrue(seen["prompt"].endswith("câu mới"))
         self.assertIn("150,000", evs[0]["text"])
 
+    def test_nguong_theo_cua_so_model(self):
+        """Ngưỡng theo % cửa sổ của model (cố định 100k làm model 1M nhảy hội thoại sau 1-2 câu)."""
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"KURO_NGUONG_NGU_CANH": "80"}):
+            self.assertEqual(config.nguong_ngu_canh("claude", "sonnet"), 800_000)
+            self.assertEqual(config.nguong_ngu_canh("claude", "claude-sonnet-4-5"), 160_000)
+            self.assertEqual(config.nguong_ngu_canh("chatgpt", "gpt-5"), 217_600)
+        with mock.patch.dict(os.environ, {"KURO_NGUONG_NGU_CANH": "200"}):
+            self.assertEqual(config.nguong_ngu_canh("claude", "sonnet"), 950_000)        # trần 95%: không bao giờ chạm 100%
+
     def test_cli_quy_tac_chi_gui_khi_doi(self):
         import engine
         with tempfile.TemporaryDirectory() as d:

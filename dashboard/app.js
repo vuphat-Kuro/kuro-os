@@ -7931,7 +7931,7 @@ async function moTokenStats() {
   const banner = ss.kuro_tb == null ? "" : ss.vuot
     ? `<div class="tk-tip tk-do-box">🔴 <b>Kuro đang tốn hơn mức cho phép.</b> ${ss.khac_tb != null && ss.kuro_tb > ss.khac_tb
         ? `Trung bình ${tkSo(ss.kuro_tb)}/lần gọi, cao hơn AI dùng trực tiếp (${tkSo(ss.khac_tb)}/lần). ` : ""}${kuroDo.length
-        ? `${kuroDo.length} phiên Kuro có lần gọi gần nhất trên ${tkSo(ss.nguong)} token (dòng tô đỏ bên dưới). Câu hỏi tiếp theo trong phiên đó Kuro sẽ tự mở hội thoại mới với AI; việc mới hẳn thì bấm <b>+</b>.` : ""}</div>`
+        ? `${kuroDo.length} phiên Kuro có lần gọi gần nhất vượt ${escapeHtml(String(ss.nguong_pt))}% cửa sổ ngữ cảnh của model (dòng tô đỏ bên dưới). Câu hỏi tiếp theo trong phiên đó Kuro sẽ tự mở hội thoại mới với AI; việc mới hẳn thì bấm <b>+</b>.` : ""}</div>`
     : `<div class="tk-tip tk-xanh-box">✅ Kuro tiết kiệm hơn: trung bình <b>${tkSo(ss.kuro_tb)}</b>/lần gọi${ss.khac_tb != null
         ? `, AI dùng trực tiếp ${tkSo(ss.khac_tb)}/lần (Kuro ít hơn ${Math.round((1 - ss.kuro_tb / ss.khac_tb) * 100)}%)` : ""}.</div>`;
   const rows = r.phien.map(p => `<tr class="${p.vuot ? "tk-row-do" : ""}">
@@ -7975,7 +7975,7 @@ async function kiemTraTokenLuot(sid, el) {
     if (t.vuot && el && el.parentNode) {
       const div = document.createElement("div");
       div.className = "tk-luot-do";
-      div.innerHTML = `🔴 Lượt này Kuro gửi <b>${tkSo(t.ctx_cuoi)}</b> token mỗi lần gọi (ngưỡng ${tkSo(t.nguong)}). ` +
+      div.innerHTML = `🔴 Ngữ cảnh đã <b>${tkSo(t.ctx_cuoi)}</b> / ${tkSo(t.cua_so)} token, vượt ngưỡng ${tkSo(t.nguong)}. ` +
         `Câu hỏi tiếp theo Kuro sẽ tự mở hội thoại mới với AI và bàn giao 8 tin gần nhất để giảm token. ` +
         `Việc mới hẳn thì bấm <b>+</b> mở phiên mới.`;
       el.insertAdjacentElement("afterend", div);

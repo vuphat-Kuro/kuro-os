@@ -722,7 +722,7 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
     switched = bool(owner and owner != cur)
     effective_prompt = prompt
 
-    if lam_moi:   # hội thoại với AI quá nặng (token_stats.NGUONG_KURO): mỗi câu tiếp theo sẽ đọc lại cả khối
+    if lam_moi:   # hội thoại với AI quá nặng (config.nguong_ngu_canh, 80% cửa sổ): sắp chạm giới hạn ngữ cảnh
         resume_id = None
         block, n_msgs = build_handoff_context(handoff_messages or [], max_msgs=8)
         effective_prompt = block + prompt
@@ -878,7 +878,8 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
     # Kuro phải rẻ hơn dùng AI trực tiếp: hội thoại cũ đã quá ngưỡng thì mở mới thay vì đọc lại cả khối mỗi câu
     lam_moi = 0
     if prev_msgs and (cur_id := conv_ids.get(chosen_provider)):
-        t = await asyncio.to_thread(token_stats.mot_phien, [cur_id])
+        t = await asyncio.to_thread(token_stats.mot_phien, [cur_id], None, chosen_provider,
+                                    chosen_model or config.get_provider_model(chosen_provider))
         if t and t["vuot"]:
             lam_moi = t["ctx_cuoi"]
 

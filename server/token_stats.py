@@ -19,11 +19,15 @@ import subprocess
 import threading
 from pathlib import Path
 
+import config
+
+
+def nguong(r: dict) -> int:
+    """Ngưỡng của một phiên theo cửa sổ model ghi trong nhật ký (config.nguong_ngu_canh: mặc định 80% cửa sổ)."""
+    return config.nguong_ngu_canh("chatgpt" if r.get("codex") else "claude", r.get("model") or "")
+
 NGUON = {"sdk-py": "Kuro (Claude)", "claude-desktop": "Claude Desktop", "cli": "Claude Code (terminal)"}
 CTX_CANH_BAO = 200_000   # phiên dài hơn mức này: mỗi câu đọc lại cả khối, nên mở phiên mới
-# Kuro phải rẻ hơn dùng AI trực tiếp: một lần gọi của Kuro quá mức này là báo đỏ (nền ~29k: system prompt + tool;
-# 100k = nền + khoảng 70k hội thoại/tệp đọc, lúc đó mở phiên mới rẻ hơn đi tiếp)
-NGUONG_KURO = 100_000
 _cache: dict[str, tuple[tuple, dict]] = {}   # đường dẫn tệp -> ((mtime, size), kết quả đọc)
 _lock = threading.Lock()
 
@@ -81,6 +85,7 @@ def _doc_claude(f: str) -> dict:
                 continue
             seen.add(m.get("id"))   # một lần gọi API ghi nhiều dòng (mỗi khối nội dung), cùng message.id
             out["nguon"] = out["nguon"] or e.get("entrypoint")
+            out["model"] = m.get("model") or out.get("model")
             moi, ghi, doc = u.get("input_tokens", 0), u.get("cache_creation_input_tokens", 0), u.get("cache_read_input_tokens", 0)
             d = ngay.setdefault(_ngay(e["timestamp"]), [0, 0, 0, 0, 0])
             for i, v in enumerate((moi, ghi, doc, u.get("output_tokens", 0), 1)):
@@ -93,9 +98,14 @@ def _doc_claude(f: str) -> dict:
 
 def _doc_codex(f: str) -> dict:
     ngay = {}
-    out = {"nguon": None, "max_ctx": 0, "cuoi": "", "dau": "", "theo_ngay": ngay}
+    out = {"nguon": None, "max_ctx": 0, "cuoi": "", "dau": "", "theo_ngay": ngay, "codex": True}
     with open(f, encoding="utf-8", errors="replace") as fh:
         for i, line in enumerate(fh):
+            if '"turn_context"' in line:
+                try:
+                    out["model"] = (json.loads(line).get("payload") or {}).get("model") or out.get("model")
+                except ValueError:
+                    pass
             if i == 0:
                 try:
                     p = json.loads(line).get("payload") or {}
@@ -173,7 +183,7 @@ def thong_ke(so_ngay: int = 7, home: Path | None = None) -> dict:
                           "cau_dau": r["dau"], "qua_dai": r["max_ctx"] > CTX_CANH_BAO,
                           "ctx_cuoi": r.get("ctx_cuoi", 0),
                           # theo lần gọi gần nhất: phiên vẫn nặng thì gõ tiếp vẫn tốn; mở phiên mới là hết đỏ
-                          "vuot": ten.startswith("Kuro") and r.get("ctx_cuoi", 0) > NGUONG_KURO})
+                          "nguong": nguong(r), "vuot": ten.startswith("Kuro") and r.get("ctx_cuoi", 0) > nguong(r)})
     for n in nguon.values():
         n["quy_doi"] = round(sum(n["theo_ngay"].values()))
         n["tiet_kiem"] = round(tiet_kiem(n["ghi"], n["doc"]))
@@ -183,7 +193,7 @@ def thong_ke(so_ngay: int = 7, home: Path | None = None) -> dict:
     k = [v for t, v in nguon.items() if t.startswith("Kuro")]
     o = [v for t, v in nguon.items() if not t.startswith("Kuro")]
     tb = lambda ds: round(sum(v["quy_doi"] for v in ds) / max(1, sum(v["goi"] for v in ds))) if ds else None
-    so_sanh = {"kuro_tb": tb(k), "khac_tb": tb(o), "nguong": NGUONG_KURO}
+    so_sanh = {"kuro_tb": tb(k), "khac_tb": tb(o), "nguong_pt": os.getenv("KURO_NGUONG_NGU_CANH", "80")}
     # Đỏ khi Kuro trung bình tốn hơn, hoặc phiên Kuro VỪA DÙNG còn nặng. Phiên cũ bỏ dở chỉ tô đỏ trong bảng: chúng
     # không đốt thêm, và gõ tiếp vào là Kuro tự mở hội thoại mới (engine.chat), nên không giữ nút đỏ cả ngày.
     gan = max((p for p in phien if p["nguon"].startswith("Kuro")), key=lambda p: p["cuoi"], default=None)
@@ -198,7 +208,7 @@ def thong_ke(so_ngay: int = 7, home: Path | None = None) -> dict:
                        "đọc bộ nhớ đệm 0.1, ghi 1.25, đầu ra 5 (Codex dùng cùng công thức để so tương đối)."}
 
 
-def mot_phien(ma: list[str], home: Path | None = None) -> dict | None:
+def mot_phien(ma: list[str], home: Path | None = None, provider: str | None = None, model: str | None = None) -> dict | None:
     """Số token của một phiên Kuro (mã hội thoại Claude/Codex lưu trong kuro.db) để báo đỏ ngay sau lượt chat."""
     home = home or Path.home()
     ra = None
@@ -213,7 +223,11 @@ def mot_phien(ma: list[str], home: Path | None = None) -> dict | None:
                 tong = [sum(v[i] for v in r["theo_ngay"].values()) for i in range(5)]
                 ra = {"cuoi": r["cuoi"], "goi": tong[4], "quy_doi": round(quy_doi(*tong[:4])),
                       "tiet_kiem": round(tiet_kiem(tong[1], tong[2])), "max_ctx": r["max_ctx"],
-                      "ctx_cuoi": r.get("ctx_cuoi", 0), "nguong": NGUONG_KURO}
+                      "ctx_cuoi": r.get("ctx_cuoi", 0),
+                      # model phiên Kuro đang chọn (nếu biết) quyết định cửa sổ; không thì lấy model ghi trong nhật ký
+                      "nguong": config.nguong_ngu_canh(provider, model) if provider else nguong(r)}
+                ra["cua_so"] = config.cua_so_ngu_canh(provider or ("chatgpt" if r.get("codex") else "claude"),
+                                                      model if provider else r.get("model") or "")
     if ra:
-        ra["vuot"] = ra["ctx_cuoi"] > NGUONG_KURO
+        ra["vuot"] = ra["ctx_cuoi"] > ra["nguong"]
     return ra
