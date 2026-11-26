@@ -167,8 +167,13 @@ def provider_env(model_override: str | None = None, provider: str | None = None)
 
 
 # Bí danh model mà Claude Code nhận (dùng thật từ bản 1.0); tên đầy đủ "claude-..." cũng hợp lệ.
-CLAUDE_MODELS = [{"id": "", "ten": "Mặc định"}, {"id": "sonnet", "ten": "Sonnet"}, {"id": "opus", "ten": "Opus"},
-                 {"id": "haiku", "ten": "Haiku"}]
+CLAUDE_MODELS = [
+    {"id": "", "ten": "Mặc định"},
+    {"id": "opus", "ten": "Opus 5.5"},
+    {"id": "sonnet", "ten": "Sonnet 5.5"},
+    {"id": "fable", "ten": "Fable 5.2"},
+    {"id": "haiku", "ten": "Haiku 5.5"},
+]
 
 
 def model_key(provider: str) -> str:

@@ -11,6 +11,7 @@ import json
 import re
 import shutil
 import time
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -40,6 +41,51 @@ def mcp_from_file() -> dict:
     except (ValueError, AttributeError) as e:
         print(f"[mcp] state/mcp.json hỏng, bỏ qua: {e}")
         return {}
+
+
+MCP_PHIEN_FILE = config.STATE / "mcp-phien.json"   # {claude_session_id: [tên MCP "khi_can" đã nạp]}
+
+
+def _bo_dau(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", (s or "").lower()) if unicodedata.category(c) != "Mn").replace("đ", "d")
+
+
+def _mcp_phien() -> dict:
+    try:
+        return json.loads(MCP_PHIEN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def mcp_cho_luot(prompt: str, resume: str | None) -> tuple[dict, list, list]:
+    """MCP ngoài cho lượt này. Mục có `_kuro.khi_can` (khóa riêng của Kuro, bỏ trước khi đưa cho Claude) chỉ được nạp khi
+    câu hỏi nhắc `_kuro.tu_khoa` (mặc định: tên MCP, không phân biệt hoa thường/dấu), hoặc phiên này đã nạp từ lượt trước
+    (giữ nguyên để danh sách tool không đổi giữa chừng, tránh mất prompt cache). Trả về (nạp, chưa nạp, khi_can đã nạp)."""
+    da = set(_mcp_phien().get(resume or "", []))
+    p = _bo_dau(prompt)
+    nap, cho, dung = {}, [], []
+    for ten, cfg in mcp_from_file().items():
+        k = cfg.get("_kuro") or {}
+        cfg = {a: b for a, b in cfg.items() if a != "_kuro"}
+        if k.get("khi_can"):
+            tk = k.get("tu_khoa") or [ten]
+            if ten not in da and not any(_bo_dau(t) in p for t in tk):
+                cho.append((ten, tk))
+                continue
+            dung.append(ten)
+        nap[ten] = cfg
+    return nap, cho, dung
+
+
+def ghi_mcp_phien(session_id: str | None, dung: list) -> None:
+    if not session_id or not dung:
+        return
+    d = _mcp_phien()
+    d[session_id] = sorted(set(d.get(session_id, [])) | set(dung))
+    try:
+        MCP_PHIEN_FILE.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def load_agents() -> dict[str, AgentDefinition]:
@@ -316,15 +362,22 @@ SKILL_NGANH = ("\n\n## Skill ngành của Kuro\nViệc chuyên môn: dùng Read 
                "Chỉ mở skill khi việc thật sự liên quan; mô tả của skill nói rõ khi nào dùng.\n{skills}")
 
 
-# Mức suy nghĩ trên giao diện (high/standard/off) -> từng AI. Đo thật 2026-11:
-# - Claude Code: effort low..max + thinking disabled, mỗi model hỗ trợ khác nhau (get_server_info báo supportedEffortLevels,
-#   supportsThinkingOff). Haiku và model ngoài họ Claude không có effort: bỏ qua.
-# - Codex: -c model_reasoning_effort (low..ultra), không có "tắt" nên Tắt = low.
-# - Agy: --effort xung đột với model có hậu tố (báo ERROR); mức suy nghĩ nằm trong tên model -low/-medium/-high
-#   (flash-low 230 token suy nghĩ, flash-high 638): đổi hậu tố cho đúng mức, Tắt = low.
-THINK_LEVELS = ("high", "standard", "off")
+# Mức nỗ lực / suy nghĩ trên giao diện (low/medium/high/xhigh/max, tương thích ngược standard/off) -> từng AI:
+# - Claude Code: effort low..max + thinking disabled, mỗi model hỗ trợ khác nhau (get_server_info báo
+#   supportedEffortLevels, supportsThinkingOff). Haiku 4.5 và model ngoài họ Claude không có effort: bỏ qua.
+# - Codex: -c model_reasoning_effort (low..xhigh).
+# - Agy: --effort xung đột với model có hậu tố (báo ERROR); mức suy nghĩ nằm trong tên model -low/-medium/-high/-xhigh.
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+THINK_LEVELS = ("low", "medium", "high", "xhigh", "max", "standard", "off")
 _CAPS = {"t": 0.0, "models": []}
 _AGY_SUFFIX = re.compile(r"^(.*)-(low|medium|high|xhigh)$")
+
+
+def normalize_thinking_level(level: str | None) -> str:
+    lv = (level or "").strip().lower()
+    if lv == "standard":
+        return "medium"
+    return lv if lv in THINK_LEVELS else ""
 
 
 async def claude_models_caps() -> list[dict]:
@@ -354,40 +407,68 @@ def claude_cap(models: list[dict], model: str | None) -> dict | None:
 
 
 def thinking_options(cap: dict | None, level: str | None) -> dict:
-    """Cao = effort high, Tiêu chuẩn = medium, Tắt = tắt hẳn suy nghĩ (model không tắt được thì effort low)."""
-    if not cap or not cap.get("supportsEffort") or level not in THINK_LEVELS:
+    """Ánh xạ đúng mức nỗ lực Claude Code: low (Thấp), medium (Trung bình), high (Cao), xhigh (Cao hơn), max (Tối đa),
+    và off (tắt hẳn suy nghĩ nếu model hỗ trợ supportsThinkingOff, không thì hạ về low)."""
+    lv = normalize_thinking_level(level)
+    if not cap or not lv:
         return {}
-    levels = cap.get("supportedEffortLevels") or []
-    if level == "off":
+    levels = [str(x).lower() for x in (cap.get("supportedEffortLevels") or [])]
+    if lv == "off":
         if cap.get("supportsThinkingOff"):
             return {"thinking": {"type": "disabled"}}
-        return {"effort": "low"} if "low" in levels else {}
-    eff = "high" if level == "high" else "medium"
-    return {"effort": eff} if eff in levels else {}
+        return {"effort": "low"} if (cap.get("supportsEffort") and "low" in levels) else {}
+    if not cap.get("supportsEffort") or not levels:
+        return {}
+    if lv in levels:
+        return {"effort": lv}
+    # Nếu model chỉ hỗ trợ tập con (vd Opus 4.6 không có xhigh), lùi về mức gần nhất có hỗ trợ
+    fallback_order = {
+        "max": ("max", "xhigh", "high", "medium", "low"),
+        "xhigh": ("xhigh", "high", "medium", "low"),
+        "high": ("high", "medium", "low"),
+        "medium": ("medium", "high", "low"),
+        "low": ("low", "medium", "high"),
+    }.get(lv, ())
+    for cand in fallback_order:
+        if cand in levels:
+            return {"effort": cand}
+    return {}
 
 
 async def thinking_support(provider: str, model: str | None) -> dict:
-    """Model này chỉnh được mức suy nghĩ không, và "Tắt" nghĩa là gì: disable (tắt hẳn) hoặc low (mức thấp nhất)."""
+    """Trả danh sách mức nỗ lực thật của model (tương đồng trực tiếp với Claude Code / Agy / Codex)."""
     prov = provider or config.PROVIDER or "claude"
     mod = model or config.get_provider_model(prov) or ""
     if kind := cli_kind(prov):
         if kind == "agy":
             m = _AGY_SUFFIX.match(mod)
             if not m:
-                return {"supported": False, "off": None}
+                return {"supported": False, "levels": [], "recommended": None, "off": None}
             ids = {x["id"] for x in await cli_engines.models("agy")}
-            ok = any(f"{m.group(1)}-{lv}" in ids for lv in ("high", "medium"))
-            return {"supported": ok, "off": "low" if ok else None}
-        return {"supported": True, "off": "low"}
+            avail = [lv for lv in ("low", "medium", "high", "xhigh") if f"{m.group(1)}-{lv}" in ids]
+            ok = len(avail) >= 2
+            rec = "medium" if "medium" in avail else (avail[0] if avail else None)
+            return {"supported": ok, "levels": avail if ok else [], "recommended": rec if ok else None, "off": None}
+        return {"supported": True, "levels": ["low", "medium", "high", "xhigh"], "recommended": "medium", "off": None}
     cap = claude_cap(await claude_models_caps(), mod)
     if not cap or not cap.get("supportsEffort"):
-        return {"supported": False, "off": None}
-    return {"supported": True, "off": "disable" if cap.get("supportsThinkingOff") else "low"}
+        return {"supported": False, "levels": [], "recommended": None, "off": None}
+    levels = [lv for lv in EFFORT_LEVELS if lv in (cap.get("supportedEffortLevels") or [])]
+    return {
+        "supported": bool(levels),
+        "levels": levels,
+        "recommended": "medium" if "medium" in levels else (levels[0] if levels else None),
+        "off": "disable" if cap.get("supportsThinkingOff") else None,
+        "model_name": cap.get("displayName") or mod,
+        "resolved_model": cap.get("resolvedModel") or mod,
+    }
 
 
 def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = None, model: str | None = None, provider: str | None = None,
-            think: dict | None = None) -> ClaudeAgentOptions:
+            think: dict | None = None, prompt: str = "") -> ClaudeAgentOptions:
     extra = agent_prompt_block(agent)
+    mcp_nap, mcp_cho, _ = mcp_cho_luot(prompt, claude_id)
+    mcp_goi_y = ("\nMCP chưa nạp (nạp khi người dùng nhắc tên): " + "; ".join(f"{t} ({', '.join(k)})" for t, k in mcp_cho) + ".") if mcp_cho else ""
     ws_path = cwd or str(active_workspace_dir())
     ws_note = workspace_rules.build_workspace_rules_prompt(Path(ws_path), get_workspaces_config()) + f"\n{KHO_MANG_CAM_XOA}"
     prov = provider or config.PROVIDER or "claude"
@@ -398,7 +479,7 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
     shell = "Bash" in config.ALLOWED_TOOLS
     ctx_mcp, ctx_allowed = tiet_kiem.mcp_claude(shell)
     return ClaudeAgentOptions(
-        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append(gio=False) + extra + ws_note + DOC_TEP_LON + SKILL_NGANH.format(skills=skill_index()) + tiet_kiem.huong_dan(shell)},
+        system_prompt={"type": "preset", "preset": "claude_code", "append": system_append(gio=False) + extra + ws_note + DOC_TEP_LON + SKILL_NGANH.format(skills=skill_index()) + tiet_kiem.huong_dan(shell) + mcp_goi_y},
         cwd=ws_path,
         model=chosen_model,
         env={**config.provider_env(chosen_model, provider=prov), **tiet_kiem.ENV},
@@ -412,7 +493,7 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         agents=load_agents(),
         permission_mode="dontAsk",
         hooks={"PreToolUse": [HookMatcher(hooks=[chan_xoa_kho_mang])]},
-        mcp_servers={**mcp_from_file(), **ctx_mcp, "kuro": calc.SERVER},
+        mcp_servers={**mcp_nap, **ctx_mcp, "kuro": calc.SERVER},
         # Chỉ MCP khai ở trên. Không có cờ này Claude CLI tự kéo kết nối claude.ai của tài khoản (Canva, Slack, Drive...:
         # 116 tool, ~72k token mỗi lần gọi, đo 26/11/2026) và MCP toàn máy trong ~/.claude.json vào mọi phiên Kuro
         extra_args={"strict-mcp-config": None},
@@ -689,7 +770,7 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
         if thinking in THINK_LEVELS:
             think = thinking_options(claude_cap(await claude_models_caps(), model or config.get_provider_model(cur)), thinking)
         # giờ nằm trong câu hỏi (không trong system prompt) để prompt cache dùng lại được giữa các lượt
-        async for m in query(prompt=f"({gio_may()})\n\n{prompt}", options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur, think=think)):
+        async for m in query(prompt=f"({gio_may()})\n\n{prompt}", options=options(resume, agent=agent, cwd=ws_path, model=model, provider=cur, think=think, prompt=prompt)):
             if isinstance(m, StreamEvent):
                 ev = m.event
                 if m.parent_tool_use_id is None and ev.get("type") == "content_block_delta" \
@@ -700,6 +781,7 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
                     if isinstance(b, ToolUseBlock):
                         yield {"type": "tool", "name": b.name, "input": b.input}
             elif isinstance(m, ResultMessage):
+                ghi_mcp_phien(m.session_id, mcp_cho_luot(prompt, resume)[2])
                 if m.is_error:
                     yield {"type": "error", "text": m.result or "; ".join(map(str, m.errors or [])) or m.subtype}
                 yield {"type": "final", "text": m.result or "", "claude_id": m.session_id,

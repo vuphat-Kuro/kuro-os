@@ -16,5 +16,9 @@
       ]
     }
   },
-  "mcp_cai": true
+  "mcp_cai": true,
+  "mcp_tu_khoa": [
+    "chili3d",
+    "chili 3d"
+  ]
 }

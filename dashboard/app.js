@@ -4561,6 +4561,9 @@ function updateModelPillUI(modelId, providerId = "") {
   } else {
     pillLabel.textContent = label;
   }
+  if (typeof refreshThinkingSupport === "function") {
+    refreshThinkingSupport(p, effectiveModelId);
+  }
 }
 
 function renderModelMenuPopover(activeVal, activeProv = "") {
@@ -4920,9 +4923,81 @@ if (btnModelPill) {
   };
 }
 
-// Nút chọn Mức suy nghĩ (Thinking Pill)
-// Mặc định "Tiêu chuẩn": "Cao" tốn nhiều token suy nghĩ cho việc thường; mỗi máy nhớ lựa chọn riêng
-let currentThinkingMode = "standard";
+// Nút chọn Mức nỗ lực / suy nghĩ (Thinking Pill - tương đồng trực tiếp với Claude Code)
+const EFFORT_META = {
+  low:    { label: "Thấp",       desc: "Phản hồi nhanh nhất, suy nghĩ tối thiểu" },
+  medium: { label: "Trung bình", desc: "Cân bằng giữa tốc độ và độ kỹ lưỡng" },
+  high:   { label: "Cao",        desc: "Suy nghĩ sâu và kiểm chứng kỹ lưỡng" },
+  xhigh:  { label: "Cao hơn",    desc: "Phân tích mở rộng sâu hơn cho bài toán phức tạp" },
+  max:    { label: "Tối đa",     desc: "Mức nỗ lực tối đa, tốn thời gian và hạn mức nhanh hơn" },
+  off:    { label: "Tắt",        desc: "Tắt hẳn suy nghĩ, trả lời trực tiếp" },
+};
+const DEFAULT_EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+let _savedEffort = (localStorage.getItem("kuro_thinking_effort") || "medium").toLowerCase();
+if (_savedEffort === "standard") _savedEffort = "medium";
+if (!EFFORT_META[_savedEffort]) _savedEffort = "medium";
+let currentThinkingMode = _savedEffort;
+let currentThinkingSupport = { supported: true, levels: DEFAULT_EFFORT_LEVELS.slice(), recommended: "medium", off: null };
+
+function updateThinkingPillLabel() {
+  const labelEl = $("thinking-pill-label");
+  if (!labelEl) return;
+  const meta = EFFORT_META[currentThinkingMode] || EFFORT_META.high;
+  labelEl.textContent = meta.label;
+}
+
+function renderThinkingMenu(sup) {
+  const container = $("thinking-menu-items");
+  if (!container) return;
+  const levels = (sup && Array.isArray(sup.levels) && sup.levels.length) ? sup.levels.slice() : DEFAULT_EFFORT_LEVELS.slice();
+  if (sup && sup.off === "disable" && !levels.includes("off")) {
+    levels.push("off");
+  }
+  const recommended = (sup && sup.recommended) || (levels.includes("medium") ? "medium" : null);
+
+  // Nếu mức đang chọn không nằm trong tập model hỗ trợ, tự lùi về mức gần nhất hợp lệ
+  if (levels.length && !levels.includes(currentThinkingMode)) {
+    const fb = {
+      max:    ["max", "xhigh", "high", "medium", "low"],
+      xhigh:  ["xhigh", "high", "medium", "low"],
+      high:   ["high", "medium", "low"],
+      medium: ["medium", "high", "low"],
+      low:    ["low", "medium", "high"],
+      off:    ["off", "low", "medium", "high"],
+    }[currentThinkingMode] || levels;
+    const picked = fb.find(lv => levels.includes(lv)) || levels[0];
+    if (picked) currentThinkingMode = picked;
+  }
+
+  container.innerHTML = "";
+  levels.forEach((lv) => {
+    const meta = EFFORT_META[lv];
+    if (!meta) return;
+    const isCur = lv === currentThinkingMode;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mode-menu-item" + (isCur ? " active" : "");
+    btn.dataset.thinking = lv;
+    const recHtml = (lv === recommended) ? `<span class="effort-badge-rec">Được đề xuất</span>` : "";
+    btn.innerHTML = `
+      <div class="mode-item-title">
+        <span>${escapeHtml(meta.label)}${recHtml}</span>
+        <span>${isCur ? "✓" : ""}</span>
+      </div>
+      <div class="mode-item-desc">${escapeHtml(meta.desc)}</div>
+    `;
+    btn.onclick = () => {
+      currentThinkingMode = lv;
+      try { localStorage.setItem("kuro_thinking_effort", lv); } catch (_) {}
+      renderThinkingMenu(currentThinkingSupport);
+      updateThinkingPillLabel();
+      hideBottomPopovers();
+    };
+    container.appendChild(btn);
+  });
+  updateThinkingPillLabel();
+}
+
 const btnThinkingPill = $("btn-thinking-pill");
 if (btnThinkingPill) {
   btnThinkingPill.onclick = (e) => {
@@ -4931,35 +5006,12 @@ if (btnThinkingPill) {
     const isVisible = menu && menu.style.display === "flex";
     hideBottomPopovers();
     if (menu && !isVisible) {
+      renderThinkingMenu(currentThinkingSupport);
       menu.style.display = "flex";
     }
   };
 }
-
-const thinkingItems = document.querySelectorAll("#thinking-menu-popover .mode-menu-item");
-thinkingItems.forEach(item => {
-  item.onclick = () => {
-    const t = item.dataset.thinking;
-    currentThinkingMode = t;
-    thinkingItems.forEach(i => {
-      const isCur = i.dataset.thinking === t;
-      i.classList.toggle("active", isCur);
-      const spanCheck = i.querySelector(".mode-item-title span:last-child");
-      if (spanCheck) spanCheck.textContent = isCur ? "✓" : "";
-    });
-    const labelMap = { high: "Cao", standard: "Tiêu chuẩn", off: "Tắt" };
-    const labelEl = $("thinking-pill-label");
-    if (labelEl) labelEl.textContent = labelMap[t] || "Tiêu chuẩn";
-    try { localStorage.setItem("kuro_thinking", t); } catch (_) {}
-    hideBottomPopovers();
-  };
-});
-(() => {
-  let saved = "standard";
-  try { saved = localStorage.getItem("kuro_thinking") || "standard"; } catch (_) {}
-  const item = document.querySelector(`#thinking-menu-popover .mode-menu-item[data-thinking="${saved}"]`);
-  if (item) item.click();
-})();
+renderThinkingMenu(currentThinkingSupport);
 
 // Nút chọn Chế độ thực thi (Mode)
 const btnModePill = $("btn-mode-pill");
@@ -5096,23 +5148,25 @@ async function fetchAndRenderQuota(force) {
   }
 }
 
-// Nút mức suy nghĩ chỉ có tác dụng khi model hỗ trợ (server hỏi chính Claude Code / danh sách model của agy)
+// Nút mức nỗ lực chỉ có tác dụng khi model hỗ trợ (server hỏi chính Claude Code / danh sách model của agy)
+let _thinkSupSeq = 0;
 async function refreshThinkingSupport(prov, model) {
   const pill = $("btn-thinking-pill");
   if (!pill) return;
+  const seq = ++_thinkSupSeq;
   try {
     const res = await fetch(`/api/thinking_support?provider=${encodeURIComponent(prov || "")}&model=${encodeURIComponent(model || "")}`);
     if (!res.ok) return;
     const sup = await res.json();
+    if (seq !== _thinkSupSeq) return;
+    currentThinkingSupport = sup;
     pill.classList.toggle("disabled", !sup.supported);
+    const lvNames = (sup.levels || []).map(lv => (EFFORT_META[lv] && EFFORT_META[lv].label) || lv).join(" / ");
     pill.title = sup.supported
-      ? "Mức độ suy nghĩ của model: Cao / Tiêu chuẩn / Tắt"
-      : "Model này không cho chỉnh mức suy nghĩ (lựa chọn không có tác dụng)";
-    const offDesc = document.querySelector('#thinking-menu-popover [data-thinking="off"] .mode-item-desc');
-    if (offDesc) {
-      offDesc.textContent = sup.off === "disable" ? "Tắt hẳn suy nghĩ, trả lời trực tiếp"
-        : sup.off === "low" ? "Model không tắt hẳn được: dùng mức suy nghĩ thấp nhất"
-        : "Trả lời trực tiếp ngắn gọn không cần suy nghĩ sâu";
+      ? `Mức nỗ lực của model: ${lvNames || "Thấp / Trung bình / Cao / Cao hơn / Tối đa"}`
+      : "Model này không cho chỉnh mức nỗ lực (lựa chọn không có tác dụng)";
+    if (sup.supported) {
+      renderThinkingMenu(sup);
     }
   } catch (e) { /* giữ nguyên trạng thái cũ */ }
 }

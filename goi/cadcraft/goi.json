@@ -15,5 +15,8 @@
         "${KURO_ROOT}/goi/cadcraft/cadcraft-dxf/scripts/mcp_chay.py"
       ]
     }
-  }
+  },
+  "mcp_tu_khoa": [
+    "cadcraft"
+  ]
 }

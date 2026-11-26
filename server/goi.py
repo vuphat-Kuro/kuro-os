@@ -168,6 +168,7 @@ def _normalize_manifest(raw: dict, gid: str, base_dir: Path, nguon: str) -> dict
         "import": imp_list,
         "mcp": mcp_cfg,
         "kiem_tra": str(raw.get("kiem_tra") or "").strip(),
+        "mcp_tu_khoa": [str(x) for x in raw.get("mcp_tu_khoa") or [] if str(x).strip()],   # có khóa này: MCP chỉ nạp khi câu hỏi nhắc từ khóa
         "mcp_cai": bool(raw.get("mcp_cai")),   # script kiem_tra có hành động mcp-install / mcp-uninstall (cài thành phần MCP riêng)
     }
 
@@ -456,6 +457,14 @@ def _cai_pip(pip_specs: list[str], imp_list: list[str]) -> None:
         raise ValueError("Không cài được thư viện Python (kiểm tra kết nối mạng): " + err_line)
 
 
+def _cfg_ghi(m: dict, srv: str, cfg: dict) -> dict:
+    """Cấu hình MCP ghi vào state/mcp.json; thêm khóa `_kuro` (engine.mcp_cho_luot) khi gói khai `mcp_tu_khoa`."""
+    out = _thay_giu_cho(cfg)
+    if m.get("mcp_tu_khoa"):
+        out["_kuro"] = {"khi_can": True, "tu_khoa": [srv, *m["mcp_tu_khoa"]]}
+    return out
+
+
 def _thay_giu_cho(v):
     """Thay ${KURO_ROOT} và ${KURO_PYTHON} trong cấu hình MCP bằng đường dẫn thật trên máy này."""
     if isinstance(v, str):
@@ -489,7 +498,7 @@ def mcp_bat(gid: str, bat: bool) -> str:
     data = _doc_mcp()
     owned = set((da_cai().get(gid) or {}).get("mcp") or [])
     for srv, c in cfg.items():
-        want = _thay_giu_cho(c)
+        want = _cfg_ghi(m, srv, c)
         if bat:
             if srv in data["mcpServers"] and data["mcpServers"][srv] != want and srv not in owned:
                 raise ValueError(f"MCP '{srv}' đã có trong state/mcp.json với cấu hình khác (không ghi đè).")
@@ -511,7 +520,7 @@ def cai(gid: str) -> str:
     if mcp_cfg:
         mcp_data = _doc_mcp()
         for srv in mcp_cfg:
-            if srv in mcp_data["mcpServers"] and srv not in owned_mcp and mcp_data["mcpServers"][srv] != _thay_giu_cho(mcp_cfg[srv]):
+            if srv in mcp_data["mcpServers"] and srv not in owned_mcp and mcp_data["mcpServers"][srv] != _cfg_ghi(m, srv, mcp_cfg[srv]):
                 raise ValueError(f"MCP server '{srv}' đã tồn tại trong state/mcp.json (thuộc cấu hình khác).")
 
     _cai_pip(pip_specs, m["import"])
@@ -519,7 +528,7 @@ def cai(gid: str) -> str:
     if mcp_cfg:
         mcp_data = _doc_mcp()
         for srv, cfg in mcp_cfg.items():
-            mcp_data["mcpServers"][srv] = _thay_giu_cho(cfg)
+            mcp_data["mcpServers"][srv] = _cfg_ghi(m, srv, cfg)
         _luu_mcp(mcp_data)
 
     st[gid] = {

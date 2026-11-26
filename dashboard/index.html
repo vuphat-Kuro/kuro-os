@@ -1553,7 +1553,8 @@
     position: absolute;
     bottom: calc(100% + 8px);
     left: 170px;
-    min-width: 250px;
+    width: 300px;
+    max-width: calc(100vw - 28px);
     background: #0f172a;
     border: 1px solid var(--line-hi);
     border-radius: 10px;
@@ -1562,7 +1563,30 @@
     padding: 6px 0;
     display: flex;
     flex-direction: column;
-    animation: rise .2s ease;
+    animation: rise .16s ease;
+  }
+  .thinking-menu-note {
+    padding: 7px 13px 8px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 4px;
+  }
+  .effort-badge-rec {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--muted);
+    vertical-align: middle;
+  }
+  .mode-menu-item.active .effort-badge-rec {
+    background: var(--accent-tint, rgba(239, 68, 68, 0.14));
+    color: var(--accent, #ef4444);
   }
 
   /* NÚT VÒNG TRÒN HẠN MỨC (QUOTA RING) */
@@ -6305,27 +6329,10 @@
         <div id="model-menu-items"></div>
       </div>
 
-      <!-- Popover Menu chọn Mức suy nghĩ (Thinking) -->
+      <!-- Popover Menu chọn Mức nỗ lực / suy nghĩ (tương đồng Claude Code) -->
       <div id="thinking-menu-popover" class="thinking-menu-popover" style="display:none;">
-        <button type="button" class="mode-menu-item active" data-thinking="high">
-          <div class="mode-item-title">
-            <span>Cao (Thinking High)</span>
-            <span>✓</span>
-          </div>
-          <div class="mode-item-desc">Suy nghĩ sâu và kiểm chứng chéo từng công thức tính toán</div>
-        </button>
-        <button type="button" class="mode-menu-item" data-thinking="standard">
-          <div class="mode-item-title">
-            <span>Tiêu chuẩn (Standard)</span>
-          </div>
-          <div class="mode-item-desc">Phản hồi nhanh và chuẩn xác theo tiến trình nghiệp vụ</div>
-        </button>
-        <button type="button" class="mode-menu-item" data-thinking="off">
-          <div class="mode-item-title">
-            <span>Tắt (None)</span>
-          </div>
-          <div class="mode-item-desc">Trả lời trực tiếp ngắn gọn không cần suy nghĩ sâu</div>
-        </button>
+        <div class="thinking-menu-note">Mức nỗ lực cao hơn đồng nghĩa với phản hồi kỹ lưỡng hơn, nhưng mất nhiều thời gian hơn và dùng hết giới hạn nhanh hơn.</div>
+        <div id="thinking-menu-items"></div>
       </div>
 
       <!-- Popover Menu chọn Chế độ (Mode) -->
@@ -6416,8 +6423,8 @@
             <span class="model-pill-chevron">▼</span>
           </button>
 
-          <!-- Nút chọn Mức độ suy nghĩ (Thinking) -->
-          <button type="button" class="thinking-pill-btn" id="btn-thinking-pill" title="Mức độ suy nghĩ & kiểm chứng: Cao / Tiêu chuẩn">
+          <!-- Nút chọn Mức nỗ lực / suy nghĩ (Thinking Effort) -->
+          <button type="button" class="thinking-pill-btn" id="btn-thinking-pill" title="Mức nỗ lực của model: Thấp / Trung bình / Cao / Cao hơn / Tối đa">
             <svg class="ic ic-xs ic-muted" aria-hidden="true"><use href="#ic-brain"/></svg><span id="thinking-pill-label">Cao</span>
             <span aria-hidden="true" style="font-size:11px; opacity:0.7;">▼</span>
           </button>
@@ -7377,6 +7384,6 @@
 <div class="kuro-resize-handle kuro-rh-sw" data-edge="bottom-left"></div>
 <div class="kuro-resize-handle kuro-rh-se" data-edge="bottom-right"></div>
 
-<script src="app.js?v=71"></script>
+<script src="app.js?v=72"></script>
 </body>
 </html>

@@ -15,5 +15,12 @@
         "${KURO_ROOT}/goi/solidcraft/solidcraft-3d/scripts/mcp_chay.py"
       ]
     }
-  }
+  },
+  "mcp_tu_khoa": [
+    "cad 3d",
+    "mô hình 3d",
+    "dựng 3d",
+    "file step",
+    "parametric"
+  ]
 }

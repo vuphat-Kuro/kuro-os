@@ -15,5 +15,9 @@
         "${KURO_ROOT}/goi/librecad/librecad-cad/scripts/librecad_mcp.py"
       ]
     }
-  }
+  },
+  "mcp_tu_khoa": [
+    "librecad",
+    "libre cad"
+  ]
 }

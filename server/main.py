@@ -419,6 +419,24 @@ async def _models_for_provider(p: str) -> list[dict]:
     """Lấy danh sách model khả dụng cho một nhà cung cấp AI cụ thể."""
     p = p or "claude"
     if p == "claude":
+        caps = await engine.claude_models_caps()
+        if caps:
+            items = [{"id": "", "ten": "Mặc định"}]
+            seen: set[str] = set()
+            for c in caps:
+                val = (c.get("value") or "").strip()
+                if not val or val.lower() == "default" or val.lower() in seen:
+                    continue
+                seen.add(val.lower())
+                ten = (c.get("displayName") or val).strip()
+                items.append({
+                    "id": val,
+                    "ten": ten,
+                    "resolved": c.get("resolvedModel") or val,
+                    "effort_levels": c.get("supportedEffortLevels") or [],
+                })
+            if len(items) > 1:
+                return items
         return list(config.CLAUDE_MODELS)
     if p == "antigravity":
         found = await cli_engines.models("agy")
@@ -1642,7 +1660,7 @@ def get_model_context_window(provider: str | None = None, model: str | None = No
         return int(ov)
     if prov == "antigravity":
         return 1_000_000
-    if prov in ("claude", "anthropic") or mod.startswith("claude") or mod in ("opus", "sonnet", "haiku"):
+    if prov in ("claude", "anthropic") or mod.startswith("claude") or mod in ("opus", "sonnet", "haiku", "fable"):
         return 200_000 if re.match(r"claude-(?:(?:opus|sonnet|haiku)-)?[34](?:[-.]|$)", mod) else 1_000_000
     if prov == "chatgpt" or "gpt" in mod:
         return 272_000

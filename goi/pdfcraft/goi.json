@@ -15,5 +15,8 @@
         "${KURO_ROOT}/goi/pdfcraft/pdfcraft-pdf/scripts/mcp_chay.py"
       ]
     }
-  }
+  },
+  "mcp_tu_khoa": [
+    "pdfcraft"
+  ]
 }

@@ -71,18 +71,35 @@ async def models(kind: str) -> list[dict]:
     return _models[kind]
 
 
-_CODEX_EFFORT = {"high": "high", "standard": "medium", "off": "low"}   # codex không có mức tắt hẳn
-_AGY_LEVEL = {"high": "high", "standard": "medium", "off": "low"}
+_CODEX_EFFORT = {
+    "low": "low", "off": "low",
+    "medium": "medium", "standard": "medium",
+    "high": "high",
+    "xhigh": "xhigh", "max": "xhigh",
+}
+_AGY_LEVEL_FALLBACK = {
+    "low": ("low", "medium"),
+    "off": ("low", "medium"),
+    "medium": ("medium", "high", "low"),
+    "standard": ("medium", "high", "low"),
+    "high": ("high", "medium", "low"),
+    "xhigh": ("xhigh", "high", "medium"),
+    "max": ("xhigh", "high", "medium"),
+}
 
 
 async def agy_model_for_thinking(model: str | None, thinking: str | None) -> str | None:
-    """agy: mức suy nghĩ nằm trong hậu tố tên model (-low/-medium/-high). Không có biến thể thì giữ nguyên model."""
+    """agy: mức suy nghĩ nằm trong hậu tố tên model (-low/-medium/-high/-xhigh). Không có biến thể thì giữ nguyên model."""
     m = re.match(r"^(.*)-(low|medium|high|xhigh)$", model or "")
-    lvl = _AGY_LEVEL.get(thinking or "")
-    if not m or not lvl:
+    cands = _AGY_LEVEL_FALLBACK.get((thinking or "").strip().lower())
+    if not m or not cands:
         return model
-    cand = f"{m.group(1)}-{lvl}"
-    return cand if cand in {x["id"] for x in await models("agy")} else model
+    ids = {x["id"] for x in await models("agy")}
+    for lv in cands:
+        cand = f"{m.group(1)}-{lv}"
+        if cand in ids:
+            return cand
+    return model
 
 
 def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True, provider: str | None = None,

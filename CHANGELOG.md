@@ -1,5 +1,11 @@
 # Nhật ký phiên bản Kuro OS
 
+## [1.9.1] - 2026-11-26
+- **MCP theo yêu cầu: không nạp tool MCP ngoài vào mọi phiên (đo: tool SolidCraft chiếm 35K ký tự, khoảng 10K token mỗi lần gọi, ở cả phiên làm hồ sơ không dùng CAD):**
+  - Mục MCP trong `state/mcp.json` có khóa riêng `_kuro: {khi_can, tu_khoa}` chỉ được nạp khi câu hỏi nhắc tên hoặc từ khóa (không phân biệt hoa thường/dấu), rồi giữ nạp trong phiên đó (`state/mcp-phien.json`) để danh sách tool không đổi giữa chừng, tránh mất prompt cache. Khóa `_kuro` bị bỏ trước khi đưa cho Claude; MCP chưa nạp được liệt kê một dòng trong system prompt.
+  - `goi.json` hỗ trợ `mcp_tu_khoa`; nút Cài MCP ghi khóa `_kuro`. Đã khai cho `solidcraft`, `cadcraft`, `pdfcraft`, `chili3d`, `librecad`. Muốn nạp rộng hơn: thêm từ khóa rồi Gỡ/Cài lại MCP. Chưa chạy phiên chat thật để đo token sau thay đổi.
+- Kèm các thay đổi đang làm dở của người bảo trì: nút mức suy nghĩ theo khả năng từng model (mặc định Trung bình, khóa `kuro_thinking_effort`), `app_desktop.py` (dọn tiến trình `app_desktop.py` cũ khi khởi động), `cli_engines`, `config`, `main`, giao diện Plugins/Cài đặt.
+
 ## [1.9.0] - 2026-11-25
 - **Thêm 7 plugin/kho vào Kuro, thẻ Plugins thu gọn và có hàng Phần mềm + MCP riêng:**
   - Plugin mới trong `goi/`: `librecad` (CAD 2D, winget, MCP tự viết), `pdfcraft`, `cadcraft`, `solidcraft` (app Rust: tải bản portable ghim phiên bản, kiểm SHA-256, cài `%LOCALAPPDATA%\Programs`, chạy nền; nhận bản cài tay ở Program Files và registry), `chili3d` (web + cầu nối MCP npm `@chili3d/mcp`), `cli-hub` (pip `cli-anything-hub`). Mã cài dùng chung ở `goi/_chung/cai_phan_mem.py`.

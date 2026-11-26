@@ -968,18 +968,49 @@ def _is_port_free(port: int) -> bool:
     return True
 
 
+def _kill_other_kuro_desktop_processes():
+    """Kết thúc các tiến trình app_desktop.py cũ khác (bỏ qua chính tiến trình này và tiến trình cha venv launcher)."""
+    import subprocess
+    my_pid = os.getpid()
+    parent_pid = os.getppid()
+    skip = {my_pid, parent_pid}
+    no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    pids: set[int] = set()
+    try:
+        import psutil
+        for proc in psutil.process_iter(["pid", "cmdline"]):
+            try:
+                pid = proc.info.get("pid")
+                if not pid or pid in skip:
+                    continue
+                cmd = " ".join(proc.info.get("cmdline") or []).lower()
+                if "app_desktop.py" in cmd:
+                    pids.add(pid)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    for pid in pids:
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=no_win)
+        except Exception:
+            pass
+
+
 def free_port(port: int = 7788, wait_s: float = 6.0):
     """Giải phóng cổng nếu có tiến trình cũ chiếm giữ và đợi cổng thực sự được nhả (tránh WinError 10048)."""
+    _kill_other_kuro_desktop_processes()
     try:
         import subprocess
         no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         pids: set[int] = set()
+        skip = {os.getpid(), os.getppid()}
         # Ưu tiên psutil nếu có, ổn định hơn netstat trên mọi bản Windows
         try:
             import psutil
             for conn in psutil.net_connections(kind="tcp"):
                 if conn.laddr and conn.laddr.port == port and conn.status == psutil.CONN_LISTEN and conn.pid:
-                    if conn.pid != os.getpid():
+                    if conn.pid not in skip:
                         pids.add(conn.pid)
         except Exception:
             pass
@@ -990,7 +1021,7 @@ def free_port(port: int = 7788, wait_s: float = 6.0):
                 parts = line.strip().split()
                 if len(parts) >= 5 and parts[-1].isdigit():
                     pid = int(parts[-1])
-                    if pid > 0 and pid != os.getpid():
+                    if pid > 0 and pid not in skip:
                         pids.add(pid)
         for pid in pids:
             subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=no_win)
@@ -1018,17 +1049,21 @@ def is_server_running(port: int = 7788) -> bool:
 
 
 _SERVER_ERROR: str | None = None
+_UVICORN_SERVER = None
 
 
 def run_fastapi_server():
     """Khởi chạy server uvicorn nền và ghi nhận lỗi nếu không khởi động được."""
-    global _SERVER_ERROR
+    global _SERVER_ERROR, _UVICORN_SERVER
     try:
         import uvicorn
         from server.main import app
         import config   # cùng module server.main đã nạp
         # Mặc định chỉ máy này; bật cho điện thoại ở hộp /remote (KURO_HOST=0.0.0.0), điện thoại cần mã ghép trong QR
-        uvicorn.run(app, host=config.HOST, port=config.PORT, log_level="warning")
+        cfg = uvicorn.Config(app, host=config.HOST, port=config.PORT, log_level="warning")
+        srv = uvicorn.Server(cfg)
+        _UVICORN_SERVER = srv
+        srv.run()
     except BaseException as e:
         import traceback
         tb = traceback.format_exc()
@@ -1043,6 +1078,17 @@ def run_fastapi_server():
 
 def main():
     try:
+        # Khóa khởi động trên Windows để tránh 2 lần nhấp đúp liên tiếp tranh cổng 7788 cùng lúc
+        _startup_mutex = None
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                _startup_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\KuroOS_Desktop_Startup")
+                if _startup_mutex:
+                    ctypes.windll.kernel32.WaitForSingleObject(_startup_mutex, 8000)
+            except Exception:
+                _startup_mutex = None
+
         # Ẩn console của tiến trình con (claude...) và gom chúng vào job: tắt Kuro Desktop thì cả cây con tắt theo
         try:
             import winproc
@@ -1054,21 +1100,29 @@ def main():
         port = _read_kuro_port()
         app_url = f"http://127.0.0.1:{port}"
 
-        # 0. Giải phóng cổng nếu có tiến trình cũ chiếm giữ và chờ nhả cổng hoàn toàn
+        # 0. Giải phóng cổng & tắt tiến trình app_desktop.py cũ trước khi khởi chạy server mới
         free_port(port)
 
-        # 1. Đảm bảo server Kuro OS đang chạy với code mới nhất (chờ tối đa 30s cho máy yếu / quét Defender sau cập nhật)
+        # 1. Đảm bảo CHÍNH server của tiến trình này đã bind cổng thành công (không nhầm với tiến trình cũ đang tắt)
         print(f"[Kuro Desktop] Đang khởi động máy chủ Kuro OS cục bộ (cổng {port})...")
         server_thread = threading.Thread(target=run_fastapi_server, daemon=True)
         server_thread.start()
         ready = False
         for _ in range(150):
-            if _SERVER_ERROR:
+            if _SERVER_ERROR or not server_thread.is_alive():
                 break
             time.sleep(0.2)
-            if is_server_running(port):
+            if _UVICORN_SERVER is not None and getattr(_UVICORN_SERVER, "started", False) and is_server_running(port):
                 ready = True
                 break
+
+        if _startup_mutex and sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.kernel32.ReleaseMutex(_startup_mutex)
+                ctypes.windll.kernel32.CloseHandle(_startup_mutex)
+            except Exception:
+                pass
 
         if not ready:
             detail = (_SERVER_ERROR or f"Máy chủ cục bộ không phản hồi tại {app_url} sau 30 giây.").strip()
