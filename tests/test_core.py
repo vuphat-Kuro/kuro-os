@@ -298,10 +298,13 @@ class DocPdf(unittest.TestCase):
         """PDF thả vào chat hoặc dán đường dẫn có dấu cách: Kuro xuất ảnh từng trang và chữ cho AI."""
         import pypdfium2 as pdfium
         import doc_pdf
-        self.assertEqual(doc_pdf.doi_tcvn3("mÆt c¾t chi tiÕt ®Þnh h×nh"), "mặt cắt chi tiết định hình")
-        self.assertEqual(doc_pdf.doi_tcvn3("Ø16 a200 ø20 300×300"), "Ø16 a200 ø20 300×300")   # ký hiệu giữ nguyên
-        self.assertEqual(doc_pdf.doi_tcvn3("cét H300 KIÓM TRA DANH MôC"), "cột H300 KIỂM TRA DANH MỤC")
-        self.assertEqual(doc_pdf.doi_tcvn3("hä vµ tªn DỰ ÁN vËt t￾"), "họ và tên DỰ ÁN vật tư ")
+        doi = lambda s, f: "".join(doc_pdf.doi_ky_tu(c, f) for c in s)
+        self.assertEqual(doi("mÆt c¾t chi tiÕt ®Þnh h×nh", ".VnTime"), "mặt cắt chi tiết định hình")
+        self.assertEqual(doi("cét H300, l=12m", "VnAvantH"), "CỘT H300, L=12M")          # font đuôi H = chữ hoa
+        self.assertEqual(doi("CÔNG TRÌNH QUẢN LÝ Ø16", "Arial-BoldMT"), "CÔNG TRÌNH QUẢN LÝ Ø16")   # font Unicode giữ nguyên
+        gop = doc_pdf.gop_trang([["BAN QLDA", "MẶT CẮT A-A"], ["BAN QLDA", "CHI TIẾT A1"], ["BAN QLDA", "BẢNG KL"]])
+        self.assertEqual(gop.count("BAN QLDA"), 1)                                         # khung tên lặp: ghi một lần
+        self.assertIn("--- Trang 2 ---\nCHI TIẾT A1", gop)
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "II. BAN VE TRU P31.pdf"
             pdf = pdfium.PdfDocument.new()

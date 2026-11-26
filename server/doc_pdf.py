@@ -22,27 +22,38 @@ MAX_CHU = 20_000    # chữ đưa thẳng vào câu hỏi; bản đủ nằm tro
 MAX_PDF = 3
 
 
-_MA = {chr(k) for k in _TCVN3}
+# Nhận TCVN3 theo TÊN FONT của từng ký tự (VnAvantH, .VnTime, ABCDEF+VnArialNarrowH...), không đoán theo chữ: đoán
+# theo chữ từng làm hỏng Unicode chuẩn ("CÔNG" -> "CỄNG") vì Ô, Ì, Ý cũng là mã TCVN3. Font đuôi H là bộ chữ hoa.
+_FONT_TCVN3 = re.compile(r"^(?:[A-Z]{6}\+)?\.?Vn", re.I)
+_KIEU = re.compile(r"(Bold|Italic|Oblique|Medium|Light|Black|Narrow|Condensed|Regular|MT|PS|[-,])+$", re.I)
 
 
-def _doi_tu(m) -> str:
-    """Đổi một từ khi ký tự TCVN3 nằm sát chữ cái Latin ("chøc"); "ø20", "300×300" và từ Unicode giữ nguyên.
-    Font TCVN3 chữ hoa (.VnTimeH) dùng chung mã với chữ thường, nên từ toàn chữ hoa thì viết hoa lại."""
-    w = m.group(0)
-    if any(ord(c) > 0xFF for c in w):
-        return w
-    sat_chu = lambda j: 0 <= j < len(w) and w[j].isascii() and w[j].isalpha()
-    toan_ma = len(w) >= 2 and all(c in _MA for c in w)        # "§¸" = "Đá"
-    if not toan_ma and not any(c in _MA and (sat_chu(i - 1) or sat_chu(i + 1)) for i, c in enumerate(w)):
-        return w
-    v = w.translate(_TCVN3)
-    latin = [c for c in w if c.isascii() and c.isalpha()]
-    return v.upper() if len(latin) >= 2 and all(c.isupper() for c in latin) else v
+def la_tcvn3(font: str) -> bool:
+    return bool(_FONT_TCVN3.match(font or ""))
 
 
-def doi_tcvn3(dong: str) -> str:
-    # pdfium trả mã 0xAD (chữ "ư" của TCVN3) thành U+FFFE như dấu gạch nối mềm cuối dòng và nuốt dấu xuống dòng
-    return re.sub(r"\S+", _doi_tu, dong.replace("￾", "\xad "))
+def doi_ky_tu(c: str, font: str) -> str:
+    """Một ký tự đọc từ PDF: đổi sang Unicode nếu nằm trong font TCVN3, giữ nguyên nếu font Unicode."""
+    if not la_tcvn3(font):
+        return c
+    if c == "￾":    # pdfium báo mã 0xAD (chữ "ư" của TCVN3) như gạch nối mềm
+        c = "\xad"
+    c = c.translate(_TCVN3)
+    return c.upper() if _KIEU.sub("", font.split("+")[-1]).endswith("H") else c
+
+
+def _chu_trang(trang) -> list[str]:
+    """Các dòng chữ của một trang, ký tự font TCVN3 đã đổi sang Unicode."""
+    import ctypes
+    import pypdfium2.raw as raw
+    tp = trang.get_textpage()
+    buf, co = ctypes.create_string_buffer(128), ctypes.c_int()
+    out = []
+    for i in range(tp.count_chars()):
+        c = chr(raw.FPDFText_GetUnicode(tp.raw, i))
+        dai = raw.FPDFText_GetFontInfo(tp.raw, i, buf, 128, ctypes.byref(co))
+        out.append(doi_ky_tu(c, buf.value.decode("latin-1") if dai else ""))
+    return [d.strip() for d in "".join(out).splitlines() if d.strip()]
 
 
 def tim_pdf(text: str) -> list[Path]:
@@ -64,7 +75,7 @@ def doc(p: Path, ws_dir) -> str:
     try:
         n = len(pdf)
         m = min(n, MAX_TRANG)
-        chu = []
+        trang_chu = []
         for i in range(m):
             trang = pdf[i]
             anh = out / f"trang_{i + 1:03d}.png"
@@ -72,20 +83,31 @@ def doc(p: Path, ws_dir) -> str:
                 tam = anh.with_suffix(".tmp")
                 trang.render(scale=SCALE).to_pil().save(tam, format="PNG")
                 tam.replace(anh)
-            dong = (doi_tcvn3(d) for d in trang.get_textpage().get_text_range().splitlines())
-            chu.append(f"--- Trang {i + 1} ---\n" + "\n".join(d for d in dong if d.strip()))
+            trang_chu.append(_chu_trang(trang))
     finally:
         pdf.close()
-    toan_bo = "\n".join(chu)
+    toan_bo = gop_trang(trang_chu)
     (out / "chu.txt").write_text(toan_bo, encoding="utf-8")
     cat = toan_bo[:MAX_CHU] + (f"\n... (còn nữa, xem {out / 'chu.txt'})" if len(toan_bo) > MAX_CHU else "")
     thieu = f" Chỉ xuất {m}/{n} trang đầu." if m < n else ""
     return (f"\n\n[Kuro đã mở sẵn PDF: {p} - {n} trang]\n"
             f"- Ảnh từng trang (PNG 144 dpi): {out}\\trang_001.png ... trang_{m:03d}.png.{thieu}\n"
             "- Số kích thước, bảng thống kê trên bản vẽ CAD thường là nét vẽ nên KHÔNG có trong phần chữ dưới đây: "
-            "muốn bóc khối lượng phải mở ẢNH trang đó (công cụ xem ảnh/Read) và đọc số trên ảnh, không đoán. "
-            "Ghi rõ số trang và tên hình chiếu cho mỗi con số.\n"
+            "muốn bóc khối lượng phải mở ẢNH trang đó và đọc số trên ảnh, không đoán. Mở ảnh thẳng bằng công cụ xem "
+            "ảnh (Claude: Read; Codex: view_image), không cần liệt kê danh sách công cụ. Chỉ mở trang cần cho việc "
+            "đang làm (mỗi ảnh ~4k token). Ghi rõ số trang và tên hình chiếu cho mỗi con số.\n"
             f"- Chữ trích được (TCVN3 đã đổi sang Unicode):\n{cat}")
+
+
+def gop_trang(trang_chu: list[list[str]]) -> str:
+    """Ghép chữ các trang; dòng lặp ở nhiều trang (khung tên, ô ký) chỉ ghi một lần ở đầu: bản vẽ 59 trang giảm 59%."""
+    import collections
+    dem = collections.Counter(d for t in trang_chu for d in set(t))
+    lap = [d for d, c in dem.items() if c >= max(3, len(trang_chu) * 0.3)]
+    bo = set(lap)
+    phan = [f"--- Lặp lại ở nhiều trang (khung tên, ghi chú chung) ---\n" + "\n".join(lap)] if lap else []
+    phan += [f"--- Trang {i + 1} ---\n" + "\n".join(d for d in t if d not in bo) for i, t in enumerate(trang_chu)]
+    return "\n".join(phan)
 
 
 def khoi(text: str, ws_dir) -> str:

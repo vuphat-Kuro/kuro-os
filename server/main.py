@@ -2182,10 +2182,17 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
                 real_cli_total = int(saved_usage["total_tokens"])
                 window_source = "agy-real"
                 measured = True
-        elif sess_provider == "chatgpt" and saved_usage and int(saved_usage.get("total_tokens") or 0) > 0:
-            real_cli_total = int(saved_usage["total_tokens"])
-            window_source = "codex-real"
-            measured = True
+        elif sess_provider == "chatgpt":
+            # Ngữ cảnh thật = đầu vào của LẦN GỌI GẦN NHẤT (nhật ký ~/.codex/sessions). usage của turn.completed cộng dồn
+            # mọi lần gọi trong lượt nên từng hiện 222% (604k/272k) khi ngữ cảnh thật chỉ 101k (đo 26/11/2026).
+            t = token_stats.mot_phien([conv_id]) if conv_id else None
+            if t and t.get("ctx_cuoi"):
+                real_cli_total = int(t["ctx_cuoi"])
+            elif saved_usage and int(saved_usage.get("total_tokens") or 0) > 0:
+                real_cli_total = int(saved_usage["total_tokens"])
+            if real_cli_total:
+                window_source = "codex-real"
+                measured = True
 
         if real_cli_total > 0:
             fixed_overhead = mem_tokens + prompt_tokens + skill_tokens + system_tools_tokens + mcp_tools_tokens + agents_tokens

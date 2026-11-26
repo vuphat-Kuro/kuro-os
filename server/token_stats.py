@@ -184,7 +184,11 @@ def thong_ke(so_ngay: int = 7, home: Path | None = None) -> dict:
     o = [v for t, v in nguon.items() if not t.startswith("Kuro")]
     tb = lambda ds: round(sum(v["quy_doi"] for v in ds) / max(1, sum(v["goi"] for v in ds))) if ds else None
     so_sanh = {"kuro_tb": tb(k), "khac_tb": tb(o), "nguong": NGUONG_KURO}
-    so_sanh["vuot"] = bool(k and o and so_sanh["kuro_tb"] > so_sanh["khac_tb"]) or any(p["vuot"] for p in phien)
+    # Đỏ khi Kuro trung bình tốn hơn, hoặc phiên Kuro VỪA DÙNG còn nặng. Phiên cũ bỏ dở chỉ tô đỏ trong bảng: chúng
+    # không đốt thêm, và gõ tiếp vào là Kuro tự mở hội thoại mới (engine.chat), nên không giữ nút đỏ cả ngày.
+    gan = max((p for p in phien if p["nguon"].startswith("Kuro")), key=lambda p: p["cuoi"], default=None)
+    so_sanh["phien_gan_vuot"] = bool(gan and gan["vuot"])
+    so_sanh["vuot"] = bool(k and o and so_sanh["kuro_tb"] > so_sanh["khac_tb"]) or so_sanh["phien_gan_vuot"]
     phien.sort(key=lambda p: -p["quy_doi"])
     # phiên Kuro vượt ngưỡng luôn hiện (dù không lọt top 20) để người dùng thấy lý do báo đỏ
     hien = phien[:20] + [p for p in phien[20:] if p["vuot"]]
