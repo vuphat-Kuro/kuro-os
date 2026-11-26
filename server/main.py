@@ -533,14 +533,14 @@ def _parse_reset(txt: str):
 
 
 def _claude_usage(force: bool = False) -> dict | None:
-    """Hạn mức THẬT của gói Claude: chạy lệnh /usage của Claude Code (cục bộ, không gọi model), cache 60 giây.
+    """Hạn mức THẬT của gói Claude: chạy lệnh /usage của Claude Code (cục bộ, không gọi model), cache 5 phút (mỗi lần chạy ~4-10s).
     Phản ánh cả phần dùng ngoài Kuro (Claude Code, app Claude) vì là hạn mức của cả tài khoản."""
-    if not force and _USAGE["v"] and time.time() - _USAGE["t"] < 60:
+    if not force and _USAGE["v"] and time.time() - _USAGE["t"] < 300:
         return _USAGE["v"]
 
     async def go():
         from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient
-        async with ClaudeSDKClient(ClaudeAgentOptions(setting_sources=[], cwd=str(config.STATE))) as c:
+        async with ClaudeSDKClient(ClaudeAgentOptions(setting_sources=[], cwd=str(config.STATE), extra_args={"strict-mcp-config": None})) as c:
             await c.query("/usage")
             async for m in c.receive_response():
                 if isinstance(m, AssistantMessage):

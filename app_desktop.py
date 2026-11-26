@@ -978,12 +978,13 @@ def _kill_other_kuro_desktop_processes():
     pids: set[int] = set()
     try:
         import psutil
-        for proc in psutil.process_iter(["pid", "cmdline"]):
+        # Lọc theo tên trước: đọc cmdline của mọi tiến trình (~440 trên máy thường) mất ~3s, làm Kuro mở chậm 6-8s
+        for proc in psutil.process_iter(["pid", "name"]):
             try:
                 pid = proc.info.get("pid")
-                if not pid or pid in skip:
+                if not pid or pid in skip or not (proc.info.get("name") or "").lower().startswith("python"):
                     continue
-                cmd = " ".join(proc.info.get("cmdline") or []).lower()
+                cmd = " ".join(proc.cmdline() or []).lower()
                 if "app_desktop.py" in cmd:
                     pids.add(pid)
             except Exception:
@@ -999,6 +1000,8 @@ def _kill_other_kuro_desktop_processes():
 
 def free_port(port: int = 7788, wait_s: float = 6.0):
     """Giải phóng cổng nếu có tiến trình cũ chiếm giữ và đợi cổng thực sự được nhả (tránh WinError 10048)."""
+    if _is_port_free(port):
+        return   # mở bình thường (Kuro đã tắt hẳn): bỏ quét tiến trình, tiết kiệm 1.5-3s lúc mở app
     _kill_other_kuro_desktop_processes()
     try:
         import subprocess
