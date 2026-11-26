@@ -15,7 +15,10 @@ with contextlib.redirect_stdout(sys.stderr):   # stdout là kênh MCP: chữ in 
     import calc
     import config
     import kho
-    from mcp.server.mcpserver import MCPServer
+    try:   # mcp 2.x đổi tên FastMCP thành MCPServer; claude-agent-sdk cho phép mcp>=1.23,<3 nên máy khác có thể còn 1.x
+        from mcp.server.mcpserver import MCPServer
+    except ImportError:
+        from mcp.server.fastmcp import FastMCP as MCPServer
 
 SKILL_DIR = config.BRAIN / ".claude" / "skills"
 DOC_MAX = 60_000
