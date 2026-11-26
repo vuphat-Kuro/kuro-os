@@ -8,6 +8,7 @@ Luồng sự kiện gửi cho giao diện:
 """
 import asyncio
 import json
+import os
 import re
 import shutil
 import time
@@ -385,7 +386,7 @@ async def claude_models_caps() -> list[dict]:
     if _CAPS["models"] and time.time() - _CAPS["t"] < 3600:
         return _CAPS["models"]
     try:
-        async with ClaudeSDKClient(ClaudeAgentOptions(setting_sources=[], cwd=str(config.STATE))) as c:
+        async with ClaudeSDKClient(ClaudeAgentOptions(setting_sources=[], cwd=str(config.STATE), extra_args={"strict-mcp-config": None})) as c:
             info = await c.get_server_info()
         _CAPS.update(t=time.time(), models=info.get("models") or [])
     except Exception as e:
@@ -511,10 +512,25 @@ def cli_kind(provider: str | None = None) -> str | None:
     return (config.PROVIDERS.get(prov) or {}).get("cli")
 
 
+# Skill lập trình (làm plugin/MCP/hook cho Claude Code, soát repo code...) lọt vào brain khi nhập từ Javis: không phục vụ
+# kỹ sư hạ tầng mà tốn token mỗi hội thoại. Ẩn khỏi danh mục ở MỌI máy; tệp vẫn còn. KURO_SKILL_AN=a,b để ẩn thêm.
+SKILL_AN = {"agent-development", "build-mcp-app", "build-mcp-server", "build-mcpb", "claude-automation-recommender",
+            "claude-md-improver", "claude-security", "command-development", "frontend-design", "hook-development",
+            "mcp-integration", "playground", "plugin-settings", "plugin-structure", "project-artifact", "receipts",
+            "session-report", "skill-creator", "skill-development", "writing-hookify-rules"}
+
+
+def skill_an() -> set[str]:
+    return SKILL_AN | {s.strip() for s in os.getenv("KURO_SKILL_AN", "").split(",") if s.strip()}
+
+
 def skill_index() -> str:
     """Danh mục skill cho bộ não không tự nạp .claude/skills: tên, mô tả, đường dẫn để nó tự mở SKILL.md."""
     out = []
+    an = skill_an()
     for p in sorted((config.BRAIN / ".claude" / "skills").glob("*/SKILL.md")):
+        if p.parent.name in an:
+            continue
         raw = p.read_text(encoding="utf-8").replace("\r\n", "\n")
         try:
             meta = yaml.safe_load(raw.split("---\n", 2)[1]) if raw.startswith("---\n") else {}
@@ -532,7 +548,12 @@ def _quy_tac(ws_path: str) -> str:
     return workspace_rules.build_workspace_rules_prompt(Path(ws_path), get_workspaces_config()) + f"\n{KHO_MANG_CAM_XOA}"
 
 
-def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None, key: str | None = None) -> str:
+QUY_TAC_KURO_MCP = ("QUY TẮC BẮT BUỘC: câu hỏi chuyên môn thì gọi mcp__kuro__doc_skill_nganh đọc skill phù hợp trước; "
+                    "MỌI con số phải tính bằng mcp__kuro__tinh_python (kể cả phép nhân đơn giản), không tự nhẩm.\n")
+
+
+def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | None = None, key: str | None = None,
+               kuro_mcp: bool = False) -> str:
     ws_path = ws_dir or str(active_workspace_dir())
     ws_cfg = get_workspaces_config()
     co_quy_tac = workspace_rules.inspect_workspace_rules(Path(ws_path), ws_cfg)["has_rules"]
@@ -542,6 +563,8 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
         # quy tắc thư mục + kho mạng chỉ gửi lại khi khác lần trước (dự án vừa đổi quy tắc hoặc đổi thư mục):
         # gửi mỗi lượt tốn ~1k token mà AI vẫn còn bản cũ trong hội thoại
         gio = f"(Bây giờ là {datetime.now():%H:%M %d/%m/%Y}.)\n"
+        if kuro_mcp:   # hội thoại mở trước khi có kuro_mcp cũng biết dùng (~40 token mỗi lượt)
+            gio += QUY_TAC_KURO_MCP
         if key and _QUY_TAC_DA_GUI.get(key) == ws_rules:
             return f"{gio}\nCâu hỏi của người dùng:\n{text}"
         if key:
@@ -568,13 +591,22 @@ def cli_prompt(text: str, first: bool, agent: str = "kuro-core", ws_dir: str | N
                      "Đọc file thì được nếu công cụ cho phép; không đọc được thì dựa vào mô tả skill ở trên. Phép tính "
                      "làm trực tiếp trong câu trả lời, ghi rõ \"(chưa kiểm bằng script)\" cạnh mỗi kết quả.")
     agent_info = agent_prompt_block(agent)
-    return (f"<huong_dan_kuro>\n{system_append()}{agent_info}{ws_note}\n\n## Skill ngành\nCâu hỏi chuyên môn: đọc file SKILL.md phù hợp "
-            f"TRƯỚC khi trả lời rồi làm theo.\n{skill_index()}\n\n## Kho skill (specs/002)\nSkill trên không phủ việc thì tra "
-            f"kho 230 skill (DDC xây dựng, archify, anatomy...): mục lục `{kho.MUC_LUC}` (id, ten, mo_ta tiếng Anh, "
-            f"duong_dan), đọc SKILL.md ở `{config.ROOT}/<duong_dan>`. Ghi tên skill và repo đã dùng. CHỈ chạy mã của "
-            f"skill có trong `{kho.SO_GOC}`. Dữ liệu giá CWICR cấm dùng thương mại: báo trước khi dùng.\n\n"
+    if kuro_mcp:   # Codex có máy chủ MCP của Kuro (kuro_mcp.py): skill và phép tính đi qua công cụ, như đường Claude
+        calc_rule = ("MỌI phép tính ra con số: gọi công cụ tinh_python của Kuro (theo skill tinh-toan-ky-thuat: ghi đơn vị, "
+                     "kiểm chéo bằng cách thứ hai), ghi đường dẫn script tinh-toan/... vào câu trả lời. Không tự nhẩm.")
+        doc_skill_hd = ("Câu hỏi chuyên môn: gọi công cụ doc_skill_nganh(ten=<tên skill>) của Kuro để đọc skill phù hợp "
+                        "TRƯỚC khi trả lời rồi làm theo đúng quy trình trong skill; ghi tên skill đã dùng.")
+        kho_hd = "tìm bằng công cụ tim_skill (từ khoá tiếng Anh), đọc bằng doc_skill, chạy mã đã duyệt bằng chay_ma_kho."
+    else:
+        doc_skill_hd = "Câu hỏi chuyên môn: đọc file SKILL.md phù hợp TRƯỚC khi trả lời rồi làm theo."
+        kho_hd = (f"mục lục `{kho.MUC_LUC}` (id, ten, mo_ta tiếng Anh, duong_dan), đọc SKILL.md ở "
+                  f"`{config.ROOT}/<duong_dan>`. CHỈ chạy mã của skill có trong `{kho.SO_GOC}`.")
+    return (f"<huong_dan_kuro>\n{system_append()}{agent_info}{ws_note}\n\n## Skill ngành\n{doc_skill_hd}\n{skill_index()}"
+            f"\n\n## Kho skill (specs/002)\nSkill trên không phủ việc thì tra kho 230 skill (DDC xây dựng, archify, "
+            f"anatomy...): {kho_hd} Ghi tên skill và repo đã dùng. Dữ liệu giá CWICR cấm dùng thương mại: báo trước khi dùng.\n\n"
             f"## Tính toán\n{calc_rule}{tiet_kiem.huong_dan(can_shell)}\n</huong_dan_kuro>\n\n"
-            "Câu hỏi của người dùng:\n" + text)
+            # nhắc lại sát câu hỏi: đặt giữa khối hướng dẫn dài thì Codex bỏ qua, tự nhẩm (thử 26/11/2026)
+            + (QUY_TAC_KURO_MCP if kuro_mcp else "") + "Câu hỏi của người dùng:\n" + text)
 
 
 async def mot_lan(prompt: str, timeout: int = 120, provider: str | None = None, model: str | None = None) -> tuple[str, str]:
@@ -766,7 +798,8 @@ async def _engine_turn(prompt: str, resume: str | None, cur: str, agent: str = "
         eff_model = model
         if kind == "agy" and thinking in THINK_LEVELS:
             eff_model = await cli_engines.agy_model_for_thinking(model or config.get_provider_model(cur), thinking)
-        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path, key=resume),
+        async for ev in cli_engines.run(kind, cli_prompt(prompt, resume is None, agent=agent, ws_dir=ws_path, key=resume,
+                                                         kuro_mcp=(kind == "codex")),
                                         resume, cwd=ws_path, model=eff_model, provider=cur, thinking=thinking):
             if ev["type"] == "final" and ev.get("claude_id") and resume is None:
                 _QUY_TAC_DA_GUI[ev["claude_id"]] = _quy_tac(ws_path)   # lượt đầu đã gửi quy tắc trong khối hướng dẫn

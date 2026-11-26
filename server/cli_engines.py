@@ -17,6 +17,7 @@ thư mục làm việc, nên không coi sandbox của codex là lớp bảo vệ
 import asyncio
 import json
 import os
+import sys
 import re
 import shutil
 import subprocess
@@ -102,6 +103,24 @@ async def agy_model_for_thinking(model: str | None, thinking: str | None) -> str
     return model
 
 
+KURO_MCP_TOOLS = ["doc_skill_nganh", "tinh_python", "tim_skill", "doc_skill", "chay_ma_kho"]   # = kuro_mcp.TOOLS
+
+
+def kuro_mcp_args() -> list[str]:
+    """Cờ -c cho codex: chạy server/kuro_mcp.py (stdio) bằng python của venv Kuro."""
+    py = Path(sys.executable)
+    if py.with_name("python.exe").is_file():   # Kuro Desktop chạy pythonw; MCP stdio dùng python.exe cùng venv
+        py = py.with_name("python.exe")
+    q = lambda p: str(p).replace("\\", "/")
+    ds = ", ".join(f'"{t}"' for t in KURO_MCP_TOOLS)
+    return ["-c", f'mcp_servers.kuro.command="{q(py)}"',
+            "-c", f'mcp_servers.kuro.args=["{q(Path(__file__).with_name("kuro_mcp.py"))}"]',
+            "-c", f"mcp_servers.kuro.enabled_tools=[{ds}]",
+            # approval_policy=never từ chối MCP tool cần duyệt (Codex gọi được nhưng bị chặn, thử 26/11/2026):
+            # công cụ của chính Kuro thì cho chạy luôn
+            "-c", 'mcp_servers.kuro.default_tools_approval_mode="approve"']
+
+
 def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | None = None, write: bool = True, provider: str | None = None,
          thinking: str | None = None) -> tuple[list[str], bytes | None]:
     """Trả (lệnh, dữ liệu stdin). codex nhận prompt qua stdin nên không vướng giới hạn dòng lệnh Windows."""
@@ -116,6 +135,7 @@ def _cmd(kind: str, prompt: str, resume: str | None, shell: bool, model: str | N
         if shell:   # elevated lỗi quyền trên máy thường; unelevated chạy được (xem ghi chú đầu file)
             cmd += ["-c", "windows.sandbox=\"unelevated\""]
         cmd += tiet_kiem.codex_args(shell)   # context-mode: cất kết quả dài vào kho tìm kiếm, bớt token
+        cmd += kuro_mcp_args()               # skill ngành + tinh_python của Kuro: AI nào cũng dùng được như Claude
         if thinking in _CODEX_EFFORT:
             cmd += ["-c", f'model_reasoning_effort="{_CODEX_EFFORT[thinking]}"']
         if chosen_model:

@@ -266,6 +266,29 @@ class TietKiem(unittest.TestCase):
             store.delete_session(sid)
             (engine.TOM_TAT_DIR / f"{sid}.md").unlink(missing_ok=True)
 
+    def test_skill_va_cong_cu_cho_moi_ai(self):
+        """Codex dùng được skill ngành và tinh_python qua kuro_mcp.py như Claude."""
+        import cli_engines
+        import engine
+        import kuro_mcp
+        sk = Path(config.BRAIN) / ".claude" / "skills" / "tinh-thu"
+        sk.mkdir(parents=True, exist_ok=True)
+        (sk / "SKILL.md").write_text("---\nname: tinh-thu\n---\nDùng tinh_python.", encoding="utf-8")
+        self.assertIn("Dùng tinh_python", kuro_mcp.doc_skill_nganh_text("tinh-thu"))
+        lt = Path(config.BRAIN) / ".claude" / "skills" / "plugin-structure"            # skill lập trình: ẩn ở mọi máy
+        lt.mkdir(parents=True, exist_ok=True)
+        (lt / "SKILL.md").write_text("---\nname: plugin-structure\n---\n", encoding="utf-8")
+        self.assertIn("tinh-thu", engine.skill_index())
+        self.assertNotIn("plugin-structure", engine.skill_index())
+        self.assertIn("[LỖI]", kuro_mcp.doc_skill_nganh_text("tinh-thu", "../../../.env"))   # không đi ra ngoài skill
+        self.assertIn("[LỖI]", kuro_mcp.doc_skill_nganh_text("../config"))
+        self.assertEqual(cli_engines.KURO_MCP_TOOLS, kuro_mcp.TOOLS)
+        args = " ".join(cli_engines.kuro_mcp_args())
+        self.assertIn('default_tools_approval_mode="approve"', args)              # không bị approval_policy=never chặn
+        with tempfile.TemporaryDirectory() as d:
+            p = engine.cli_prompt("12 x 6 x 94 bằng bao nhiêu", True, ws_dir=d, kuro_mcp=True)
+        self.assertIn("mcp__kuro__tinh_python", p.split("Câu hỏi của người dùng:")[0][-400:])   # nhắc sát câu hỏi
+
     def test_nguong_theo_cua_so_model(self):
         """Ngưỡng theo % cửa sổ của model (cố định 100k làm model 1M nhảy hội thoại sau 1-2 câu)."""
         from unittest import mock

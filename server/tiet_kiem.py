@@ -92,7 +92,9 @@ def codex_args(shell: bool) -> list[str]:
     ds = ", ".join(f'"{t}"' for t in ctx_tools(shell))
     return ["-c", 'mcp_servers.context-mode.command="node"',
             "-c", f'mcp_servers.context-mode.args=["{srv.replace(chr(92), "/")}", "--agent", "codex"]',
-            "-c", f"mcp_servers.context-mode.enabled_tools=[{ds}]"]
+            "-c", f"mcp_servers.context-mode.enabled_tools=[{ds}]",
+            # approval_policy=never từ chối MCP tool cần duyệt; danh sách tool đã lọc theo quyền Bash ở trên
+            "-c", 'mcp_servers.context-mode.default_tools_approval_mode="approve"']
 
 
 def huong_dan(shell: bool) -> str:
