@@ -2285,6 +2285,11 @@
   .ctx-usage-summary { display:flex; flex-direction:column; align-items:flex-end; }
   #ctx-used-percent { font:700 13px/1.2 var(--hud); color:var(--cyan-soft); }
   #ctx-used-ratio { font:500 10.5px/1 var(--hud); color:var(--muted); }
+  .ctx-nen-btn { width:100%; margin:10px 0 4px; padding:8px 10px; font:600 12px/1 var(--hud); letter-spacing:.06em;
+    color:var(--cyan-soft); background:transparent; border:1px solid var(--line-hi); border-radius:8px; cursor:pointer; }
+  .ctx-nen-btn:hover:not(:disabled) { background:rgba(34,211,238,.1); }
+  .ctx-nen-btn:disabled { opacity:.55; cursor:wait; }
+  .ctx-nen-msg { display:block; font-size:11.5px; color:var(--muted); min-height:1em; }
 
   .ctx-env-card {
     background:rgba(13,29,44,.5); border:1px solid var(--line); padding:8px 10px; display:flex; flex-direction:column; gap:7px;
@@ -6551,6 +6556,11 @@
       <div class="ctx-stacked-bar" id="ctx-stacked-bar">
         <!-- Các segment màu được render bằng JS -->
       </div>
+      <button type="button" id="btn-nen-ngu-canh" class="ctx-nen-btn"
+        title="AI tóm tắt phiên (giữ số liệu, tệp, việc còn dở); câu tiếp theo bắt đầu hội thoại mới chỉ với bản tóm tắt">
+        🗜 Nén ngữ cảnh
+      </button>
+      <small id="ctx-nen-msg" class="ctx-nen-msg"></small>
 
       <!-- Bảng danh mục chi tiết thành phần token -->
       <div class="ctx-breakdown-list" id="ctx-breakdown-list">

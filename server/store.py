@@ -183,6 +183,17 @@ def set_conv_id(sid: str, provider: str, conv_id: str) -> None:
        (combined, json.dumps(conv_map, ensure_ascii=False), time.time(), sid))
 
 
+def bo_conv_id(sid: str, provider: str) -> None:
+    """Bỏ hội thoại của một AI trong phiên (nén ngữ cảnh): lượt sau AI đó bắt đầu hội thoại mới, AI khác giữ nguyên."""
+    prov = (provider or "claude").strip()
+    conv_map = get_conv_ids(sid)
+    conv_map.pop(prov, None)
+    owner, conv = parse_conv_id((get(sid) or {}).get("claude_id"))
+    combined = f"{owner}:{conv}" if owner and owner != prov and conv else None
+    _q("UPDATE sessions SET claude_id=?, conv_ids=?, updated=? WHERE id=?",
+       (combined, json.dumps(conv_map, ensure_ascii=False), time.time(), sid))
+
+
 def set_agent(sid: str, agent: str) -> None:
     _q("UPDATE sessions SET agent=?, updated=? WHERE id=?", (agent, time.time(), sid))
 

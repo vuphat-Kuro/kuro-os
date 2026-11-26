@@ -7976,8 +7976,8 @@ async function kiemTraTokenLuot(sid, el) {
       const div = document.createElement("div");
       div.className = "tk-luot-do";
       div.innerHTML = `🔴 Ngữ cảnh đã <b>${tkSo(t.ctx_cuoi)}</b> / ${tkSo(t.cua_so)} token, vượt ngưỡng ${tkSo(t.nguong)}. ` +
-        `Câu hỏi tiếp theo Kuro sẽ tự mở hội thoại mới với AI và bàn giao 8 tin gần nhất để giảm token. ` +
-        `Việc mới hẳn thì bấm <b>+</b> mở phiên mới.`;
+        `Câu hỏi tiếp theo Kuro sẽ tự nén ngữ cảnh (AI tóm tắt, mở hội thoại mới). Muốn nén ngay: bấm ` +
+        `<b>🗜 Nén ngữ cảnh</b> ở bảng Ngữ cảnh. Việc mới hẳn thì bấm <b>+</b>.`;
       el.insertAdjacentElement("afterend", div);
     }
   } catch (_) {}
@@ -7986,6 +7986,26 @@ async function kiemTraTokenLuot(sid, el) {
 }
 capNhatNutToken();
 $("btn-token-stats") && ($("btn-token-stats").onclick = moTokenStats);
+
+// Nút Nén ngữ cảnh (bảng Ngữ cảnh): AI tóm tắt phiên, câu tiếp theo mở hội thoại mới chỉ với bản tóm tắt
+$("btn-nen-ngu-canh") && ($("btn-nen-ngu-canh").onclick = async () => {
+  const btn = $("btn-nen-ngu-canh"), msg = $("ctx-nen-msg");
+  if (!session) { msg.textContent = "Chưa chọn phiên chat nào."; return; }
+  if (runningSessions.has(session)) { msg.textContent = "Phiên đang trả lời, đợi xong lượt này rồi nén."; return; }
+  btn.disabled = true;
+  msg.textContent = "AI đang tóm tắt phiên (khoảng 10-40 giây)...";
+  try {
+    const r = await fetch(`/api/sessions/${encodeURIComponent(session)}/compact`, { method: "POST" }).then(x => x.json());
+    if (!r.ok) throw new Error(r.error || "Không nén được");
+    msg.textContent = `Đã nén${r.truoc ? ` từ ${tkSo(r.truoc)} token` : ""}. Câu hỏi tiếp theo bắt đầu hội thoại mới với bản tóm tắt.`;
+    await openSession(session);
+    loadSessionContext(session);
+  } catch (e) {
+    msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
 $("tk-refresh") && ($("tk-refresh").onclick = moTokenStats);
 $("tk-days") && ($("tk-days").onchange = moTokenStats);
 

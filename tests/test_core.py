@@ -232,6 +232,40 @@ class TietKiem(unittest.TestCase):
         self.assertTrue(seen["prompt"].endswith("câu mới"))
         self.assertIn("150,000", evs[0]["text"])
 
+    def test_nen_ngu_canh(self):
+        """Nút Nén ngữ cảnh: AI tóm tắt, bỏ hội thoại cũ của AI đang dùng, lượt sau mở mới với bản tóm tắt."""
+        import asyncio
+        import engine
+        import store
+        sid = "test-nen-ngu-canh"
+        store.init()
+        store.ensure(sid, title="t", provider="chatgpt")
+        store.set_conv_id(sid, "claude", "c-cu")
+        store.set_conv_id(sid, "chatgpt", "g-cu")
+        goi = []
+
+        async def fake(prompt, resume, cur, **_):
+            goi.append((prompt, resume, cur))
+            yield {"type": "text", "text": "TÓM TẮT: cột H300 12 thanh = 7,14 t"}
+            yield {"type": "final", "text": "", "claude_id": "g-moi"}
+
+        keep = engine._engine_turn
+        engine._engine_turn = fake
+        try:
+            kq = asyncio.run(engine.nen_phien(sid))
+            self.assertTrue(kq["ok"])
+            self.assertEqual(goi[0][1:], ("g-cu", "chatgpt"))                      # tóm tắt trong hội thoại cũ
+            self.assertEqual(store.get_conv_ids(sid), {"claude": "c-cu"})          # bỏ hội thoại Codex, giữ Claude
+            self.assertTrue((engine.TOM_TAT_DIR / f"{sid}.md").is_file())
+            asyncio.run(engine.chat(sid, "làm tiếp", provider="chatgpt"))
+            self.assertIsNone(goi[1][1])                                           # hội thoại mới
+            self.assertIn("7,14 t", goi[1][0])                                     # mang bản tóm tắt
+            self.assertFalse((engine.TOM_TAT_DIR / f"{sid}.md").is_file())         # dùng xong thì xoá
+        finally:
+            engine._engine_turn = keep
+            store.delete_session(sid)
+            (engine.TOM_TAT_DIR / f"{sid}.md").unlink(missing_ok=True)
+
     def test_nguong_theo_cua_so_model(self):
         """Ngưỡng theo % cửa sổ của model (cố định 100k làm model 1M nhảy hội thoại sau 1-2 câu)."""
         from unittest import mock

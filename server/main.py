@@ -2285,6 +2285,17 @@ def default_context():
     return collect_context_snapshot(sid=None, agent_slug="kuro-core")
 
 
+@app.post("/api/sessions/{sid}/compact")
+async def session_compact(sid: str):
+    """Nút Nén ngữ cảnh: AI tóm tắt phiên, bỏ hội thoại cũ; câu tiếp theo mở hội thoại mới chỉ với bản tóm tắt."""
+    if sid in session_chat_tasks and not session_chat_tasks[sid].done():
+        return {"ok": False, "error": "Phiên đang trả lời, đợi xong lượt này rồi nén."}
+    kq = await engine.nen_phien(sid)
+    if kq.get("ok"):
+        await manager.broadcast({"type": "session_saved", "id": sid})   # máy khác (điện thoại) tải lại lịch sử
+    return kq
+
+
 @app.get("/api/sessions/{sid}/token")
 def session_token(sid: str):
     """Token của phiên Kuro này (lần gọi gần nhất so với ngưỡng): giao diện báo đỏ ngay sau lượt chat."""

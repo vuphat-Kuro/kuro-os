@@ -709,7 +709,8 @@ def build_handoff_context(messages: list[dict], max_msgs: int = 8, max_chars: in
 
 async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None,
                    model: str | None = None, provider: str | None = None, conv_ids: dict[str, str] | None = None,
-                   handoff_messages: list[dict] | None = None, thinking: str | None = None, lam_moi: int = 0):
+                   handoff_messages: list[dict] | None = None, thinking: str | None = None, lam_moi: int = 0,
+                   tom_tat_cu: str = ""):
     """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp.
     lam_moi > 0 (token mỗi lần gọi của hội thoại cũ): bỏ hội thoại cũ, mở mới với bàn giao tin gần nhất."""
     cur = provider or config.PROVIDER or "claude"
@@ -722,12 +723,18 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
     switched = bool(owner and owner != cur)
     effective_prompt = prompt
 
-    if lam_moi:   # hội thoại với AI quá nặng (config.nguong_ngu_canh, 80% cửa sổ): sắp chạm giới hạn ngữ cảnh
+    if lam_moi or tom_tat_cu:   # nén ngữ cảnh: hội thoại mới chỉ mang bản tóm tắt (hoặc 8 tin gần nhất nếu không có)
         resume_id = None
-        block, n_msgs = build_handoff_context(handoff_messages or [], max_msgs=8)
-        effective_prompt = block + prompt
-        yield {"type": "text", "text": f"_(Hội thoại với AI đã nặng {lam_moi:,} token mỗi lần gọi: Kuro mở hội thoại mới "
-                                       f"và bàn giao {n_msgs} tin gần nhất để tiết kiệm token.)_\n\n"}
+        if tom_tat_cu:
+            effective_prompt = f"<tom_tat_phien_truoc>\n{tom_tat_cu}\n</tom_tat_phien_truoc>\n\n{prompt}"
+            cach = "chuyển bản tóm tắt phiên (số liệu, tệp, việc còn dở)"
+        else:
+            block, n_msgs = build_handoff_context(handoff_messages or [], max_msgs=8)
+            effective_prompt = block + prompt
+            cach = f"bàn giao {n_msgs} tin gần nhất"
+        if lam_moi:
+            yield {"type": "text", "text": f"_(Ngữ cảnh đã {lam_moi:,} token, chạm ngưỡng: Kuro nén ngữ cảnh, mở hội thoại "
+                                           f"mới và {cach}.)_\n\n"}
     elif switched:
         prov_name = config.PROVIDERS.get(cur, {}).get("ten", cur)
         if handoff_messages:
@@ -835,6 +842,54 @@ async def _dien_hoa_turn(job: dict, ws_path: str, emit) -> str:
     return head + body
 
 
+TOM_TAT_DIR = config.STATE / "tom-tat"   # <sid>.md: bản tóm tắt chờ hội thoại mới nhận (nút Nén ngữ cảnh)
+TOM_TAT = ("Kuro sắp NÉN NGỮ CẢNH: hội thoại này sẽ bị bỏ, hội thoại mới chỉ nhận bản tóm tắt bạn viết bây giờ. "
+           "KHÔNG gọi công cụ. Viết tiếng Việt, dưới 700 từ, gồm:\n"
+           "1. Mục tiêu, yêu cầu của người dùng.\n"
+           "2. Kết quả đã có: GIỮ NGUYÊN mọi số liệu, đơn vị, bảng khối lượng (bảng Markdown), kèm nguồn (trang, hình chiếu, tệp).\n"
+           "3. Tệp đã đọc/tạo (đường dẫn đầy đủ), trang bản vẽ đã xem.\n"
+           "4. Việc còn dở, giả định cần xác minh, bước tiếp theo.")
+
+
+async def tom_tat(provider: str, model: str | None, resume_id: str, ws_path: str, agent: str = "kuro-core") -> str:
+    """AI tóm tắt chính hội thoại đang có (đọc lại từ bộ nhớ đệm nên rẻ); chuỗi rỗng nếu lỗi."""
+    chu, cuoi = [], ""
+    try:
+        async for ev in _engine_turn(TOM_TAT, resume_id, provider, agent=agent, cwd=ws_path, model=model, thinking="off"):
+            if ev["type"] == "text":
+                chu.append(ev["text"])
+            elif ev["type"] == "final":
+                cuoi = ev.get("text") or ""
+            elif ev["type"] == "error":
+                return ""
+    except Exception:
+        return ""
+    return ("".join(chu) or cuoi).strip()
+
+
+async def nen_phien(sid: str) -> dict:
+    """Nút Nén ngữ cảnh: tóm tắt, bỏ hội thoại cũ của AI đang dùng; câu tiếp theo mở hội thoại mới với bản tóm tắt."""
+    sess = store.get(sid)
+    if not sess:
+        return {"ok": False, "error": "Không tìm thấy phiên."}
+    prov = store.session_provider(sess) or config.PROVIDER or "claude"
+    conv = store.get_conv_ids(sess).get(prov)
+    if not conv:
+        return {"ok": False, "error": "Phiên này chưa có hội thoại với AI nên chưa có gì để nén."}
+    model = sess.get("model") or config.get_provider_model(prov) or None
+    truoc = await asyncio.to_thread(token_stats.mot_phien, [conv], None, prov, model or "")
+    tt = await tom_tat(prov, model, conv, sess.get("workspace") or str(active_workspace_dir()), sess.get("agent") or "kuro-core")
+    if not tt:
+        return {"ok": False, "error": "AI chưa tóm tắt được (mất mạng, hết hạn mức hoặc lỗi đăng nhập). Ngữ cảnh giữ nguyên."}
+    TOM_TAT_DIR.mkdir(parents=True, exist_ok=True)
+    (TOM_TAT_DIR / f"{sid}.md").write_text(tt, encoding="utf-8")
+    store.bo_conv_id(sid, prov)
+    ctx = (truoc or {}).get("ctx_cuoi", 0)
+    store.add(sid, "assistant", f"_(Đã nén ngữ cảnh{f' từ {ctx:,} token' if ctx else ''}. Câu hỏi tiếp theo AI bắt đầu "
+                                f"hội thoại mới chỉ với bản tóm tắt dưới đây.)_\n\n{tt}", provider=prov)
+    return {"ok": True, "tom_tat": tt, "truoc": ctx}
+
+
 async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspace: str | None = None,
                model: str | None = None, provider: str | None = None, thinking: str | None = None) -> str:
     """Một lượt hoàn chỉnh: lưu câu hỏi, chạy theo provider riêng của phiên, đẩy sự kiện qua emit, lưu câu trả lời."""
@@ -877,11 +932,17 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
 
     # Kuro phải rẻ hơn dùng AI trực tiếp: hội thoại cũ đã quá ngưỡng thì mở mới thay vì đọc lại cả khối mỗi câu
     lam_moi = 0
-    if prev_msgs and (cur_id := conv_ids.get(chosen_provider)):
+    tep_tt = TOM_TAT_DIR / f"{sid}.md"
+    tom_tat_cu = tep_tt.read_text(encoding="utf-8") if tep_tt.is_file() else ""   # người dùng vừa bấm Nén ngữ cảnh
+    if not tom_tat_cu and prev_msgs and (cur_id := conv_ids.get(chosen_provider)):
         t = await asyncio.to_thread(token_stats.mot_phien, [cur_id], None, chosen_provider,
                                     chosen_model or config.get_provider_model(chosen_provider))
         if t and t["vuot"]:
             lam_moi = t["ctx_cuoi"]
+            if emit:
+                await emit({"type": "tool", "name": "Kuro nén ngữ cảnh", "input": {"token": lam_moi}})
+            # tóm tắt trong chính hội thoại cũ (đọc lại từ bộ nhớ đệm, rẻ) để không mất số liệu đã bóc
+            tom_tat_cu = await tom_tat(chosen_provider, chosen_model or None, cur_id, ws_path, agent)
 
     shown, final = [], ""
     async for ev in run_turn(
@@ -895,6 +956,7 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
         handoff_messages=prev_msgs if prev_msgs else None,
         thinking=thinking,
         lam_moi=lam_moi,
+        tom_tat_cu=tom_tat_cu,
     ):
         if ev["type"] == "text":
             shown.append(ev["text"])
@@ -923,5 +985,7 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
         if emit:
             await emit({k: v for k, v in ev.items() if k not in ("claude_id", "init_tools")})
     answer = "".join(shown) or final
+    if tep_tt.is_file() and store.get_conv_ids(sid).get(chosen_provider):
+        tep_tt.unlink(missing_ok=True)   # hội thoại mới đã nhận bản tóm tắt
     store.add(sid, "assistant", answer, provider=chosen_provider)
     return answer
