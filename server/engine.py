@@ -27,6 +27,7 @@ import doc_pdf
 import config
 import store
 import tiet_kiem
+import token_stats
 import workspace_rules
 
 
@@ -412,6 +413,9 @@ def options(claude_id: str | None, agent: str = "kuro-core", cwd: str | None = N
         permission_mode="dontAsk",
         hooks={"PreToolUse": [HookMatcher(hooks=[chan_xoa_kho_mang])]},
         mcp_servers={**mcp_from_file(), **ctx_mcp, "kuro": calc.SERVER},
+        # Chỉ MCP khai ở trên. Không có cờ này Claude CLI tự kéo kết nối claude.ai của tài khoản (Canva, Slack, Drive...:
+        # 116 tool, ~72k token mỗi lần gọi, đo 26/11/2026) và MCP toàn máy trong ~/.claude.json vào mọi phiên Kuro
+        extra_args={"strict-mcp-config": None},
         include_partial_messages=True,
         # Mặc định 1 MB: đọc tệp đính kèm lớn (PDF, Excel, txt) sinh một dòng JSON vượt mức là báo CLIJSONDecodeError.
         # Read của Claude Code tối đa ~20 MB PDF (~27 MB base64): 256 MB dư nhiều, chỉ tốn RAM khi có dòng lớn thật.
@@ -506,7 +510,7 @@ async def mot_lan(prompt: str, timeout: int = 120, provider: str | None = None, 
             else:
                 opts = ClaudeAgentOptions(model=eff_model, env=config.provider_env(eff_model, provider=prov),
                                           max_turns=1, tools=[], setting_sources=[], permission_mode="dontAsk",
-                                          cwd=str(config.STATE))
+                                          cwd=str(config.STATE), extra_args={"strict-mcp-config": None})
                 async for m in query(prompt=prompt, options=opts):
                     if isinstance(m, ResultMessage):
                         text = m.result or ""
@@ -531,7 +535,8 @@ async def ping(provider: str | None = None, model: str | None = None) -> dict:
                 "error": loi_tieng_viet(err, provider=prov, model=eff_model)[:600], "provider": prov}
     env = config.provider_env(eff_model, provider=prov)
     opts = ClaudeAgentOptions(model=eff_model or None, env=env, max_turns=1, tools=[],
-                              setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE))
+                              setting_sources=[], permission_mode="dontAsk", cwd=str(config.STATE),
+                              extra_args={"strict-mcp-config": None})
     text, err = "", ""
     url = env.get("ANTHROPIC_BASE_URL")
     if url:
@@ -623,8 +628,9 @@ def build_handoff_context(messages: list[dict], max_msgs: int = 8, max_chars: in
 
 async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro-core", cwd: str | None = None,
                    model: str | None = None, provider: str | None = None, conv_ids: dict[str, str] | None = None,
-                   handoff_messages: list[dict] | None = None, thinking: str | None = None):
-    """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp."""
+                   handoff_messages: list[dict] | None = None, thinking: str | None = None, lam_moi: int = 0):
+    """Sinh sự kiện của một lượt; sự kiện final mang claude_id "<id AI>:<mã>" để lượt sau nối tiếp.
+    lam_moi > 0 (token mỗi lần gọi của hội thoại cũ): bỏ hội thoại cũ, mở mới với bàn giao tin gần nhất."""
     cur = provider or config.PROVIDER or "claude"
     owner, conv = split_conv(claude_id)
     conv_map = dict(conv_ids or {})
@@ -635,7 +641,13 @@ async def run_turn(prompt: str, claude_id: str | None = None, agent: str = "kuro
     switched = bool(owner and owner != cur)
     effective_prompt = prompt
 
-    if switched:
+    if lam_moi:   # hội thoại với AI quá nặng (token_stats.NGUONG_KURO): mỗi câu tiếp theo sẽ đọc lại cả khối
+        resume_id = None
+        block, n_msgs = build_handoff_context(handoff_messages or [], max_msgs=8)
+        effective_prompt = block + prompt
+        yield {"type": "text", "text": f"_(Hội thoại với AI đã nặng {lam_moi:,} token mỗi lần gọi: Kuro mở hội thoại mới "
+                                       f"và bàn giao {n_msgs} tin gần nhất để tiết kiệm token.)_\n\n"}
+    elif switched:
         prov_name = config.PROVIDERS.get(cur, {}).get("ten", cur)
         if handoff_messages:
             handoff_block, n_msgs = build_handoff_context(handoff_messages, max_msgs=4 if resume_id else 8)
@@ -781,6 +793,13 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
             await emit({"type": "tool", "name": "Kuro mở PDF", "input": {"pdf": [str(p) for p in doc_pdf.tim_pdf(text)]}})
         prompt += await asyncio.to_thread(doc_pdf.khoi, text, ws_path)
 
+    # Kuro phải rẻ hơn dùng AI trực tiếp: hội thoại cũ đã quá ngưỡng thì mở mới thay vì đọc lại cả khối mỗi câu
+    lam_moi = 0
+    if prev_msgs and (cur_id := conv_ids.get(chosen_provider)):
+        t = await asyncio.to_thread(token_stats.mot_phien, [cur_id])
+        if t and t["vuot"]:
+            lam_moi = t["ctx_cuoi"]
+
     shown, final = [], ""
     async for ev in run_turn(
         prompt,
@@ -792,6 +811,7 @@ async def chat(sid: str, text: str, agent: str = "kuro-core", emit=None, workspa
         conv_ids=conv_ids,
         handoff_messages=prev_msgs if prev_msgs else None,
         thinking=thinking,
+        lam_moi=lam_moi,
     ):
         if ev["type"] == "text":
             shown.append(ev["text"])

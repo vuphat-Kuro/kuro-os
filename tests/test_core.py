@@ -206,6 +206,31 @@ class TietKiem(unittest.TestCase):
             o = engine.options(None, cwd=d, provider="claude")
         self.assertNotIn("Bây giờ là", o.system_prompt["append"])
         self.assertEqual((o.skills, "Skill" in o.tools), ([], False))           # dự án không có .claude/skills
+        self.assertIn("strict-mcp-config", o.extra_args)                       # không kéo kết nối claude.ai (~72k token)
+
+    def test_hoi_thoai_qua_nang_thi_mo_moi(self):
+        """Lần gọi trước quá ngưỡng: không resume hội thoại cũ, bàn giao tin gần nhất, báo cho người dùng."""
+        import asyncio
+        import engine
+        seen = {}
+
+        async def fake(prompt, resume, cur, **_):
+            seen.update(prompt=prompt, resume=resume)
+            yield {"type": "final", "text": "ok"}
+
+        keep = engine._engine_turn
+        engine._engine_turn = fake
+        try:
+            async def chay():
+                return [ev async for ev in engine.run_turn(
+                    "câu mới", "claude:cu", provider="claude", conv_ids={"claude": "cu"},
+                    handoff_messages=[{"role": "user", "text": "câu cũ"}], lam_moi=150000)]
+            evs = asyncio.run(chay())
+        finally:
+            engine._engine_turn = keep
+        self.assertIsNone(seen["resume"])
+        self.assertTrue(seen["prompt"].endswith("câu mới"))
+        self.assertIn("150,000", evs[0]["text"])
 
     def test_cli_quy_tac_chi_gui_khi_doi(self):
         import engine
@@ -235,6 +260,37 @@ class TietKiem(unittest.TestCase):
                     self.assertEqual(tiet_kiem.codex_args(shell=True), [])
             finally:
                 tiet_kiem.context_mode.cache_clear()
+
+
+class TokenStats(unittest.TestCase):
+    def test_tach_nguon_va_khong_dem_trung(self):
+        import datetime as dt
+        import token_stats
+        now = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+        u = {"input_tokens": 10, "cache_creation_input_tokens": 1000, "cache_read_input_tokens": 50000, "output_tokens": 200}
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            for ep, ten in (("sdk-py", "kuro"), ("claude-desktop", "desk")):
+                p = home / ".claude" / "projects" / ten
+                p.mkdir(parents=True)
+                dong = json.dumps({"type": "assistant", "entrypoint": ep, "timestamp": now,
+                                   "message": {"id": "m1", "usage": u, "content": []}})
+                (p / "s.jsonl").write_text(dong + "\n" + dong + "\n", encoding="utf-8")   # một lần gọi, hai dòng
+            c = home / ".codex" / "sessions" / "2026"
+            c.mkdir(parents=True)
+            (c / "r.jsonl").write_text(
+                json.dumps({"payload": {"originator": "codex_exec", "cwd": "E:/du-an"}}) + "\n"
+                + json.dumps({"timestamp": now, "type": "event_msg", "payload": {"type": "token_count", "info": {
+                    "last_token_usage": {"input_tokens": 3000, "cached_input_tokens": 2000, "output_tokens": 10}}}}) + "\n",
+                encoding="utf-8")
+            r = token_stats.thong_ke(1, home=home)
+        mot_lan = token_stats.quy_doi(10, 1000, 50000, 200)
+        self.assertEqual(r["nguon"]["Kuro (Claude)"]["goi"], 1)
+        self.assertEqual(r["nguon"]["Kuro (Claude)"]["quy_doi"], round(mot_lan))
+        self.assertIn("Claude Desktop", r["nguon"])
+        self.assertEqual(r["nguon"]["Kuro (Codex)"]["moi"], 1000)                 # input 3000 gồm 2000 đọc lại
+        self.assertEqual(r["phien"][0]["max_ctx"], 51010)
+        self.assertEqual(r["nguon"]["Kuro (Claude)"]["tiet_kiem"], round(0.9 * 50000 - 0.25 * 1000))
 
 
 class DocPdf(unittest.TestCase):

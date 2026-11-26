@@ -40,6 +40,7 @@ from tra_cuu_hop_dong import tra_cuu_hop_dong
 import scheduler
 import store
 import telegram
+import token_stats
 import goi
 import kho
 import update
@@ -280,6 +281,13 @@ def local_only(req: Request) -> None:
     """Key, cài đặt, duyệt mã, cập nhật: chỉ trên chính máy tính, điện thoại đã ghép cũng không đổi được."""
     if not (may_nay(req) and is_local(req.headers)):
         raise HTTPException(403, "Chỉ mở được trên máy tính chạy Kuro")
+
+
+@app.get("/api/token-stats", dependencies=[Depends(local_only)])
+def get_token_stats(days: int = 7):
+    """Token đã đốt theo nguồn (Kuro, Claude Desktop/Code, Codex): đọc nhật ký trên máy, không gọi API.
+    Chỉ máy này: lộ tên dự án và câu hỏi đầu của các phiên AI khác."""
+    return token_stats.thong_ke(max(1, min(days, 90)))
 
 
 @app.get("/api/settings", dependencies=[Depends(local_only)])
@@ -2276,6 +2284,13 @@ def collect_context_snapshot(sid: str = None, agent_slug: str = None) -> dict:
 def default_context():
     """Thông số ngữ cảnh mặc định của hệ thống khi bắt đầu phiên mới."""
     return collect_context_snapshot(sid=None, agent_slug="kuro-core")
+
+
+@app.get("/api/sessions/{sid}/token")
+def session_token(sid: str):
+    """Token của phiên Kuro này (lần gọi gần nhất so với ngưỡng): giao diện báo đỏ ngay sau lượt chat."""
+    ids = store.get_conv_ids(sid) if store.get(sid) else {}
+    return token_stats.mot_phien(list(ids.values())) or {}
 
 
 @app.get("/api/sessions/{sid}/context")

@@ -6068,6 +6068,10 @@
         <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-message-circle-more"/></svg></span>
         <span class="btn-text">Bóng chat</span>
       </button>
+      <button id="btn-token-stats" class="btn-hdr" type="button" title="Quản lý token đã đốt: Kuro, Claude, Codex">
+        <span class="btn-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-gauge"/></svg></span>
+        <span class="btn-text">Token</span>
+      </button>
       <button id="btn-theme-toggle" class="btn-hdr" type="button" title="Đổi chế độ Giao diện Sáng / Tối">
         <span class="btn-icon" id="theme-toggle-icon"><svg class="ic ic-sm" aria-hidden="true"><use href="#ic-moon"/></svg></span>
         <span class="btn-text" id="theme-toggle-text">Bản tối</span>
@@ -6773,6 +6777,49 @@
     </div>
   </form>
 </dialog>
+
+<!-- DIALOG QUẢN LÝ TOKEN -->
+<dialog id="token-dialog" aria-labelledby="tk-title" style="width:min(940px, calc(100vw - 32px));">
+  <form class="dialog-form" method="dialog">
+    <h2 id="tk-title">QUẢN LÝ TOKEN</h2>
+    <p class="sub">Token đã đốt theo nguồn, đọc từ nhật ký trên máy (không tốn token). Số "quy đổi" = token đầu vào tương đương theo giá.</p>
+    <div class="tk-bar-top">
+      <select id="tk-days" aria-label="Khoảng thời gian"><option value="1">Hôm nay</option><option value="7" selected>7 ngày</option><option value="30">30 ngày</option></select>
+      <button class="btn" type="button" id="tk-refresh">Làm mới</button>
+    </div>
+    <div id="tk-body"><p class="sub">Đang đọc nhật ký...</p></div>
+    <div class="foot">
+      <span id="tk-msg" role="status"></span>
+      <button class="btn" type="submit">Đóng</button>
+    </div>
+  </form>
+</dialog>
+<style>
+  .tk-bar-top { display:flex; gap:8px; align-items:center; margin:6px 0 12px; }
+  .tk-bar-top select { width:auto; flex:none; }
+  .tk-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; }
+  .tk-card { padding:10px 12px; border:1px solid var(--line-hi); border-radius:8px; }
+  .tk-card b { display:block; font-size:20px; margin:4px 0 2px; }
+  .tk-card .tk-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .tk-card small { color:var(--muted); }
+  .tk-days { margin:16px 0 6px; display:flex; flex-direction:column; gap:5px; }
+  .tk-day { display:grid; grid-template-columns:62px 1fr 80px; gap:8px; align-items:center; font-size:12.5px; }
+  .tk-track { display:flex; height:14px; background:rgba(127,127,127,.12); border-radius:4px; overflow:hidden; }
+  .tk-track span { height:100%; }
+  .tk-table-wrap { overflow-x:auto; margin-top:12px; }
+  .tk-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .tk-table th, .tk-table td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .tk-table td.num { text-align:right; white-space:nowrap; }
+  .tk-warn { color:#ef4444; font-weight:700; }
+  .tk-tip { margin-top:10px; padding:8px 12px; border-left:3px solid var(--amber); background:rgba(245,158,11,.08); font-size:13px; }
+  .tk-do-box { border-left-color:#ef4444; background:rgba(239,68,68,.1); margin:0 0 12px; }
+  .tk-xanh-box { border-left-color:#34d399; background:rgba(52,211,153,.08); margin:0 0 12px; }
+  .tk-card-do { border-color:#ef4444; box-shadow:0 0 0 1px #ef4444 inset; }
+  .tk-row-do td { background:rgba(239,68,68,.08); }
+  .btn-hdr.tk-do { color:#ef4444 !important; border-color:#ef4444 !important; box-shadow:0 0 0 1px rgba(239,68,68,.5); }
+  .tk-luot-do { margin:6px 0 10px; padding:8px 12px; border-left:3px solid #ef4444; background:rgba(239,68,68,.1);
+    color:var(--text); font-size:13px; border-radius:4px; }
+</style>
 
 <!-- DIALOG CÀI ĐẶT -->
 <dialog id="settings" aria-labelledby="s-title">

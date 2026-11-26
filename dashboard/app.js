@@ -2516,6 +2516,7 @@ function connect() {
           }
           bot = null;
           botText = "";
+          if (typeof kiemTraTokenLuot === "function") kiemTraTokenLuot(targetSid, targetEl);
           if (!document.body.classList.contains("err")) mood("happy");
           $("log").scrollTop = $("log").scrollHeight;
         }
@@ -7831,4 +7832,106 @@ loadModels().catch(() => {});
 fetchAndRenderQuota().catch(() => {});
 checkUpdate().catch(() => {});
 setInterval(() => checkUpdate().catch(() => {}), 3600e3);
+
+// ===== Quản lý token: so Kuro với Claude Desktop/Code và Codex (server/token_stats.py) =====
+const TK_MAU = { "Kuro (Claude)": "#22d3ee", "Kuro (Codex)": "#34d399", "Claude Desktop": "#f97316",
+  "Claude Code (terminal)": "#facc15", "Codex trực tiếp": "#a78bfa" };
+const tkMau = (ten) => TK_MAU[ten] || "#94a3b8";
+const tkSo = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + " tr" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(Math.round(n));
+
+async function moTokenStats() {
+  const dlg = $("token-dialog");
+  if (!dlg) return;
+  if (!dlg.open) dlg.showModal();
+  const body = $("tk-body");
+  body.innerHTML = '<p class="sub">Đang đọc nhật ký...</p>';
+  let r;
+  try {
+    const res = await fetch(`/api/token-stats?days=${$("tk-days").value}`);
+    if (!res.ok) throw new Error(res.status === 403 ? "Chỉ xem được trên máy tính chạy Kuro" : `Lỗi máy chủ (${res.status})`);
+    r = await res.json();
+  } catch (e) {
+    body.innerHTML = `<p class="sub" style="color:#ef4444">${escapeHtml(e.message)}</p>`;
+    return;
+  }
+  const nguon = Object.entries(r.nguon).sort((a, b) => b[1].quy_doi - a[1].quy_doi);
+  const tong = nguon.reduce((s, [, v]) => s + v.quy_doi, 0) || 1;
+  const kuro = nguon.filter(([k]) => k.startsWith("Kuro")).reduce((s, [, v]) => s + v.quy_doi, 0);
+  const ss = r.so_sanh || {};
+  capNhatNutToken(r);
+  const cards = nguon.map(([ten, v]) => `
+    <div class="tk-card ${ten.startsWith("Kuro") && ss.khac_tb && v.tb_goi > ss.khac_tb ? "tk-card-do" : ""}"><span class="tk-dot" style="background:${tkMau(ten)}"></span>${escapeHtml(ten)}
+      <b>${tkSo(v.quy_doi)}</b><small>${Math.round(v.quy_doi / tong * 100)}% · ${v.goi} lần gọi · ${tkSo(v.tb_goi)}/lần · ra ${tkSo(v.ra)}</small>
+      <small style="display:block;color:#34d399">Đã tiết kiệm ${tkSo(v.tiet_kiem)}</small></div>`).join("");
+  const daTiet = nguon.reduce((s, [, v]) => s + v.tiet_kiem, 0);
+  const maxNgay = Math.max(1, ...r.ngay.map(d => nguon.reduce((s, [, v]) => s + (v.theo_ngay[d] || 0), 0)));
+  const days = r.ngay.slice().reverse().map(d => {
+    const tongNgay = nguon.reduce((s, [, v]) => s + (v.theo_ngay[d] || 0), 0);
+    const seg = nguon.map(([ten, v]) => {
+      const w = (v.theo_ngay[d] || 0) / maxNgay * 100;
+      return w > 0 ? `<span title="${escapeHtml(ten)}: ${tkSo(v.theo_ngay[d])}" style="width:${w}%;background:${tkMau(ten)}"></span>` : "";
+    }).join("");
+    return `<div class="tk-day"><span>${d.slice(8, 10)}/${d.slice(5, 7)}</span><div class="tk-track">${seg}</div><span style="text-align:right">${tkSo(tongNgay)}</span></div>`;
+  }).join("");
+  const kuroDo = r.phien.filter(p => p.vuot);
+  const banner = ss.kuro_tb == null ? "" : ss.vuot
+    ? `<div class="tk-tip tk-do-box">🔴 <b>Kuro đang tốn hơn mức cho phép.</b> ${ss.khac_tb != null && ss.kuro_tb > ss.khac_tb
+        ? `Trung bình ${tkSo(ss.kuro_tb)}/lần gọi, cao hơn AI dùng trực tiếp (${tkSo(ss.khac_tb)}/lần). ` : ""}${kuroDo.length
+        ? `${kuroDo.length} phiên Kuro có lần gọi gần nhất trên ${tkSo(ss.nguong)} token (dòng tô đỏ bên dưới). Câu hỏi tiếp theo trong phiên đó Kuro sẽ tự mở hội thoại mới với AI; việc mới hẳn thì bấm <b>+</b>.` : ""}</div>`
+    : `<div class="tk-tip tk-xanh-box">✅ Kuro tiết kiệm hơn: trung bình <b>${tkSo(ss.kuro_tb)}</b>/lần gọi${ss.khac_tb != null
+        ? `, AI dùng trực tiếp ${tkSo(ss.khac_tb)}/lần (Kuro ít hơn ${Math.round((1 - ss.kuro_tb / ss.khac_tb) * 100)}%)` : ""}.</div>`;
+  const rows = r.phien.map(p => `<tr class="${p.vuot ? "tk-row-do" : ""}">
+      <td><span class="tk-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tkMau(p.nguon)}"></span> ${escapeHtml(p.nguon)}</td>
+      <td>${escapeHtml(p.du_an || "")}<br><small style="color:var(--muted)">${escapeHtml(p.cau_dau || "")}</small></td>
+      <td class="num">${p.goi}</td><td class="num">${tkSo(p.quy_doi)}</td><td class="num" style="color:#34d399">${tkSo(p.tiet_kiem)}</td>
+      <td class="num ${p.qua_dai ? "tk-warn" : ""}">${tkSo(p.max_ctx)}${p.qua_dai ? " ⚠" : ""}</td></tr>`).join("");
+  const dai = r.phien.filter(p => p.qua_dai && !p.nguon.startsWith("Kuro")).length;
+  body.innerHTML = `${banner}
+    <div class="tk-cards">${cards || '<p class="sub">Chưa có lượt gọi AI nào trong khoảng này.</p>'}</div>
+    <p class="sub" style="margin-top:10px">Kuro chiếm <b>${Math.round(kuro / tong * 100)}%</b> tổng token quy đổi trong khoảng này.
+      Đã tiết kiệm <b style="color:#34d399">${tkSo(daTiet)}</b> nhờ bộ nhớ đệm (đã tiêu ${tkSo(tong)}, không có bộ nhớ đệm sẽ là ${tkSo(tong + daTiet)})${r.rtk != null ? `, cộng <b style="color:#34d399">${tkSo(r.rtk)}</b> token RTK cắt khỏi đầu ra lệnh shell` : ""}.</p>
+    <div class="tk-days">${days}</div>
+    ${dai ? `<div class="tk-tip">⚠ ${dai} phiên ngoài Kuro có ngữ cảnh trên ${tkSo(r.canh_bao_ctx)} token: mỗi câu hỏi Claude đọc lại cả khối đó. Mở phiên mới cho việc mới để giảm mạnh token.</div>` : ""}
+    <div class="tk-table-wrap"><table class="tk-table"><thead><tr><th>Nguồn</th><th>Dự án · câu hỏi đầu</th><th>Lần gọi</th><th>Quy đổi</th><th>Đã tiết kiệm</th><th>Ngữ cảnh lớn nhất</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <p class="sub" style="margin-top:10px">${escapeHtml(r.ghi_chu)}</p>`;
+}
+// Nút Token đỏ khi Kuro tốn hơn AI dùng trực tiếp hoặc có phiên Kuro vượt ngưỡng (số liệu hôm nay)
+async function capNhatNutToken(r) {
+  const btn = $("btn-token-stats");
+  if (!btn) return;
+  try {
+    if (!r) {
+      const res = await fetch("/api/token-stats?days=1");
+      if (!res.ok) return;   // điện thoại đã ghép: mục này chỉ mở trên máy tính
+      r = await res.json();
+    }
+    const ss = r.so_sanh || {};
+    btn.classList.toggle("tk-do", !!ss.vuot);
+    btn.title = ss.vuot ? "🔴 Kuro đang tốn token hơn mức cho phép - bấm để xem" :
+      `Quản lý token${ss.kuro_tb != null ? ` - Kuro trung bình ${tkSo(ss.kuro_tb)}/lần gọi` : ""}`;
+  } catch (_) {}
+}
+
+// Sau mỗi lượt chat: lượt này Kuro gửi bao nhiêu token mỗi lần gọi; quá ngưỡng thì báo đỏ ngay dưới câu trả lời
+async function kiemTraTokenLuot(sid, el) {
+  try {
+    const res = await fetch(`/api/sessions/${encodeURIComponent(sid)}/token`);
+    const t = res.ok ? await res.json() : {};
+    if (t.vuot && el && el.parentNode) {
+      const div = document.createElement("div");
+      div.className = "tk-luot-do";
+      div.innerHTML = `🔴 Lượt này Kuro gửi <b>${tkSo(t.ctx_cuoi)}</b> token mỗi lần gọi (ngưỡng ${tkSo(t.nguong)}). ` +
+        `Câu hỏi tiếp theo Kuro sẽ tự mở hội thoại mới với AI và bàn giao 8 tin gần nhất để giảm token. ` +
+        `Việc mới hẳn thì bấm <b>+</b> mở phiên mới.`;
+      el.insertAdjacentElement("afterend", div);
+    }
+  } catch (_) {}
+  capNhatNutToken();
+  if ($("token-dialog") && $("token-dialog").open) moTokenStats();
+}
+capNhatNutToken();
+$("btn-token-stats") && ($("btn-token-stats").onclick = moTokenStats);
+$("tk-refresh") && ($("tk-refresh").onclick = moTokenStats);
+$("tk-days") && ($("tk-days").onchange = moTokenStats);
 
