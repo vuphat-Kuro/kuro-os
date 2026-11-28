@@ -389,6 +389,37 @@ class DocPdf(unittest.TestCase):
             anh = list(ws.rglob("trang_*.png"))
             self.assertEqual(len(anh), 2)
             self.assertEqual(doc_pdf.khoi(str(p), ws), out)                       # lần 2 dùng lại ảnh đã xuất
+            self.assertIn("phong_to_pdf", out)
+            kq = doc_pdf.phong_to(str(p), 2, "60,60,100,100", 300, ws)           # % cũng nhận
+            from PIL import Image
+            with Image.open(re.search(r": (\S+\.png)", kq).group(1)) as anh:
+                co = anh.size
+            for thuc, mong in zip(co, (842 * 0.4 * 300 / 72, 595 * 0.4 * 300 / 72)):  # đúng vùng 40% x 40%, 300 dpi
+                self.assertAlmostEqual(thuc, mong, delta=1.5)
+            with self.assertRaises(ValueError):
+                doc_pdf.phong_to(str(p), 3, "0,0,1,1", 300, ws)                  # sai trang
+            with self.assertRaises(ValueError):
+                doc_pdf.phong_to(str(p), 1, "0,0,1", 300, ws)                    # thiếu số
+
+    def test_so_boc_khoi_luong(self):
+        """Bảng khối lượng ghi ra Excel + .md trong dự án; lưu lại cùng tên thì thay; '12,5' không bị đọc thành 125."""
+        import openpyxl
+        import khoi_luong
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "03_KET_QUA").mkdir()
+            bang = [["Cấu kiện", "ĐV", "KL"], ["Cọc", "m3", "12.5"], ["Bệ", "m3", "12,5"]]
+            khoi_luong.luu("Trụ P1", bang, "bv.pdf tr3", d)
+            kq = khoi_luong.luu("Trụ P1", bang[:2], "bv.pdf tr3", d)
+            f = Path(d) / "03_KET_QUA" / "BOC_KHOI_LUONG.xlsx"
+            self.assertIn(str(f), kq)
+            ws = openpyxl.load_workbook(f)["Trụ P1"]
+            self.assertEqual((ws["C2"].value, ws["A3"].value), (12.5, None))
+            khoi_luong.luu("Bệ", bang, "bv.pdf tr4", d)
+            self.assertEqual(openpyxl.load_workbook(f).sheetnames, ["Trụ P1", "Bệ"])
+            self.assertEqual(openpyxl.load_workbook(f)["Bệ"]["C3"].value, "12,5")
+            self.assertIn("## Bệ", f.with_suffix(".md").read_text(encoding="utf-8"))
+            with self.assertRaises(ValueError):
+                khoi_luong.luu("X", bang, "", d)                                  # bắt buộc ghi nguồn
 
 
 class Origin(unittest.TestCase):

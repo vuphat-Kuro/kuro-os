@@ -117,6 +117,44 @@ async def goi_tien_ich(args):
     return _text(text)
 
 
+DESC_PHONG_TO = ("Phóng to MỘT VÙNG của trang PDF (bản vẽ) thành ảnh PNG độ phân giải cao (mặc định 300 dpi) để đọc số "
+                 "kích thước nhỏ, bảng thống kê thép/khối lượng. pdf: đường dẫn tệp PDF; trang: số trang (từ 1); vung: "
+                 "'x0,y0,x1,y1' tỉ lệ 0-1 tính từ góc TRÊN-TRÁI trang (vd góc dưới phải: '0.6,0.6,1,1'); dpi: tùy chọn. "
+                 "Trả về đường dẫn ảnh, mở ảnh để đọc.")
+DESC_LUU_KL = ("Lưu MỘT bảng khối lượng đã bóc vào sổ BOC_KHOI_LUONG.xlsx của dự án đang mở (mỗi hạng mục một sheet, "
+               "lưu lại cùng ten thì thay bảng cũ) kèm bản .md để đọc lại. Gọi ngay khi bóc xong mỗi bảng. ten: tên hạng "
+               "mục/cấu kiện; bang: danh sách dòng, dòng đầu là tiêu đề cột (vd STT, Cấu kiện, Đơn vị, Khối lượng, Diễn "
+               "giải, Nguồn), số để dạng số; nguon: tệp bản vẽ + trang + hình chiếu; ghi_chu: giả định, chỗ cần xác minh.")
+
+
+def _ws():
+    import engine   # nhập muộn: engine nhập calc
+    return engine.active_workspace_dir()
+
+
+@tool("phong_to_pdf", DESC_PHONG_TO, {"pdf": str, "trang": int, "vung": str, "dpi": int})
+async def phong_to_pdf(args):
+    import doc_pdf
+    try:
+        text = await asyncio.to_thread(doc_pdf.phong_to, args["pdf"], args["trang"], args["vung"],
+                                       args.get("dpi") or doc_pdf.DPI_PHONG, _ws())
+    except Exception as e:   # PDF hỏng, sai trang, sai vùng: báo cho AI sửa lời gọi
+        text = f"[LỖI] {e}"
+    return _text(text)
+
+
+@tool("luu_khoi_luong", DESC_LUU_KL, {"ten": str, "bang": list, "nguon": str, "ghi_chu": str})
+async def luu_khoi_luong(args):
+    import khoi_luong
+    try:
+        text = await asyncio.to_thread(khoi_luong.luu, args["ten"], args["bang"], args.get("nguon", ""), _ws(),
+                                       args.get("ghi_chu", ""))
+    except ValueError as e:
+        text = f"[LỖI] {e}"
+    return _text(text)
+
+
 KHO_TOOLS = ["mcp__kuro__tim_skill", "mcp__kuro__doc_skill", "mcp__kuro__chay_ma_kho", "mcp__kuro__dien_hoa",
-             "mcp__kuro__goi_tien_ich"]
-SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho, dien_hoa_tool, goi_tien_ich])
+             "mcp__kuro__goi_tien_ich", "mcp__kuro__phong_to_pdf", "mcp__kuro__luu_khoi_luong"]
+SERVER = create_sdk_mcp_server("kuro", tools=[tinh_python, tim_skill, doc_skill, chay_ma_kho, dien_hoa_tool, goi_tien_ich,
+                                              phong_to_pdf, luu_khoi_luong])

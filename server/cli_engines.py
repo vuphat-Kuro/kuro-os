@@ -103,7 +103,8 @@ async def agy_model_for_thinking(model: str | None, thinking: str | None) -> str
     return model
 
 
-KURO_MCP_TOOLS = ["doc_skill_nganh", "tinh_python", "tim_skill", "doc_skill", "chay_ma_kho"]   # = kuro_mcp.TOOLS
+KURO_MCP_TOOLS = ["doc_skill_nganh", "tinh_python", "tim_skill", "doc_skill", "chay_ma_kho", "phong_to_pdf",
+                  "luu_khoi_luong"]   # = kuro_mcp.TOOLS
 
 
 def kuro_mcp_args() -> list[str]:

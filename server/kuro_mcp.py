@@ -14,7 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 with contextlib.redirect_stdout(sys.stderr):   # stdout là kênh MCP: chữ in lúc nạp (vd đồng bộ gói) làm hỏng giao thức
     import calc
     import config
+    import doc_pdf
     import kho
+    import khoi_luong
     try:   # mcp 2.x đổi tên FastMCP thành MCPServer; claude-agent-sdk cho phép mcp>=1.23,<3 nên máy khác có thể còn 1.x
         from mcp.server.mcpserver import MCPServer
     except ImportError:
@@ -75,7 +77,23 @@ def chay_ma_kho(skill: str, tep: str, doi_so: list[str] | None = None) -> str:
         return f"[LỖI] {e}"
 
 
-TOOLS = ["doc_skill_nganh", "tinh_python", "tim_skill", "doc_skill", "chay_ma_kho"]
+@srv.tool(description=calc.DESC_PHONG_TO)
+def phong_to_pdf(pdf: str, trang: int, vung: str, dpi: int = doc_pdf.DPI_PHONG) -> str:
+    try:
+        return doc_pdf.phong_to(pdf, trang, vung, dpi, Path.cwd())
+    except Exception as e:
+        return f"[LỖI] {e}"
+
+
+@srv.tool(description=calc.DESC_LUU_KL)
+def luu_khoi_luong(ten: str, bang: list[list], nguon: str, ghi_chu: str = "") -> str:
+    try:
+        return khoi_luong.luu(ten, bang, nguon, Path.cwd(), ghi_chu)
+    except ValueError as e:
+        return f"[LỖI] {e}"
+
+
+TOOLS = ["doc_skill_nganh", "tinh_python", "tim_skill", "doc_skill", "chay_ma_kho", "phong_to_pdf", "luu_khoi_luong"]
 
 if __name__ == "__main__":
     srv.run("stdio")
